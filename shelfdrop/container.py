@@ -9,9 +9,15 @@ from typing import Final
 
 import httpx
 import wireup
+from sqlalchemy import Engine
 
 from shelfdrop.config import Settings
 from shelfdrop.db.engine import open_engine, open_session
+from shelfdrop.releases.clients.prowlarr import ProwlarrClient
+from shelfdrop.releases.jobs import SearchBoard
+from shelfdrop.releases.repository import ReleaseRepository, repository_factory
+from shelfdrop.releases.service import ReleaseService
+from shelfdrop.releases.types import ReleaseOptions
 from shelfdrop.works.clients.anilist import AniListClient
 from shelfdrop.works.clients.bnf import BnfClient
 from shelfdrop.works.clients.kitsu import KitsuClient
@@ -50,6 +56,30 @@ async def open_http(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
         yield client
 
 
+async def open_prowlarr(
+    settings: Settings, options: ReleaseOptions
+) -> AsyncIterator[ProwlarrClient]:
+    """The client of Prowlarr (a singleton), on its own HTTP client: a search of Prowlarr waits
+    on every tracker, far longer than a metadata source. Its own deadline comes a little after
+    the one of the search (ReleaseOptions.timeout_seconds)."""
+    key = settings.prowlarr_api_key
+    async with httpx.AsyncClient(
+        headers={"User-Agent": user_agent(settings)},
+        timeout=httpx.Timeout(options.timeout_seconds + 5),
+    ) as http:
+        yield ProwlarrClient(
+            http, settings.prowlarr_url, None if key is None else key.get_secret_value()
+        )
+
+
+def new_search_board(
+    prowlarr: ProwlarrClient, engine: Engine, options: ReleaseOptions, clock: Clock
+) -> SearchBoard:
+    """The searches of Prowlarr of every request (a singleton); its cache on sessions of its
+    own, since a search outlives its request."""
+    return SearchBoard(prowlarr, repository_factory(engine), options, clock)
+
+
 def new_work_sources(http: httpx.AsyncClient, settings: Settings) -> WorkSources:
     """Every metadata client, in the order of the list of the sources that did not answer;
     MyAnimeList only with its Client ID."""
@@ -79,12 +109,17 @@ def injectables(settings: Settings) -> list[object]:
             SearchOptions(source_rest_seconds=settings.source_rest_seconds), as_type=SearchOptions
         ),
         wireup.instance(Clock(), as_type=Clock),
+        wireup.instance(ReleaseOptions(), as_type=ReleaseOptions),
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.injectable(open_http),
         wireup.injectable(new_work_sources),
+        wireup.injectable(open_prowlarr),
+        wireup.injectable(new_search_board),
         wireup.injectable(open_engine),
         wireup.injectable(open_session, lifetime="scoped"),
         wireup.injectable(WorkRepository, lifetime="scoped"),
         wireup.injectable(WorkService, lifetime="scoped"),
+        wireup.injectable(ReleaseRepository, lifetime="scoped"),
+        wireup.injectable(ReleaseService, lifetime="scoped"),
     ]

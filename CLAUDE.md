@@ -1,6 +1,6 @@
 # shelfdrop
 
-Finds, downloads and shelves manga, books and audiobooks into Jellyfin. Today: the search of a work in the metadata sources, its HTTP route, and the front-end (`web/`), served by the API.
+Finds, downloads and shelves manga, books and audiobooks into Jellyfin. Today: the search of a work in the metadata sources, the search of its releases in Prowlarr with the trackers and the filters, their HTTP routes, and the front-end (`web/`), served by the API.
 
 ## Stack
 - Python 3.13 (`requires-python = ">=3.13"`), dependencies managed by uv; `uv.lock` is committed. Flat layout (`[tool.uv.build-backend] module-root = ""`).
@@ -16,8 +16,9 @@ Details per file and symbol: [docs/development.md](docs/development.md#module-ma
 - `shelfdrop/container.py`: `injectables(settings)`, the one list of wireup registrations, and the HTTP client and the metadata clients it builds.
 - `shelfdrop/db/`: engine and sessions, ORM models (registry `shelfdrop/db/models/__init__.py`), Alembic migrations.
 - `shelfdrop/works/`: the work search: `service.py` (`WorkService`), `repository.py` (the cache), `flights.py` (the searches running and the sources at rest, shared by the requests), the pure rules `merge.py`, `ranking.py` and `names.py`, `types.py`, `exceptions.py`, and `clients/`, one module per metadata source plus `http.py`, their requests.
+- `shelfdrop/releases/`: the release search in Prowlarr: `service.py` (`ReleaseService`), `jobs.py` (`SearchBoard`: the searches in memory, shared, queued, cached), `repository.py`, the pure rules `guess.py`, `scoring.py`, `results.py`, `trackers.py`, `types.py`, `exceptions.py`, and `clients/prowlarr.py`.
 - `shelfdrop/http/`: global HTTP layer: errors, middlewares, `release_session`; `shelfdrop/logging/`: logging shared by the API and the CLI; `shelfdrop/utils/`: generic pure helpers.
-- `shelfdrop/modules/<feature>/`: one package per HTTP feature (`health`, `works`, `web`: the pages of the front-end).
+- `shelfdrop/modules/<feature>/`: one package per HTTP feature (`health`, `works`, `searches`, `trackers`, `filters`, `web`: the pages of the front-end).
 - `shelfdrop/cli/`: the `shelfdrop` command (`shelfdrop db upgrade`, `shelfdrop db check`).
 - `web/`: the front-end; its visible texts are in `web/src/texts.ts` and follow [docs/writing.md](docs/writing.md).
 - `tests/unit/`, `tests/integration/`: see Testing rules. `docker/`: `api.Dockerfile`, `compose.yaml` (the stack) and `compose.test.yaml` (the test stack, over it). `.githooks/pre-push`: the gates before each push.
@@ -33,7 +34,7 @@ Details per file and symbol: [docs/development.md](docs/development.md#module-ma
   - Pure rule modules (`merge.py`, `ranking.py`, `names.py`) do no I/O. A `Protocol` stays in the file that consumes it (`MetadataClient` in `shelfdrop/works/service.py`). Helpers and constants used by a single file stay in that file. `__init__.py` files stay empty, except the model registry.
 - Utilities: a generic, pure helper goes in `shelfdrop/utils/<topic>.py`: it names no domain of this project, imports only the standard library, raises nothing and writes no message (`normalize`, `parse_isbn`).
 - Every Dockerfile (`docker/<image>.Dockerfile`) and Compose file (`docker/compose*.yaml`) lives in `docker/`; the build context is the repository root, with its single `.dockerignore`. Every `docker compose` command runs from the repository root with `--env-file .env -f docker/compose.yaml`.
-- Dependencies point one way (`tests/unit/test_layers.py`): `main` → `container`, `modules`, `http`, `logging`, `config`; `modules` → `works` (services, types, exceptions), `http`; `container` → `works`, `db`, `config`; `works` → `db` (its `repository.py` alone), `utils`. `works`, `db`, `utils` and `logging` never import FastAPI, Starlette, wireup or `shelfdrop.http`; only `container.py`, `main.py`, `http/dependencies.py` and the routers import wireup; only `container.py` and `shelfdrop/works/` import the metadata clients.
+- Dependencies point one way (`tests/unit/test_layers.py`): `main` → `container`, `modules`, `http`, `logging`, `config`; `modules` → `works`, `releases` (services, types, exceptions), `http`; `container` → `works`, `releases`, `db`, `config`; `works`, `releases` → `db` (their `repository.py` alone), `utils`; `releases` → `works` (types, names, exceptions). `works`, `releases`, `db`, `utils` and `logging` never import FastAPI, Starlette, wireup or `shelfdrop.http`; only `container.py`, `main.py`, `http/dependencies.py` and the routers import wireup; only `container.py` and `shelfdrop/works/` import the metadata clients, only `container.py` and `shelfdrop/releases/` the Prowlarr client.
 - Never run a package file as a script (`python shelfdrop/...py`): `shelfdrop/http` and `shelfdrop/logging` would shadow the standard library. Use `uv run shelfdrop`, `python -m` or uvicorn `--factory`.
 
 ## Commands
@@ -60,7 +61,7 @@ Dependencies: `uv add <pkg>`, `uv add --dev <pkg>`; never `pip install`. Commit 
 - Type everything; mypy and TypeScript run in strict mode. No `# type: ignore`, `# noqa` or ESLint disable without an explanation on the same line.
 - No name starts with an underscore (`tests/unit/test_naming.py`), but `_` alone, dunders and what a library imposes (`Settings(_env_file=None)`).
 - Read configuration only through `Settings`, never `os.environ`. A new setting gets a `SHELFDROP_` variable, an entry in `.env.example` and, if the container needs it, in `docker/compose.yaml`.
-- Endpoints are sync `def` (SQLAlchemy is synchronous), but the routes of the work search, `async` because a search waits on every source at once; their service runs the repository in the threadpool (`anyio.to_thread`) and `release_session` closes the session there after the response (ADR 0007).
+- Endpoints are sync `def` (SQLAlchemy is synchronous), but the routes of the work search, `async` because a search waits on every source at once, and those of the release search (`searches`, `trackers`, `filters`), `async` because a search runs on the event loop and streams its progress, and their service holds the async client of Prowlarr; their service runs the repository in the threadpool (`anyio.to_thread`) and `release_session` closes the session there after the response (ADR 0007).
 - Raise an `ApiError` for every HTTP error, built by the factories of `shelfdrop/http/errors/errors.py` alone, through the `errors.py` of the feature. Every error body is `{"code", "detail", "data"}` ([contract](docs/api.md#errors)). `ErrorCode` (`shelfdrop/http/errors/types.py`) is the single list of codes, each member commented with its status, meaning and `data`. `422` bodies never echo input values.
 - No `print` in `shelfdrop/`; log with `logging.getLogger(__name__)`, configured by `configure_logging()` alone. Expected failures log the exception class only; never log `Settings`, URLs, headers, bodies or query strings: the address of a source may carry a key.
 - Every route but `/health` and the pages is served under `Settings.api_prefix` (`/api`), applied by `build_app()` alone; every router prefix starts with its version (`/v1/works`). Client IP = `request.client.host` as resolved by uvicorn (`FORWARDED_ALLOW_IPS` set to the proxy).

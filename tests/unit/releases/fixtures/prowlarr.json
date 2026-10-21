@@ -1,0 +1,462 @@
+{
+ "indexers": [
+  {
+   "id": 4,
+   "name": "C411",
+   "enable": true,
+   "language": "fr-FR",
+   "protocol": "torrent",
+   "privacy": "private"
+  },
+  {
+   "id": 3,
+   "name": "Abnormal",
+   "enable": true,
+   "language": "fr-FR",
+   "protocol": "torrent",
+   "privacy": "private"
+  },
+  {
+   "id": 1,
+   "name": "Nyaa.si",
+   "enable": true,
+   "language": "en-US",
+   "protocol": "torrent",
+   "privacy": "public"
+  },
+  {
+   "id": 5,
+   "name": "YggTorrent",
+   "enable": false,
+   "language": "fr-FR",
+   "protocol": "torrent",
+   "privacy": "private"
+  },
+  {
+   "id": 2,
+   "name": "The Old School",
+   "enable": true,
+   "language": "fr-FR",
+   "protocol": "torrent",
+   "privacy": "private"
+  },
+  {
+   "id": 6,
+   "name": "NZBgeek",
+   "enable": true,
+   "language": "en-US",
+   "protocol": "usenet",
+   "privacy": "private"
+  }
+ ],
+ "searches": [
+  {
+   "query": "Jujutsu Kaisen",
+   "categories": [
+    7030
+   ],
+   "releases": [
+    {
+     "guid": "https://tos.test/t/101",
+     "title": "Jujutsu.Kaisen.T00.FRENCH.MANGA.CBZ.eBook-PapriKa+",
+     "indexerId": 2,
+     "indexer": "The Old School",
+     "size": 94371840,
+     "seeders": 12,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker2.test/torrents/101",
+     "downloadUrl": "http://prowlarr.test/2/download?apikey=secret&link=101",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000065"
+    },
+    {
+     "guid": "https://tos.test/t/102",
+     "title": "Jujutsu.Kaisen.T01.FRENCH.MANGA.CBZ.eBook-PapriKa+",
+     "indexerId": 2,
+     "indexer": "The Old School",
+     "size": 99614720,
+     "seeders": 30,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker2.test/torrents/102",
+     "downloadUrl": "http://prowlarr.test/2/download?apikey=secret&link=102",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000066"
+    },
+    {
+     "guid": "https://abn.test/t/202",
+     "title": "Jujutsu.Kaisen.T01.FRENCH.MANGA.CBZ.eBook-PapriKa+",
+     "indexerId": 3,
+     "indexer": "Abnormal",
+     "size": 99614720,
+     "seeders": 45,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker3.test/torrents/202",
+     "downloadUrl": "http://prowlarr.test/3/download?apikey=secret&link=202",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000066"
+    },
+    {
+     "guid": "https://c411.test/t/301",
+     "title": "Jujutsu.kaisen.T01.FRENCH.CBZ.eBook-ebdz",
+     "indexerId": 4,
+     "indexer": "C411",
+     "size": 97517568,
+     "seeders": 80,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker4.test/torrents/301",
+     "downloadUrl": "http://prowlarr.test/4/download?apikey=secret&link=301",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "000000000000000000000000000000000000012d"
+    },
+    {
+     "guid": "https://tos.test/t/103",
+     "title": "Jujutsu.Kaisen.T02.FRENCH.MANGA.CBZ.eBook-PapriKa+",
+     "indexerId": 2,
+     "indexer": "The Old School",
+     "size": 100663296,
+     "seeders": 9,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker2.test/torrents/103",
+     "downloadUrl": "http://prowlarr.test/2/download?apikey=secret&link=103",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000067"
+    },
+    {
+     "guid": "https://abn.test/t/221",
+     "title": "Jujutsu.kaisen.T21.Gege.AKUTAMI.FRENCH.[CBZ]-ebdz",
+     "indexerId": 3,
+     "indexer": "Abnormal",
+     "size": 115343360,
+     "seeders": 14,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker3.test/torrents/221",
+     "downloadUrl": "http://prowlarr.test/3/download?apikey=secret&link=221",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "00000000000000000000000000000000000000dd"
+    },
+    {
+     "guid": "https://abn.test/t/225",
+     "title": "Jujutsu.kaisen.T25.FRENCH.CBZ.eBook-NEO",
+     "indexerId": 3,
+     "indexer": "Abnormal",
+     "size": 110100480,
+     "seeders": 0,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker3.test/torrents/225",
+     "downloadUrl": "http://prowlarr.test/3/download?apikey=secret&link=225",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "00000000000000000000000000000000000000e1"
+    },
+    {
+     "guid": "https://nyaa.test/v/1",
+     "title": "Jujutsu Kaisen (01-26) (Akutami) (2024) [Digital-1920] (PapriKa+)",
+     "indexerId": 1,
+     "indexer": "Nyaa.si",
+     "size": 2726297600,
+     "seeders": 60,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker1.test/torrents/1",
+     "downloadUrl": "http://prowlarr.test/1/download?apikey=secret&link=1",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000001"
+    },
+    {
+     "guid": "https://tos.test/t/150",
+     "title": "Jujutsu.Kaisen.T03.ENGLISH.CBZ-1r0n",
+     "indexerId": 2,
+     "indexer": "The Old School",
+     "size": 94371840,
+     "seeders": 50,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker2.test/torrents/150",
+     "downloadUrl": "http://prowlarr.test/2/download?apikey=secret&link=150",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000096"
+    }
+   ]
+  },
+  {
+   "query": "Sorcery Fight",
+   "categories": [
+    7030
+   ],
+   "releases": [
+    {
+     "guid": "https://tos.test/t/102",
+     "title": "Jujutsu.Kaisen.T01.FRENCH.MANGA.CBZ.eBook-PapriKa+",
+     "indexerId": 2,
+     "indexer": "The Old School",
+     "size": 99614720,
+     "seeders": 30,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker2.test/torrents/102",
+     "downloadUrl": "http://prowlarr.test/2/download?apikey=secret&link=102",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000066"
+    },
+    {
+     "guid": "https://nyaa.test/v/9",
+     "title": "Sorcery Fight v04 (2019) (Digital) (1r0n)",
+     "indexerId": 1,
+     "indexer": "Nyaa.si",
+     "size": 83886080,
+     "seeders": 7,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker1.test/torrents/9",
+     "downloadUrl": "http://prowlarr.test/1/download?apikey=secret&link=9",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000009"
+    }
+   ]
+  },
+  {
+   "query": "Dusk Maiden of Amnesia",
+   "categories": [
+    7030
+   ],
+   "releases": [
+    {
+     "guid": "https://nyaa.test/v/20",
+     "title": "Dusk Maiden of Amnesia (01-10) (Maybe) [Digital] (PapriKa+)",
+     "indexerId": 1,
+     "indexer": "Nyaa.si",
+     "size": 943718400,
+     "seeders": 4,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker1.test/torrents/20",
+     "downloadUrl": "http://prowlarr.test/1/download?apikey=secret&link=20",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000014"
+    }
+   ]
+  },
+  {
+   "query": "Tasogare Otome x Amnesia",
+   "categories": [
+    7030
+   ],
+   "releases": [
+    {
+     "guid": "https://tos.test/t/401",
+     "title": "Tasogare.Otome.x.Amnesia.T01.FRENCH.CBZ.eBook-PapriKa+",
+     "indexerId": 2,
+     "indexer": "The Old School",
+     "size": 83886080,
+     "seeders": 3,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker2.test/torrents/401",
+     "downloadUrl": "http://prowlarr.test/2/download?apikey=secret&link=401",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000191"
+    },
+    {
+     "guid": "https://abn.test/t/402",
+     "title": "Amnesia.T01.FRENCH.CBZ.eBook-NOTAG",
+     "indexerId": 3,
+     "indexer": "Abnormal",
+     "size": 73400320,
+     "seeders": 25,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker3.test/torrents/402",
+     "downloadUrl": "http://prowlarr.test/3/download?apikey=secret&link=402",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000192"
+    }
+   ]
+  },
+  {
+   "query": "Burn the Witch",
+   "categories": [
+    7030
+   ],
+   "releases": [
+    {
+     "guid": "https://tos.test/t/501",
+     "title": "Burn.the.Witch.Kubo.2021.FR.[CBZ]-PapriKa",
+     "indexerId": 2,
+     "indexer": "The Old School",
+     "size": 157286400,
+     "seeders": 6,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker2.test/torrents/501",
+     "downloadUrl": "http://prowlarr.test/2/download?apikey=secret&link=501",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "00000000000000000000000000000000000001f5"
+    },
+    {
+     "guid": "https://nyaa.test/v/502",
+     "title": "Burn the Witch (Kubo) (2021) [Digital-1598] (PapriKa+)",
+     "indexerId": 1,
+     "indexer": "Nyaa.si",
+     "size": 167772160,
+     "seeders": 11,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker1.test/torrents/502",
+     "downloadUrl": "http://prowlarr.test/1/download?apikey=secret&link=502",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "00000000000000000000000000000000000001f6"
+    },
+    {
+     "guid": "https://abn.test/t/503",
+     "title": "Burning Witch Hunter T01 FRENCH CBZ",
+     "indexerId": 3,
+     "indexer": "Abnormal",
+     "size": 62914560,
+     "seeders": 8,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker3.test/torrents/503",
+     "downloadUrl": "http://prowlarr.test/3/download?apikey=secret&link=503",
+     "categories": [
+      {
+       "id": 7030,
+       "name": "Books/Comics"
+      }
+     ],
+     "infoHash": "00000000000000000000000000000000000001f7"
+    }
+   ]
+  },
+  {
+   "query": "Les aventuriers de la mer",
+   "categories": [
+    3030
+   ],
+   "releases": [
+    {
+     "guid": "https://abn.test/t/601",
+     "title": "Robin.Hobb.2018.Les.aventuriers.de.la.mer.09.Les.marches.du.trone.FRENCH.AUDiOBOOK.M4B.AAC.125kbps-Kuppit",
+     "indexerId": 3,
+     "indexer": "Abnormal",
+     "size": 629145600,
+     "seeders": 5,
+     "leechers": 0,
+     "protocol": "torrent",
+     "publishDate": "2026-10-20T10:00:00Z",
+     "infoUrl": "https://tracker3.test/torrents/601",
+     "downloadUrl": "http://prowlarr.test/3/download?apikey=secret&link=601",
+     "categories": [
+      {
+       "id": 3030,
+       "name": "Audio/Audiobook"
+      }
+     ],
+     "infoHash": "0000000000000000000000000000000000000259"
+    }
+   ]
+  }
+ ]
+}

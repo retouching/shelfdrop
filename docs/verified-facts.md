@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F14.
+Next fact ID: F16.
 
 ## Metadata sources
 
@@ -49,6 +49,17 @@ Next fact ID: F14.
   - Evidence: the fixtures of every manga case.
   - Pinned by: `tests/unit/works/test_service.py::test_down_sources_are_named`
   - Re-verify: on recording.
+
+### Prowlarr (API v1)
+
+- **F14** `GET /api/v1/search` takes `query`, `type`, `categories` and `indexerIds` (both repeated), `limit`; a release (`ReleaseResource`) gives `guid`, `title`, `indexerId`, `indexer`, `size`, `seeders`, `infoUrl`, `infoHash`, `publishDate`, `protocol`, and a `downloadUrl` that goes through Prowlarr with its key. `GET /api/v1/indexer` gives `id`, `name`, `enable`, `language`, `protocol`. The key goes in the header `X-Api-Key`.
+  - Evidence: the OpenAPI document of Prowlarr (`src/Prowlarr.Api.V1/openapi.json`, branch develop, read on 2026-10-21). No answer of a real Prowlarr: the one of the user is not to be called by the tests; `tests/unit/releases/fixtures/prowlarr.json` is written in this shape.
+  - Pinned by: `tests/unit/releases/clients/test_prowlarr.py::test_a_search_sends_the_key_in_a_header_with_its_categories_and_indexers`
+  - Re-verify: before the first search against the Prowlarr of the user, then when Prowlarr changes its major version.
+- **F15** Searching with `categories=7030` (or 7020, 3030) also asks each tracker in the categories of its own that Prowlarr maps to it.
+  - Evidence: the plan of the user (section 2.4), from the use of Prowlarr; not observed by a test.
+  - Pinned by: none
+  - Re-verify: at the first search against the Prowlarr of the user.
 
 ## Pinned components
 

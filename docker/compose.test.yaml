@@ -13,6 +13,10 @@ services:
       # skipped, so that no test disturbs the next one.
       SHELFDROP_SOURCES_ORIGIN: http://fake-sources:8080
       SHELFDROP_SOURCE_REST_SECONDS: "0"
+      # Prowlarr is played by the fake sources too, with the answers of
+      # tests/unit/releases/fixtures/prowlarr.json and the key of the tests.
+      SHELFDROP_PROWLARR_URL: http://fake-sources:8080
+      SHELFDROP_PROWLARR_API_KEY: test-prowlarr-key
     ports: !override
       - "127.0.0.1::8000"
     networks:
@@ -22,7 +26,7 @@ services:
       fake-sources:
         condition: service_healthy
 
-  # The fake metadata sources: WireMock by digest, as its image ships it, in clear HTTP on 8080,
+  # The fake metadata sources and Prowlarr: WireMock by digest, as its image ships it, in clear HTTP on 8080,
   # with no privilege, no capability and no volume. The tests load the recorded exchanges of
   # tests/unit/works/fixtures through its administration, which it publishes on the loopback.
   fake-sources:

@@ -15,7 +15,13 @@ WIREUP_IMPORTERS: Final = frozenset(
     {"shelfdrop/container.py", "shelfdrop/main.py", "shelfdrop/http/dependencies.py"}
 )
 # The packages of the domain: no framework, no HTTP layer.
-DOMAIN: Final = ("shelfdrop/works/", "shelfdrop/utils/", "shelfdrop/db/", "shelfdrop/logging/")
+DOMAIN: Final = (
+    "shelfdrop/works/",
+    "shelfdrop/releases/",
+    "shelfdrop/utils/",
+    "shelfdrop/db/",
+    "shelfdrop/logging/",
+)
 
 
 @cache
@@ -112,6 +118,18 @@ def test_only_the_service_and_the_composition_import_the_clients() -> None:
                 path != "shelfdrop/container.py" and not path.startswith("shelfdrop/works/")
             ),
             lambda module: module.startswith("shelfdrop.works.clients"),
+        )
+        == []
+    )
+
+
+def test_only_the_releases_and_the_composition_import_the_prowlarr_client() -> None:
+    assert (
+        offenders(
+            lambda path: (
+                path != "shelfdrop/container.py" and not path.startswith("shelfdrop/releases/")
+            ),
+            lambda module: module.startswith("shelfdrop.releases.clients"),
         )
         == []
     )

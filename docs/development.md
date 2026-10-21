@@ -16,9 +16,15 @@ The rules of the code are in `CLAUDE.md`; this page describes the code as it is.
   - `types.py`: `Candidate`, `Name`, `Work`, `NameChoice`, `WorkSearch`, `SearchOptions`, `Clock` and the aliases `Kind`, `Family`, `Form`, `SourceName`.
   - `exceptions.py`: `SourceError`, `QueryTooShortError`, `NoSourceAnsweredError`, `WorkNotFoundError`.
   - `clients/`: `mangaupdates.py`, `kitsu.py`, `myanimelist.py` (the official API, with a Client ID), `anilist.py`, `mangadex.py`, `bnf.py` (SRU, Dublin Core records), `openlibrary.py`, `wikidata.py`, and `http.py` (`get_json`, `post_json`, `get_text`: any failure becomes a `SourceError` named by a status or a class).
+- `shelfdrop/releases/`:
+  - `service.py`: `ReleaseService` (`start`, `read`, `progress`, `watch`, the trackers, the filters).
+  - `jobs.py`: `SearchBoard` (a container singleton: the searches in memory, the queue, the cache), `SearchJob`, `NameQuery`, `ReleaseSource`.
+  - `repository.py`: `ReleaseRepository` (the cache of Prowlarr, the trackers, the filter rules, the settings) and `repository_factory` (repositories on sessions of their own, for the searches that outlive their request).
+  - `guess.py` (`volumes_of`, `clean_query`, `is_relevant`), `scoring.py` (`compile_rule`, `score_of`, `invalid_rules`), `results.py` (`assemble`, `display_order`), `trackers.py` (`merge_trackers`, `ordered_choices`): pure rules.
+  - `types.py`, `exceptions.py`, `clients/prowlarr.py` (`ProwlarrClient`: `search`, `indexers`).
 - `shelfdrop/http/`: `errors/` (`ErrorCode`, `ApiError`, the factories, the handlers, `ErrorResponse`), `middleware/` (one file per middleware), `dependencies.py` (`release_session`).
 - `shelfdrop/logging/`: `configure_logging`, `JsonFormatter`, `RequestIdFilter`, `request_id_var`.
-- `shelfdrop/modules/`: `health/`, `works/` (`router.py`, `schemas.py`, `errors.py`), `web/` (`web_router`: a file at the top of the build, or `index.html`).
+- `shelfdrop/modules/`: `health/`, `works/` (`router.py`, `schemas.py`, `errors.py`), `searches/`, `trackers/`, `filters/`, `web/` (`web_router`: a file at the top of the build, or `index.html`).
 - `shelfdrop/utils/`: `text.py` (`normalize`, `words`, `compact`, `script_of`, `is_latin`), `isbn.py` (`parse_isbn`, `isbn13_of`).
 
 ## Layers
@@ -27,17 +33,18 @@ A router calls its service and maps its domain exceptions to HTTP errors; a serv
 The two routes of the work search are `async`: the search waits on every source at once on the event loop, and its service runs the repository in the threadpool ([ADR 0007](adr/0007-work-search.md)).
 
 ## Database
-Two tables, both caches: `source_answers` (the candidates a source gave for a family and a normalized text, a day) and `cached_works` (a merged work by its id, a week). Their rows are JSON written and read by `WorkRepository` through Pydantic `TypeAdapter`s of the types of `shelfdrop.works.types`.
+Caches: `source_answers` (the candidates a source gave for a family and a normalized text, a day), `cached_works` (a merged work by its id, a week) and `release_answers` (what Prowlarr gave for a name, its categories and its indexers, 10 minutes). Settings: `trackers` (the indexers of Prowlarr, their choices and their order), `filter_rules` (in their order) and `settings` (a JSON value by key: `filters.minimum`). The rows of the caches are JSON written and read by `WorkRepository` through Pydantic `TypeAdapter`s of the types of `shelfdrop.works.types`.
 
 ## Tests
 - `tests/unit/works/test_service.py`: the 10 recorded searches of `tests/unit/works/cases.py`, replayed from `tests/unit/works/fixtures/` (recorded on 2026-10-21 without a MyAnimeList Client ID, when AniList did not answer: its exchanges replay as failures), and the rules of the service with fake sources (`CountingClient`): the cache, the rest of a failed source, one run for two searches, the refusals.
 - `tests/unit/works/support.py`: `RecordingTransport`, `ReplayTransport`, `FakeWorkRepository`, `FixedClock`, `new_service`.
 - `tests/unit/works/record.py`: records the fixtures again (`uv run python -m tests.unit.works.record [--missing] [slug ...]`; `--missing` keeps the exchanges recorded and asks only those no fixture holds).
+- `tests/unit/releases/`: the rules (`test_guess.py` on titles seen on the trackers of the user, `test_scoring.py`, `test_results.py`, `test_trackers.py`), `test_jobs.py` (the board with a Prowlarr that waits for the test), `test_service.py` and `clients/test_prowlarr.py` through `ProwlarrReplay`, which answers from `tests/unit/releases/fixtures/prowlarr.json` (written in the shape of the API of Prowlarr: no real Prowlarr is asked).
 - `tests/unit/test_main.py`: the application through `httpx.ASGITransport`.
 - `tests/unit/test_naming.py`, `tests/unit/test_layers.py`, `tests/unit/db/test_migrate.py` (the chain of the revisions and the digest of each), `tests/unit/test_integration_parts.py` (the markers of the integration suite).
 
 ## Integration tests
-`tests/integration/conftest.py` starts one stack per session, `shelfdrop-test-<random>`, from `docker/compose.yaml` and `docker/compose.test.yaml`: the real image of the API, its loopback port drawn at random, and `fake-sources`, WireMock 3.13.2, which the API reaches on the network `sources`, with no way out. The API sends every request of the metadata clients there (`SHELFDROP_SOURCES_ORIGIN`, `shelfdrop.works.clients.redirect.RedirectTransport`), its first origin in `X-Original-Origin`; the session loads into WireMock one stub per exchange recorded in `tests/unit/works/fixtures/` (`tests.integration.support.recorded_stubs`), a recorded failure replayed as a reset connection, and a request recorded with no stub gets a `404`. A failed source is not skipped there (`SHELFDROP_SOURCE_REST_SECONDS=0`), so that no test disturbs the next one. `tests/integration/support.py` holds `Stack` (its logs, `exec_api`), `FakeSources` (load stubs, count requests, list the unmatched ones) and `compose`.
+`tests/integration/conftest.py` starts one stack per session, `shelfdrop-test-<random>`, from `docker/compose.yaml` and `docker/compose.test.yaml`: the real image of the API, its loopback port drawn at random, and `fake-sources`, WireMock 3.13.2, which the API reaches on the network `sources`, with no way out. Prowlarr is played by it too (`SHELFDROP_PROWLARR_URL`, `tests.integration.support.prowlarr_stubs`, from `tests/unit/releases/fixtures/prowlarr.json`). The API sends every request of the metadata clients there (`SHELFDROP_SOURCES_ORIGIN`, `shelfdrop.works.clients.redirect.RedirectTransport`), its first origin in `X-Original-Origin`; the session loads into WireMock one stub per exchange recorded in `tests/unit/works/fixtures/` (`tests.integration.support.recorded_stubs`), a recorded failure replayed as a reset connection, and a request recorded with no stub gets a `404`. A failed source is not skipped there (`SHELFDROP_SOURCE_REST_SECONDS=0`), so that no test disturbs the next one. `tests/integration/support.py` holds `Stack` (its logs, `exec_api`), `FakeSources` (load stubs, count requests, list the unmatched ones) and `compose`.
 
 ### Parts of the integration suite
 
@@ -45,6 +52,7 @@ Two tables, both caches: `source_answers` (the candidates a source gave for a fa
 |---|---|---|
 | `security` | `test_errors.py`, `test_health.py`, `test_http_headers.py`, `test_logging.py`, `test_migrations.py` | `shelfdrop/http/`, `shelfdrop/logging/`, `shelfdrop/main.py`, `shelfdrop/config.py`, `shelfdrop/container.py`, `shelfdrop/db/`, `shelfdrop/cli/`, `docker/` |
 | `pages` | `test_pages.py` | `shelfdrop/modules/web/`, `web/`, `docker/api.Dockerfile` |
+| `releases` | `test_release_search.py`, `test_release_manual.py`, `test_release_jobs.py`, `test_release_trackers.py`, `test_release_filters.py` | `shelfdrop/releases/`, `shelfdrop/modules/searches/`, `shelfdrop/modules/trackers/`, `shelfdrop/modules/filters/`, `tests/unit/releases/fixtures/` |
 | `works` | `test_work_search.py`, `test_work_sources.py`, `test_work_names.py` | `shelfdrop/works/`, `shelfdrop/modules/works/`, `tests/unit/works/fixtures/` |
 
 #### Blocks
@@ -60,3 +68,8 @@ Two tables, both caches: `source_answers` (the candidates a source gave for a fa
 | `works_search` | `works` | the recorded searches of `tests/unit/works/cases.py`, through the API (`test_work_search.py`) | `shelfdrop/works/`, `shelfdrop/modules/works/` |
 | `works_sources` | `works` | the failed sources, the cache, one run for two searches (`test_work_sources.py`) | `shelfdrop/works/service.py`, `shelfdrop/works/flights.py`, `shelfdrop/works/repository.py` |
 | `works_names_language` | `works` | the languages of the names, the ones checked by default (`test_work_names.py`) | `shelfdrop/works/names.py`, `shelfdrop/works/merge.py`, the names of a client |
+| `releases_search` | `releases` | the search of a work under its names: categories, cleaning, relevance, once each, volumes, order, a failed Prowlarr (`test_release_search.py`) | `shelfdrop/releases/guess.py`, `results.py`, `clients/prowlarr.py`, `shelfdrop/modules/searches/` |
+| `releases_manual` | `releases` | the manual search (`test_release_manual.py`) | `shelfdrop/releases/service.py`, `shelfdrop/modules/searches/` |
+| `releases_jobs` | `releases` | the shared searches, the queue, the cache, the events (`test_release_jobs.py`) | `shelfdrop/releases/jobs.py`, `shelfdrop/releases/repository.py`, the events route |
+| `releases_trackers` | `releases` | the trackers read from Prowlarr, chosen and ordered (`test_release_trackers.py`) | `shelfdrop/releases/trackers.py`, `shelfdrop/modules/trackers/` |
+| `releases_filters` | `releases` | the filter rules, the score, an invalid rule (`test_release_filters.py`) | `shelfdrop/releases/scoring.py`, `shelfdrop/modules/filters/` |

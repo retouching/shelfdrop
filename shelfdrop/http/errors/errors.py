@@ -5,6 +5,7 @@ message written in the function.
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 from fastapi import status
 
@@ -24,6 +25,11 @@ def unprocessable(code: ErrorCode, detail: str) -> ApiError:
 def unavailable(code: ErrorCode, detail: str) -> ApiError:
     """503 without `Retry-After`: something the API relays to does not answer."""
     return ApiError(status.HTTP_503_SERVICE_UNAVAILABLE, code=code, detail=detail)
+
+
+def unprocessable_with(code: ErrorCode, detail: str, data: dict[str, Any]) -> ApiError:
+    """422 with a code of its own and the details of what is refused."""
+    return ApiError(status.HTTP_422_UNPROCESSABLE_CONTENT, code=code, detail=detail, data=data)
 
 
 def validation_failed(errors: Sequence[FieldError]) -> ApiError:

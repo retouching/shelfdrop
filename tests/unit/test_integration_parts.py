@@ -19,6 +19,11 @@ PARTS: Final = {
     "test_work_search.py": "works",
     "test_work_sources.py": "works",
     "test_work_names.py": "works",
+    "test_release_search.py": "releases",
+    "test_release_manual.py": "releases",
+    "test_release_jobs.py": "releases",
+    "test_release_trackers.py": "releases",
+    "test_release_filters.py": "releases",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -29,6 +34,11 @@ FILE_BLOCKS: Final = {
     "test_work_search.py": "works_search",
     "test_work_sources.py": "works_sources",
     "test_work_names.py": "works_names_language",
+    "test_release_search.py": "releases_search",
+    "test_release_manual.py": "releases_manual",
+    "test_release_jobs.py": "releases_jobs",
+    "test_release_trackers.py": "releases_trackers",
+    "test_release_filters.py": "releases_filters",
 }
 
 

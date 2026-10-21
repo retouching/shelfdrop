@@ -15,6 +15,10 @@ import httpx
 PROJECT_ROOT: Final = Path(__file__).resolve().parents[2]
 COMPOSE_FILES: Final = ("docker/compose.yaml", "docker/compose.test.yaml")
 FIXTURES: Final = PROJECT_ROOT / "tests" / "unit" / "works" / "fixtures"
+PROWLARR_FIXTURE: Final = (
+    PROJECT_ROOT / "tests" / "unit" / "releases" / "fixtures" / "prowlarr.json"
+)
+PROWLARR_KEY: Final = "test-prowlarr-key"
 UP_TIMEOUT_SECONDS: Final = 900
 COMMAND_TIMEOUT_SECONDS: Final = 120
 LOG_READ_ATTEMPTS: Final = 20
@@ -142,6 +146,63 @@ def recorded_stubs() -> list[dict[str, Any]]:
     return list(stubs.values())
 
 
+def prowlarr_search_stub(
+    query: str, categories: list[int], releases: list[dict[str, Any]], *, delay_ms: int = 0
+) -> dict[str, Any]:
+    """Prowlarr answers `releases` to a search of `query` in `categories`, after `delay_ms`."""
+    response: dict[str, Any] = {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "jsonBody": releases,
+    }
+    if delay_ms:
+        response["fixedDelayMilliseconds"] = delay_ms
+    return {
+        "priority": 1,
+        "request": {
+            "method": "GET",
+            "urlPath": "/api/v1/search",
+            "headers": {"X-Api-Key": {"equalTo": PROWLARR_KEY}},
+            "queryParameters": {
+                "query": {"equalTo": query},
+                "categories": {"hasExactly": [{"equalTo": str(c)} for c in categories]},
+            },
+        },
+        "response": response,
+    }
+
+
+def prowlarr_stubs() -> list[dict[str, Any]]:
+    """Prowlarr as `tests/unit/releases/fixtures/prowlarr.json` plays it: its indexers, its
+    answers, and nothing found for any other search (a stub of a lower priority)."""
+    data: dict[str, Any] = json.loads(PROWLARR_FIXTURE.read_text("utf-8"))
+    key = {"X-Api-Key": {"equalTo": PROWLARR_KEY}}
+    stubs: list[dict[str, Any]] = [
+        {
+            "request": {"method": "GET", "urlPath": "/api/v1/indexer", "headers": key},
+            "response": {
+                "status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "jsonBody": data["indexers"],
+            },
+        },
+        {
+            "priority": 10,
+            "request": {"method": "GET", "urlPath": "/api/v1/search", "headers": key},
+            "response": {
+                "status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "jsonBody": [],
+            },
+        },
+    ]
+    stubs += [
+        prowlarr_search_stub(search["query"], search["categories"], search["releases"])
+        for search in data["searches"]
+    ]
+    return stubs
+
+
 @dataclass(frozen=True)
 class FakeSources:
     """The administration of the WireMock that plays the metadata sources."""
@@ -182,6 +243,24 @@ class FakeSources:
             found.append(f"{request['method']} {headers.get(ORIGINAL_ORIGIN)}{request['url']}")
         return found
 
+    def prowlarr_searches(self, query: str) -> list[dict[str, list[str]]]:
+        """The query parameters of every search of `query` Prowlarr received."""
+        response = httpx.post(
+            f"{self.url}/__admin/requests/find",
+            json={
+                "method": "GET",
+                "urlPath": "/api/v1/search",
+                "queryParameters": {"query": {"equalTo": query}},
+            },
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        found: list[dict[str, list[str]]] = []
+        for request in response.json()["requests"]:
+            params = request.get("queryParams", {})
+            found.append({name: value["values"] for name, value in params.items()})
+        return found
+
     def reset_journal(self) -> None:
         httpx.delete(f"{self.url}/__admin/requests", timeout=10.0).raise_for_status()
 
@@ -189,3 +268,31 @@ class FakeSources:
 def new_request_id() -> str:
     """A unique X-Request-ID: the records of a request are found by it."""
     return uuid.uuid4().hex
+
+
+def run_search(client: httpx.Client, body: dict[str, Any]) -> dict[str, Any]:
+    """Start a release search, follow its events to their end, and read its releases."""
+    started = client.post("/api/v1/searches", json=body)
+    started.raise_for_status()
+    search_id = started.json()["id"]
+    events(client, search_id)
+    found = client.get(f"/api/v1/searches/{search_id}")
+    found.raise_for_status()
+    result: dict[str, Any] = found.json()
+    return result
+
+
+def events(client: httpx.Client, search_id: str) -> list[tuple[str, dict[str, Any]]]:
+    """The Server-Sent Events of a search, until its `end` event: (name, data)."""
+    found: list[tuple[str, dict[str, Any]]] = []
+    with client.stream("GET", f"/api/v1/searches/{search_id}/events", timeout=90.0) as response:
+        response.raise_for_status()
+        name = ""
+        for line in response.iter_lines():
+            if line.startswith("event: "):
+                name = line.removeprefix("event: ")
+            elif line.startswith("data: "):
+                found.append((name, json.loads(line.removeprefix("data: "))))
+                if name == "end":
+                    break
+    return found

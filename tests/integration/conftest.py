@@ -11,6 +11,7 @@ from tests.integration.support import (
     FakeSources,
     Stack,
     compose,
+    prowlarr_stubs,
     recorded_stubs,
 )
 
@@ -41,7 +42,7 @@ def stack() -> Iterator[Stack]:
             built.read_ports()
         except RuntimeError as error:
             pytest.fail(str(error), pytrace=False)
-        FakeSources(built.sources_url).load(recorded_stubs())
+        FakeSources(built.sources_url).load([*recorded_stubs(), *prowlarr_stubs()])
         yield built
     finally:
         compose(project, "down", "--volumes", "--remove-orphans")

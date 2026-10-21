@@ -9,6 +9,13 @@ A request goes through, from the outside in:
 5. `UnhandledErrorsMiddleware`: an unexpected exception becomes a logged `500 internal_error`;
 6. the route. After the response, `release_session` closes the session in the threadpool.
 
+## Release search
+`POST /api/v1/searches` runs `shelfdrop.releases.service.ReleaseService.start` ([ADR 0011](adr/0011-release-search.md)):
+
+1. **The trackers.** The indexers asked are those checked in the trackers and on in Prowlarr; at the first search, they are read from Prowlarr (`shelfdrop.releases.trackers`).
+2. **One search per set of names.** `SearchBoard` joins the same search running (same mode, kind, names, trackers); a name two searches ask is one Prowlarr request. Each name is cleaned (`clean_query`), then read from the cache (10 minutes, `release_answers`), otherwise queued: 2 requests at a time, first come first served, 60 seconds each at most. The search goes to its end even when nobody follows it; its progress goes to `GET .../events`.
+3. **The releases** (`shelfdrop.releases.results.assemble`), at each read: no seed, out; the same guid or infohash, once, with its first name; in a work search, a title that misses a significant word of its name is set aside (`relevance`); the volumes are read from the title; the score is the sum of the points of the filter rules it matches (`shelfdrop.releases.scoring`), under the minimum it is set aside (`score`); then the order of the page.
+
 ## Work search
 `GET /api/v1/works?q=...&kind=...` runs `shelfdrop.works.service.WorkService.search`:
 

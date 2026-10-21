@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     log_format: Literal["json", "text"] = "json"
     # The Client ID of the MyAnimeList API; without it, MyAnimeList is not asked.
     myanimelist_client_id: SecretStr | None = Field(default=None, repr=False)
+    # The address of Prowlarr (http://host:9696) and its API key; without them, no release is
+    # searched.
+    prowlarr_url: str | None = Field(
+        default=None, pattern=r"^https?://[A-Za-z0-9.-]+(:\d+)?(/.*)?$"
+    )
+    prowlarr_api_key: SecretStr | None = Field(default=None, repr=False)
     # The two settings below are reserved for the test stack (TEST_STACK_SETTINGS).
     # Every request to a metadata source goes to this origin instead, its own origin in the
     # header X-Original-Origin: the fake sources of the test stack answer it.
@@ -83,7 +89,7 @@ class Settings(BaseSettings):
     # Seconds a source that failed is skipped.
     source_rest_seconds: int = Field(default=300, ge=0, le=86400)
 
-    @field_validator("myanimelist_client_id", mode="before")
+    @field_validator("myanimelist_client_id", "prowlarr_url", "prowlarr_api_key", mode="before")
     @classmethod
     def empty_is_none(cls, value: object) -> object:
         """Compose gives an unset variable as an empty string."""

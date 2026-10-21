@@ -14,6 +14,7 @@ BASE: Final = "e9ad2f300034"
 # a line that exists never changes: a pushed revision is never edited (ADR 0005).
 DIGESTS: Final = {
     "e9ad2f300034": "2f8743bd937e7eaa2eafd9b394741210f2da3d4d62c2da801ee5aa6621479c88",
+    "c7d1d70b5ae2": "832099d1b77a33603f019acc07d32b3de7e8e6ed6c109161410219b15a45cdbd",
 }
 
 

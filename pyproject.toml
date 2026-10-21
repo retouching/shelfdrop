@@ -77,6 +77,12 @@ markers = [
     "works: integration part, the work search through the fake sources",
     "works_search: block of works, the recorded searches (test_work_search.py)",
     "works_sources: block of works, the failed sources, the cache, one run (test_work_sources.py)",
+    "releases: integration part, the release search through the fake Prowlarr",
+    "releases_search: block of releases, the search of a work under its names (test_release_search.py)",
+    "releases_manual: block of releases, the manual search (test_release_manual.py)",
+    "releases_jobs: block of releases, the shared searches, the queue, the cache, the events (test_release_jobs.py)",
+    "releases_trackers: block of releases, the trackers read from Prowlarr (test_release_trackers.py)",
+    "releases_filters: block of releases, the filters and the score (test_release_filters.py)",
     "works_names_language: block of works, the languages of the names, the checked ones (test_work_names.py)",
 ]
 

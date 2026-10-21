@@ -1,0 +1,25 @@
+"""Exceptions of the release search."""
+
+
+class ProwlarrError(Exception):
+    """Prowlarr did not answer, or answered an error; the message names a status or a class."""
+
+
+class ProwlarrNotConfiguredError(ProwlarrError):
+    """No address or no key of Prowlarr in the settings."""
+
+
+class SearchNotFoundError(Exception):
+    """No search with this id: unknown, or finished too long ago."""
+
+
+class TooManyNamesError(Exception):
+    """More names than a work search may send to Prowlarr."""
+
+
+class InvalidRuleError(Exception):
+    """A filter rule whose expression is empty or invalid; `positions` lists them."""
+
+    def __init__(self, positions: list[int]) -> None:
+        super().__init__("invalid filter rules")
+        self.positions = positions

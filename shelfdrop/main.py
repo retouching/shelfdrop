@@ -24,7 +24,10 @@ from shelfdrop.http.middleware.request_id import RequestIdMiddleware
 from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
 from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from shelfdrop.logging.setup import configure_logging
+from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
+from shelfdrop.modules.searches.router import router as searches_router
+from shelfdrop.modules.trackers.router import router as trackers_router
 from shelfdrop.modules.web.router import web_router
 from shelfdrop.modules.works.router import router as works_router
 
@@ -66,6 +69,9 @@ def build_app(settings: Settings) -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     app.include_router(health_router)
     app.include_router(works_router, prefix=prefix)
+    app.include_router(searches_router, prefix=prefix)
+    app.include_router(trackers_router, prefix=prefix)
+    app.include_router(filters_router, prefix=prefix)
     # The front-end, last: its route answers every path the others leave.
     if (settings.static_dir / "index.html").is_file():
         for folder in ("assets", "fonts"):
