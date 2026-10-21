@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F26.
+Next fact ID: F30.
 
 ## Metadata sources
 
@@ -85,6 +85,15 @@ Next fact ID: F26.
   - Pinned by: `tests/unit/clients/test_jellyfin.py::test_the_server_and_its_libraries_are_read_with_the_api_key`
   - Re-verify: when Jellyfin changes its major version.
 
+- **F26** `GET /Items?parentId=<library>&recursive=true&includeItemTypes=Book,AudioBook,Folder&fields=Path,Overview,Genres,People,ProductionYear,OriginalTitle` lists the items of a library with these fields, `ImageTags.Primary` when it has an image; `GET /Items/{id}` gives a whole `BaseItemDto`, and `POST /Items/{id}` takes one back whole (the fields it lacks are emptied: shelfdrop always sends back what it read, changed). `POST /Items/{id}/Refresh` takes `metadataRefreshMode` and `imageRefreshMode` (`None`, `ValidationOnly`, `Default`, `FullRefresh`), `replaceAllMetadata` and `replaceAllImages`; `POST /Library/Refresh` scans every library. `POST /Items/{id}/Images/Primary` reads its body in base64 (`ImageController.GetFromBase64Stream`), whatever its `Content-Type` says. `GET /Users/{userId}/Items/{id}`, which the scripts of the user called, is no longer in the document.
+  - Evidence: the same OpenAPI document (`GetItems`, `GetItem`, `UpdateItem`, `RefreshItem`, `RefreshLibrary`, `SetItemImage`), and the source of Jellyfin, branch master (`Jellyfin.Api/Controllers/ImageController.cs`, read on 2026-10-21). No answer of a real Jellyfin; `FakeJellyfin` and the stubs of the placement answer in this shape.
+  - Pinned by: `tests/unit/clients/test_jellyfin.py::test_an_image_is_sent_in_base64_and_read_as_bytes`, `tests/unit/clients/test_jellyfin.py::test_a_refresh_sends_the_modes_of_its_scan`
+  - Re-verify: before the first placement against the Jellyfin of the user, then when Jellyfin changes its major version.
+- **F27** `GET /Library/VirtualFolders` gives each library its `ItemId` (the item `/Items/{id}/Refresh` and `parentId` take) and, while it scans, `RefreshStatus` (`Active`, otherwise `Idle`) and `RefreshProgress` (0 to 100).
+  - Evidence: the same OpenAPI document (`VirtualFolderInfo`).
+  - Pinned by: `tests/unit/clients/test_jellyfin.py::test_the_libraries_give_their_item_their_folders_and_their_scan`
+  - Re-verify: before the first scan against the Jellyfin of the user.
+
 ### qBittorrent (WebUI API v2), behind qui
 
 - **F21** `GET /api/v2/app/version` answers the version as text (`v4.1.3`); `GET /api/v2/torrents/categories` a JSON object by name (`{"name", "savePath"}`). Every method but the sign-in needs the cookie `SID`.
@@ -104,6 +113,18 @@ Next fact ID: F26.
   - Evidence: the source of qBittorrent (`src/base/bittorrent/infohash.cpp`, `InfoHash::toTorrentID` returns `m_nativeHash.get_best()` with libtorrent 2) and of libtorrent (`include/libtorrent/info_hash.hpp`, branch RC_2_0: "returns the v2 (truncated) info-hash, if there is one, otherwise returns the v1 info-hash"), read on 2026-10-21. No real qBittorrent asked.
   - Pinned by: `tests/unit/utils/test_torrent.py::test_a_torrent_of_bittorrent_v2_is_named_by_its_sha256_cut_to_20_bytes`
   - Re-verify: before the first download to the qBittorrent of the user, and when qBittorrent changes its major version.
+
+- **F28** Each torrent of `GET /api/v2/torrents/info` gives `content_path`, where qBittorrent keeps it as qBittorrent sees it: the file of a torrent of one file, the root folder of the others. `POST /api/v2/torrents/addTags` takes a form body, `hashes` (separated by `|`) and `tags` (separated by commas).
+  - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" ("Get torrent list", "Add torrent tags"), read on 2026-10-21. No real qBittorrent asked; `FakeQui` and the stubs of the placement answer in this shape.
+  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_torrent_gives_its_content_path_and_takes_a_tag`
+  - Re-verify: before the first placement of a download of the qBittorrent of the user.
+
+### Discord (webhooks, API v10)
+
+- **F29** `POST <webhook>?wait=true` posts a message and answers it (`200`); a `multipart/form-data` body carries the JSON in `payload_json` and the files in `files[0]`..., which an embed names `attachment://<file name>`. A webhook takes 30 messages a minute: beyond, `429` with `retry_after` (seconds) in its JSON body and the header `Retry-After`.
+  - Evidence: the documentation of Discord, "Execute Webhook", "Uploading Files" and "Rate Limits" (read on 2026-10-21). No real webhook posted to; `FakeDiscord` answers in this shape.
+  - Pinned by: `tests/unit/clients/test_discord.py::test_a_picture_goes_with_the_payload_in_a_multipart_body`, `tests/unit/clients/test_discord.py::test_a_429_gives_the_seconds_to_wait_and_an_error_its_status`
+  - Re-verify: before the first message on the webhook of the user.
 
 ## Pinned components
 

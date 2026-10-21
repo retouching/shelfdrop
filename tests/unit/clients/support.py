@@ -2,6 +2,7 @@
 (the OpenAPI document of Jellyfin, `AuthenticationResult` and `UserDto`). No real Jellyfin is
 ever asked."""
 
+import base64
 import json
 import re
 from dataclasses import dataclass, field
@@ -41,6 +42,11 @@ class FakeJellyfin:
     requests: list[httpx.Request] = field(default_factory=list)
     down: bool = False
     libraries: list[dict[str, Any]] = field(default_factory=list)
+    items: dict[str, dict[str, Any]] = field(default_factory=dict)
+    """Every item (a `BaseItemDto`) by id, with the id of its library in `ParentId`."""
+    images: dict[str, bytes] = field(default_factory=dict)
+    refreshed: list[tuple[str, dict[str, str]]] = field(default_factory=list)
+    """The items refreshed (`/Library/Refresh`: `library`) and the parameters of each."""
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -76,7 +82,46 @@ class FakeJellyfin:
             return httpx.Response(200, json={"Version": "10.11.2", "ServerName": "nami"})
         if path == "/Library/VirtualFolders":
             return httpx.Response(200, json=self.libraries, request=request)
-        return httpx.Response(404, request=request)
+        return self.library(request)
+
+    def library(self, request: httpx.Request) -> httpx.Response:
+        """The items of the libraries, their images and their scans."""
+        path = request.url.path
+        params = dict(request.url.params)
+        if path == "/Library/Refresh":
+            self.refreshed.append(("library", params))
+            return httpx.Response(204, request=request)
+        if path == "/Items":
+            types = params.get("includeItemTypes", "").split(",")
+            found = [
+                item
+                for item in self.items.values()
+                if item.get("LibraryId") == params.get("parentId") and item.get("Type") in types
+            ]
+            return httpx.Response(200, json={"Items": found}, request=request)
+        found_path = re.fullmatch(r"/Items/([^/]+)(/Images/Primary|/Refresh)?", path)
+        if found_path is None or found_path.group(1) not in self.items:
+            return httpx.Response(404, request=request)
+        item_id, rest = found_path.group(1), found_path.group(2)
+        if rest == "/Refresh":
+            self.refreshed.append((item_id, params))
+            return httpx.Response(204, request=request)
+        if rest == "/Images/Primary":
+            if request.method == "POST":
+                self.images[item_id] = base64.b64decode(request.content)
+                return httpx.Response(204, request=request)
+            if item_id not in self.images:
+                return httpx.Response(404, request=request)
+            return httpx.Response(
+                200,
+                content=self.images[item_id],
+                headers={"Content-Type": "image/jpeg"},
+                request=request,
+            )
+        if request.method == "POST":
+            self.items[item_id] = {**json.loads(request.content), "Id": item_id}
+            return httpx.Response(204, request=request)
+        return httpx.Response(200, json=self.items[item_id], request=request)
 
     def paths(self) -> list[str]:
         return [request.url.path for request in self.requests]
@@ -114,6 +159,13 @@ class FakeQui:
             return httpx.Response(200, json=body, request=request)
         if request.url.path == f"{prefix}/api/v2/torrents/add":
             return self.add(request)
+        if request.url.path == f"{prefix}/api/v2/torrents/addTags":
+            form = dict(httpx.QueryParams(request.read().decode()))
+            for digest in form["hashes"].split("|"):
+                if digest in self.torrents:
+                    tags = self.torrents[digest].get("tags") or ""
+                    self.torrents[digest]["tags"] = ", ".join(x for x in (tags, form["tags"]) if x)
+            return httpx.Response(200, request=request)
         return self.answer(request)
 
     def add(self, request: httpx.Request) -> httpx.Response:
@@ -164,3 +216,31 @@ def multipart_fields(request: httpx.Request) -> dict[str, bytes]:
         if isinstance(name, str) and isinstance(payload, bytes):
             fields[name] = payload
     return fields
+
+
+@dataclass
+class FakeDiscord:
+    """A webhook of Discord (`POST /api/webhooks/<id>/<token>?wait=true`): the messages it took,
+    each with its `payload_json` and its file; `limited` answers a 429 that many times, `fails`
+    a 500 that many times."""
+
+    WEBHOOK = "https://discord.test/api/webhooks/1/token-of-the-tests"
+    messages: list[tuple[dict[str, Any], bytes | None]] = field(default_factory=list)
+    requests: list[httpx.Request] = field(default_factory=list)
+    limited: int = 0
+    fails: int = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if self.limited > 0:
+            self.limited -= 1
+            return httpx.Response(429, json={"retry_after": 0.01, "global": False})
+        if self.fails > 0:
+            self.fails -= 1
+            return httpx.Response(500)
+        if request.headers["Content-Type"].startswith("multipart/"):
+            fields = multipart_fields(request)
+            self.messages.append((json.loads(fields["payload_json"]), fields.get("files[0]")))
+        else:
+            self.messages.append((json.loads(request.content), None))
+        return httpx.Response(200, json={"id": str(len(self.messages))})

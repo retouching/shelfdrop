@@ -35,6 +35,9 @@ class TorrentInfo:
     eta: int
     """Seconds left; 8640000 when qBittorrent cannot tell."""
     category: str
+    content_path: str = ""
+    """Where qBittorrent keeps it, as qBittorrent sees it: the file of a single-file torrent,
+    its folder otherwise."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -42,3 +45,27 @@ class JellyfinLibrary:
     name: str
     collection_type: str | None
     """`books` for the libraries of books, comics and audiobooks."""
+    item_id: str | None = None
+    locations: tuple[str, ...] = ()
+    """Its folders, as Jellyfin sees them."""
+    refresh_progress: float | None = None
+    """The scan running, from 0 to 100; None when it is idle."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class JellyfinItem:
+    """An item of `GET /Items`: a book, an audiobook or a folder of a library."""
+
+    id: str
+    type: str
+    name: str
+    path: str
+    overview: str
+    genres: tuple[str, ...]
+    authors: tuple[str, ...]
+    """The people of type `Author`."""
+    year: int | None
+    original_title: str
+    has_image: bool
+    """Its `Primary` image."""
+    index_number: int | None

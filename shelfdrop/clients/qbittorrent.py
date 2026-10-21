@@ -35,6 +35,7 @@ def torrent_of(item: object) -> TorrentInfo | None:
         speed=int(number(item.get("dlspeed"))),
         eta=int(number(item.get("eta"))),
         category=str(item.get("category") or ""),
+        content_path=str(item.get("content_path") or ""),
     )
 
 
@@ -95,6 +96,18 @@ class QBittorrentClient:
         if response.text.strip() == REFUSED:
             raise ServiceError("torrent refused")
 
+    async def add_tags(
+        self, url: str | None, api_key: str | None, hashes: Sequence[str], tags: str
+    ) -> None:
+        """`POST /api/v2/torrents/addTags` (form): `tags` given to the torrents `hashes`."""
+        await self.call(
+            "POST",
+            url,
+            api_key,
+            "/api/v2/torrents/addTags",
+            data={"hashes": "|".join(hashes), "tags": tags},
+        )
+
     async def call(
         self,
         method: str,
@@ -104,6 +117,7 @@ class QBittorrentClient:
         *,
         params: dict[str, str] | None = None,
         files: dict[str, Any] | None = None,
+        data: dict[str, str] | None = None,
     ) -> httpx.Response:
         if not url:
             raise ServiceNotConfiguredError("no address")
@@ -111,7 +125,11 @@ class QBittorrentClient:
             raise ServiceNotConfiguredError("no key")
         try:
             response = await self.http.request(
-                method, f"{url.rstrip('/')}/proxy/{api_key}{path}", params=params, files=files
+                method,
+                f"{url.rstrip('/')}/proxy/{api_key}{path}",
+                params=params,
+                files=files,
+                data=data,
             )
         except httpx.HTTPError as exc:
             raise ServiceError(type(exc).__name__) from exc

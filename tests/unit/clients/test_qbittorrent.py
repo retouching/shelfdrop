@@ -99,3 +99,25 @@ async def test_a_torrent_refused_or_a_qbittorrent_down_is_a_service_error() -> N
     assert down.value.status == 502
     # No hash, no request.
     assert await client.torrents(URL, FakeQui.KEY, []) == []
+
+
+@pytest.mark.anyio
+async def test_a_torrent_gives_its_content_path_and_takes_a_tag() -> None:
+    qui = FakeQui()
+    qui.torrents["ab" * 20] = {
+        "hash": "ab" * 20,
+        "name": "Berserk T01",
+        "state": "stalledUP",
+        "progress": 1.0,
+        "content_path": "/data/torrents/manga/Berserk T01.cbz",
+    }
+    client = new_client(qui)
+
+    [info] = await client.torrents(URL, FakeQui.KEY, ["ab" * 20])
+    await client.add_tags(URL, FakeQui.KEY, ["ab" * 20], "placé")
+
+    assert info.content_path == "/data/torrents/manga/Berserk T01.cbz"
+    assert qui.torrents["ab" * 20]["tags"] == "placé"
+    tagged = qui.requests[-1]
+    assert tagged.method == "POST"
+    assert tagged.headers["Content-Type"] == "application/x-www-form-urlencoded"

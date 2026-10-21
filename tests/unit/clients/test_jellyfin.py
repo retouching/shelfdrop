@@ -109,3 +109,146 @@ async def test_a_failed_answer_is_a_service_error(answer: httpx.Response) -> Non
     with pytest.raises(ServiceError) as failed:
         await JellyfinClient(http, "0.3.0").current_user(URL, "t", "d")
     assert not failed.value.refused
+
+
+def book(item_id: str, path: str, **fields: object) -> dict[str, object]:
+    return {
+        "Id": item_id,
+        "Type": "Book",
+        "Name": item_id,
+        "Path": path,
+        "LibraryId": "lib-1",
+        **fields,
+    }
+
+
+@pytest.mark.anyio
+async def test_the_libraries_give_their_item_their_folders_and_their_scan() -> None:
+    jellyfin = FakeJellyfin(
+        libraries=[
+            {
+                "Name": "BD & Mangas",
+                "CollectionType": "books",
+                "Locations": ["/files/comics"],
+                "ItemId": "lib-1",
+                "RefreshProgress": 42.5,
+                "RefreshStatus": "Active",
+            },
+            {
+                "Name": "Livres",
+                "CollectionType": "books",
+                "Locations": [],
+                "ItemId": "lib-2",
+                "RefreshProgress": 100,
+                "RefreshStatus": "Idle",
+            },
+        ]
+    )
+
+    comics, books = await new_client(jellyfin).libraries(URL, API_KEY)
+
+    assert (comics.item_id, comics.locations, comics.refresh_progress) == (
+        "lib-1",
+        ("/files/comics",),
+        42.5,
+    )
+    assert books.refresh_progress is None
+
+
+@pytest.mark.anyio
+async def test_the_items_of_a_library_are_read_with_their_fields() -> None:
+    jellyfin = FakeJellyfin(
+        items={
+            "b1": book(
+                "b1",
+                "/files/comics/Berserk/Berserk - T01.cbz",
+                Overview="Guts.",
+                Genres=["Seinen"],
+                People=[
+                    {"Name": "Kentaro Miura", "Type": "Author"},
+                    {"Name": "X", "Type": "Editor"},
+                ],
+                ProductionYear=1990,
+                ImageTags={"Primary": "abc"},
+                IndexNumber=1,
+            ),
+            "f1": {"Id": "f1", "Type": "Folder", "Name": "Berserk", "LibraryId": "lib-1"},
+        }
+    )
+
+    [item] = await new_client(jellyfin).items(URL, API_KEY, "lib-1", ["Book", "AudioBook"])
+
+    assert item.path == "/files/comics/Berserk/Berserk - T01.cbz"
+    assert (item.overview, item.genres, item.authors, item.year) == (
+        "Guts.",
+        ("Seinen",),
+        ("Kentaro Miura",),
+        1990,
+    )
+    assert item.has_image
+    assert item.index_number == 1
+    request = jellyfin.requests[0]
+    assert request.url.params["recursive"] == "true"
+    assert "Path" in request.url.params["fields"]
+
+
+@pytest.mark.anyio
+async def test_an_item_is_read_whole_and_written_back() -> None:
+    jellyfin = FakeJellyfin(items={"b1": book("b1", "/files/x.cbz", Genres=["Seinen"])})
+    client = new_client(jellyfin)
+
+    body = await client.item(URL, API_KEY, "b1")
+    await client.update_item(URL, API_KEY, "b1", {**body, "Name": "Berserk - T01"})
+
+    assert jellyfin.items["b1"]["Name"] == "Berserk - T01"
+    assert jellyfin.items["b1"]["Genres"] == ["Seinen"]
+
+
+@pytest.mark.anyio
+async def test_an_image_is_sent_in_base64_and_read_as_bytes() -> None:
+    jellyfin = FakeJellyfin(items={"b1": book("b1", "/files/x.cbz")})
+    client = new_client(jellyfin)
+
+    await client.set_image(URL, API_KEY, "b1", b"\xff\xd8jpeg", "image/jpeg")
+    data, content_type = await client.image(URL, API_KEY, "b1", 600)
+
+    sent = jellyfin.requests[0]
+    assert sent.content == b"/9hqcGVn"
+    assert sent.headers["Content-Type"] == "image/jpeg"
+    assert (data, content_type) == (b"\xff\xd8jpeg", "image/jpeg")
+    assert jellyfin.requests[1].url.params["maxWidth"] == "600"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        ("new", {"metadataRefreshMode": "Default", "imageRefreshMode": "Default"}),
+        (
+            "missing",
+            {
+                "metadataRefreshMode": "FullRefresh",
+                "imageRefreshMode": "FullRefresh",
+                "replaceAllMetadata": "false",
+                "replaceAllImages": "false",
+            },
+        ),
+        (
+            "all",
+            {
+                "metadataRefreshMode": "FullRefresh",
+                "imageRefreshMode": "FullRefresh",
+                "replaceAllMetadata": "true",
+                "replaceAllImages": "true",
+            },
+        ),
+    ],
+)
+async def test_a_refresh_sends_the_modes_of_its_scan(mode: str, expected: dict[str, str]) -> None:
+    jellyfin = FakeJellyfin(items={"lib-1": {"Id": "lib-1", "Type": "CollectionFolder"}})
+    client = new_client(jellyfin)
+
+    await client.refresh(URL, API_KEY, "lib-1", mode)
+    await client.refresh_libraries(URL, API_KEY)
+
+    assert jellyfin.refreshed == [("lib-1", {"recursive": "true", **expected}), ("library", {})]
