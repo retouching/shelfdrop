@@ -1,0 +1,76 @@
+[project]
+name = "shelfdrop"
+version = "0.1.0"
+description = "Find, download and shelve manga, books and audiobooks into Jellyfin."
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20",
+    "anyio>=4.15",
+    "defusedxml>=0.7.1",
+    "fastapi>=0.142",
+    "httpx>=0.28.1",
+    "pydantic>=2.12",
+    "pydantic-settings>=2.15",
+    "sqlalchemy>=2.1.1",
+    "uvicorn[standard]>=0.54",
+    "wireup>=2.12",
+]
+
+[project.scripts]
+shelfdrop = "shelfdrop.cli.main:main"
+
+[build-system]
+requires = ["uv_build>=0.9,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["web"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "S", "SIM", "RUF", "PT", "TID251", "SLF", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "RUF001"]
+"shelfdrop/**/repository.py" = ["TID251"]
+"shelfdrop/db/**" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sqlalchemy.select".msg = "Queries live in a repository.py (ADR 0005)."
+"sqlalchemy.func".msg = "Queries live in a repository.py (ADR 0005)."
+"sqlalchemy.text".msg = "Queries live in a repository.py (ADR 0005)."
+"sqlalchemy.insert".msg = "Queries live in a repository.py (ADR 0005)."
+"sqlalchemy.update".msg = "Queries live in a repository.py (ADR 0005)."
+"sqlalchemy.delete".msg = "Queries live in a repository.py (ADR 0005)."
+"sqlite3".msg = "The database is reached through SQLAlchemy (ADR 0005)."
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+files = ["shelfdrop", "tests"]
+exclude = ["^shelfdrop/db/migrations/versions/"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = ["-ra"]
+strict = true
+filterwarnings = ["error"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+    "types-defusedxml>=0.7.0.20260504",
+]

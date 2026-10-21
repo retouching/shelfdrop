@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Before every push: the format, the lint, the types and the unit tests of the API, then the
+# checks of the front-end. The push goes only when they pass. Enabled once per clone:
+#   git config core.hooksPath .githooks
+# `git push --no-verify` skips it.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+echo "pre-push: format, lint, types and unit tests of shelfdrop" >&2
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
+uv run pytest tests/unit -q -p no:cacheprovider
+echo "pre-push: checks of the front-end" >&2
+(cd web && pnpm check)
+echo "pre-push: passed" >&2
