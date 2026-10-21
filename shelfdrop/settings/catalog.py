@@ -44,6 +44,8 @@ LIBRARIES: Final[dict[Kind, str]] = {
 PATH_MAX_LENGTH: Final = 500
 # Hours between two searches of the waiting list (plan section 3, point 11).
 WAITING_HOURS: Final = (1, 3, 6, 12, 24)
+# A time of the day, `04:30`.
+TIME: Final = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 ADDRESS: Final = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d+)?(/\S*)?$")
 SECRET_MAX_LENGTH: Final = 1000
 
@@ -62,6 +64,8 @@ VALUES: Final[Mapping[str, Entry]] = {
     "waiting.interval_hours": Entry(kind="number", default=6, choices=WAITING_HOURS),
     "placement.covers": Entry(kind="switch", default=True),
     "placement.lock_jellyfin": Entry(kind="switch", default=True),
+    # The time of the day of the scan of the files misplaced (plan section 3, point 5).
+    "placement.scan_time": Entry(kind="time", default="04:30"),
 }
 SECRETS: Final = frozenset(
     {
@@ -88,6 +92,8 @@ def is_valid(entry: Entry, value: SettingValue) -> bool:
             )
         case "path":
             return isinstance(value, str) and is_path(value)
+        case "time":
+            return isinstance(value, str) and TIME.match(value) is not None
 
 
 def is_path(value: str) -> bool:

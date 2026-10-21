@@ -1,0 +1,26 @@
+# 0018. Ranger: the files placed by hand
+Status: Accepted
+Date: 2026-10-21
+
+## Context
+Decided by the user on 2026-10-21 (plan section 3, points 4 bis and 5): what the placement worker does not place alone (a manual download, a release in chapters, a volume it cannot read, a link refused) and the files of the libraries out of their names go to the page Ranger. There a file is linked to a work (the work search) and placed by the same rules as the worker; a release in chapters is linked to its real volumes by hand (MangaDex is wrong on Chainsaw Man, ADR 0016), a complete volume merged into one CBZ, an incomplete one placed as it is. Nothing is replaced: a file at the destination refuses the request. A scan, every day and on a button, finds the files misplaced, the folders of chapters and the MP3 tracks not merged already on the shelf.
+
+## Decision
+- The files of Ranger are the rows of `place_items` (`shelfdrop.db.models.place_item`): their origin (`download`, `library`), their files (the paths of the worker), their size, their state (`unlinked`, `chapters`, `misplaced`, `placed`), why they are there, their chapters, the series their download or their folder gives and its volumes on the shelf.
+- The API never touches the files (ADR 0016): `RangerService` (`shelfdrop/ranger/`) lists the rows, keeps the request of the page on a row (`request`, JSON of `shelfdrop.placement.types.PlaceRequest`) and asks for a scan (a row `scan` of `library_tasks`); `HandPlacement` (`shelfdrop/placement/byhand.py`), in each round of the worker after `PlacementService.round`, does the rest.
+- **Listed.** Each download `unplaced`, and each manual download `completed`, gets its rows once (`shelfdrop.placement.items.items_of`, its files read in the `content_path` qBittorrent gives): a release in chapters one row `chapters` with every chapter of its names (`Ch. 233-236` counts 233 to 236, `.5` kept); another manga or a book one row a book file; an audiobook one row a folder of tracks.
+- **A volume** (`VolumeRequest`): a manga `<Series> - TXX.<ext>` (`shelfdrop.placement.chapters.place_volume`), a book and an audiobook by `place_books` and `lay_audio` (the title given, or the series; MP3 tracks merged into one M4B). **A file of chapters** (`ChapterRequest`): `<Series> - T23 - Ch. 206` or `<Series> - Ch. 233-236`. A file of a download is hardlinked (the torrent seeds on); a file of the libraries is moved (linked, then its old name removed). A name taken: `exists`, nothing written; the row stays with its `error`.
+- **A release in chapters** (`ChaptersRequest`, `place_chapters`): each volume is a range of its real chapters, even those the release lacks. Complete (every whole chapter of the range in the release or loose in the folder of the series): merged into one CBZ (`merge_chapters`: the first page of its first chapter as its cover, `ComicInfo.xml` with the series, the number, the writers and the summary), and the loose chapters of the shelf it took removed (the click is the confirmation). Incomplete: its chapters linked as they are, `<Series> - TNN - Ch. NNN`. A volume on the shelf is left, but replaced when the page asks (`replace`). The chapters of no volume: placed as they are (`<Series> - Ch. NNN`, `rest` `place`), or kept in Ranger (`keep`: the row keeps them). The cover of a volume is the first page of its first chapter: no source gives one cover a volume we trust.
+- **Placed**: the files in `files`, the row `placed` with its destination, the download `placed` once none of its rows is open (and tagged `placé`), the library scanned by Jellyfin, the event `placed`. The lock of the round locks them, a chapter after the volumes before it.
+- **The scan** (`shelfdrop.placement.scan.scan_library`): a book file at the root of a library (`root`); a manga volume whose name is not `<Series> - TXX` in the folder of its series, a file deeper, a book out of `<Author>/<Series>/<NN - Title>/` (`naming`); the chapter files of a series folder (`chapters`, one row with the volumes of the folder); a folder of two MP3 tracks or more without an M4B when `placement.merge_mp3` is on (`tracks`). What the placement put on the shelf (`files`) is left aside. New rows added, those gone removed, the others read again (but those with a request). It runs once a day at `placement.scan_time` (local time of the worker), and when the page asks; the new files go to the journal (`misplaced`, a count a library).
+- **A file of the shelf corrected**: `GET /api/v1/place/items?q=` lists the files of `files` whose path holds the text; `POST /api/v1/place/shelf/{id}/link` makes it a row of the libraries with its request: it is moved.
+
+## Rejected alternatives
+- The files listed by the API: it does not see the libraries nor the torrents (no mount), and must not.
+- A cover a volume from MangaDex: not reliable (ADR 0016); the first page of the first chapter, as the page says.
+- A copy of a file of the libraries: a move keeps one file; a hardlink then the removal of the old name never replaces anything.
+
+## Consequences
+- A request waits for the next round of the worker (30 seconds at most); the page shows `placing` until then.
+- The daily scan follows the time zone of the worker (`TZ`).
+- A file of the libraries placed from Ranger leaves its old name; a file of a download keeps it (the torrent seeds).

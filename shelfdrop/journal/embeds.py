@@ -150,8 +150,15 @@ def fields_of(events: Sequence[Event]) -> tuple[str, str, list[dict[str, Any]]]:
                 lines([text(f.get("target")) for f in facts]),
                 fields,
             )
-        case "uploaded" | "misplaced":
+        case "uploaded":
             return text(first.facts.get("work")), lines([text(f.get("file")) for f in facts]), []
+        case "misplaced":
+            counts: dict[str, int] = {}
+            for f in facts:
+                library = text(f.get("library"))
+                counts[library] = counts.get(library, 0) + int(number(f.get("count")))
+            fields = [field(library, str(count)) for library, count in counts.items()]
+            return "", texts.PLACE, fields
 
 
 def embed_of(events: Sequence[Event], public_url: str | None, cover: str | None) -> dict[str, Any]:

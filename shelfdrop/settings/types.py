@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
-type ValueKind = Literal["address", "number", "switch", "path"]
+type ValueKind = Literal["address", "number", "switch", "path", "time"]
 type SettingValue = str | int | bool | None
 type AuditAction = Literal["changed", "replaced", "cleared", "imported"]
 type ProbeState = Literal["connected", "no_address", "no_key", "refused", "unavailable"]
@@ -14,7 +14,8 @@ type ProbeState = Literal["connected", "no_address", "no_key", "refused", "unava
 @dataclass(frozen=True, kw_only=True)
 class Entry:
     """A setting of the page: an address (None when unset), a whole number within its bounds
-    (one of `choices` when set), a switch, or an absolute path of the container."""
+    (one of `choices` when set), a switch, an absolute path of the container, or a time of the
+    day (`HH:MM`)."""
 
     kind: ValueKind
     default: SettingValue

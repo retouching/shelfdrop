@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from typing import Final, Literal
 
 from pydantic import TypeAdapter
-from sqlalchemy import Engine, select, update
+from sqlalchemy import Engine, and_, or_, select, update
 from sqlalchemy.orm import Session
 
 from shelfdrop.db.models import Download as DownloadRow
@@ -170,6 +170,21 @@ class DownloadRepository:
             select(DownloadRow)
             .where(DownloadRow.stage == "completed", DownloadRow.mode == "auto")
             .order_by(DownloadRow.completed_at, DownloadRow.id)
+        )
+        return [download_of(row) for row in rows]
+
+    def read_left(self) -> list[Download]:
+        """The downloads Ranger takes: those the placement left, and the manual ones
+        complete."""
+        rows = self.session.scalars(
+            select(DownloadRow)
+            .where(
+                or_(
+                    DownloadRow.stage == "unplaced",
+                    and_(DownloadRow.stage == "completed", DownloadRow.mode == "manual"),
+                )
+            )
+            .order_by(DownloadRow.id)
         )
         return [download_of(row) for row in rows]
 

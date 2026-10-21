@@ -207,13 +207,13 @@ class PlacementService:
             case "ebook":
                 laid = await anyio.to_thread.run_sync(place_books, order, files, root)
             case "audiobook":
-                laid = await self.place_audio(download, order, files, root)
+                laid = await self.place_audio(download.id, order, files, root)
         if not laid.files and not laid.present:
             raise NotPlacedError("no_files")
         return laid, library
 
     async def place_audio(
-        self, download: Download, order: Order, files: Sequence[Path], root: Path
+        self, download_id: int | None, order: Order, files: Sequence[Path], root: Path
     ) -> Laid:
         """The tracks of each volume merged into one M4B with its cover (the picture of the
         torrent, else the one of the tracks, else the one of the sources); the tracks of the
@@ -231,7 +231,7 @@ class PlacementService:
                     volume.title,
                     picture,
                     volume.target,
-                    lambda percent: self.progress(download.id, percent),
+                    lambda percent: self.progress(download_id, percent),
                 )
             except (AudioError, FileExistsError) as exc:
                 logger.warning("Merge failed", extra={"error": type(exc).__name__})
@@ -273,9 +273,9 @@ class PlacementService:
         await anyio.to_thread.run_sync(write_new, target, data)
         return target if target.is_file() else None
 
-    def progress(self, download_id: int, percent: int) -> None:
+    def progress(self, download_id: int | None, percent: int) -> None:
         """The percent of a merge for the page, every 5 percent (a short write of the loop)."""
-        if percent >= self.percents.get(download_id, -5) + 5:
+        if download_id is not None and percent >= self.percents.get(download_id, -5) + 5:
             self.percents[download_id] = percent
             self.write_downloads(lambda r: r.mark_placing(download_id, percent))
 
@@ -312,6 +312,10 @@ class PlacementService:
             await self.qbittorrent.add_tags(url, api_key, [download.info_hash or ""], PLACED_TAG)
         except ServiceError as exc:
             logger.info("Tag not set", extra={"error": type(exc).__name__})
+        await self.refresh_library(library)
+
+    async def refresh_library(self, library: JellyfinLibrary | None) -> None:
+        """The new files of `library` scanned by Jellyfin; a failure undoes nothing."""
         if library is None or library.item_id is None:
             return
         url, api_key = await self.settings.jellyfin()
@@ -378,7 +382,11 @@ class PlacementService:
 
     async def run_tasks(self) -> None:
         """The `cover.jpg` the page chose, written in the folder of its series."""
-        tasks = await self.on_shelf(lambda r: r.read_tasks(), commit=False)
+        tasks = [
+            t
+            for t in await self.on_shelf(lambda r: r.read_tasks(), commit=False)
+            if t.kind == "cover"
+        ]
         if not tasks:
             return
         url, api_key = await self.settings.jellyfin()

@@ -58,6 +58,8 @@ class Order:
     author: str
     release: str
     volumes: Volumes
+    title: str = ""
+    """The title of the volume, given by Ranger; read in the name of the release without it."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -190,6 +192,8 @@ def book_volumes(order: Order, books: Sequence[Path]) -> dict[int, list[Path]]:
 
 
 def title_of(order: Order, volume: int, books: Sequence[Path]) -> str:
+    if order.title.strip():
+        return order.title.strip()
     if order.volumes.kind == "single":
         return volume_title(order.release, volume, order.series)
     return volume_title(books[0].parent.name, volume, order.series)

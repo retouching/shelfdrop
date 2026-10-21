@@ -31,6 +31,7 @@ from shelfdrop.journal.service import DiscordSettings, Journal, JournalSender
 from shelfdrop.journal.types import JournalOptions
 from shelfdrop.library.service import LibraryReader, LibraryService, LibrarySettings
 from shelfdrop.placement.audio import AudioTools
+from shelfdrop.placement.byhand import HandPlacement, HandSettings
 from shelfdrop.placement.repository import placement_repository_factory
 from shelfdrop.placement.service import (
     CoverSource,
@@ -40,6 +41,7 @@ from shelfdrop.placement.service import (
 )
 from shelfdrop.placement.types import PlacementOptions
 from shelfdrop.placement.worker import PlacementWorker
+from shelfdrop.ranger.service import RangerService
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository, repository_factory
@@ -234,6 +236,14 @@ async def run_placement(settings: Settings) -> None:
         await worker.run()
     finally:
         await container.close()
+
+
+def as_hand_settings(reader: SettingsReader) -> HandSettings:
+    return reader
+
+
+def new_ranger_service(engine: Engine, clock: Clock) -> RangerService:
+    return RangerService(placement_repository_factory(engine), clock)
 
 
 def as_library_settings(reader: SettingsReader) -> LibrarySettings:
@@ -490,7 +500,10 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(as_placement_settings),
         wireup.injectable(as_placement_events),
         wireup.injectable(new_placement_service),
+        wireup.injectable(as_hand_settings),
+        wireup.injectable(HandPlacement),
         wireup.injectable(PlacementWorker),
+        wireup.injectable(new_ranger_service),
         wireup.injectable(as_library_settings),
         wireup.injectable(BoardSearcher),
         wireup.injectable(as_release_searcher),

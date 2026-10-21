@@ -1,6 +1,7 @@
 """What the tests of the placement share: the files of the shelf in memory, ffmpeg played by a
 fake, the settings, the covers of the sources, and builders of CBZ files."""
 
+import dataclasses
 import io
 import itertools
 import zipfile
@@ -16,9 +17,20 @@ from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.downloads.types import Download, NewDownload
 from shelfdrop.placement.audio import AudioError, AudioTools
+from shelfdrop.placement.byhand import HandPlacement
 from shelfdrop.placement.repository import PlacementRepository
 from shelfdrop.placement.service import PlacementService
-from shelfdrop.placement.types import LibraryTask, PlacedFile, PlacementOptions, ShelfFile, TaskKind
+from shelfdrop.placement.types import (
+    ItemOrigin,
+    LibraryTask,
+    NewItem,
+    PlacedFile,
+    PlaceItem,
+    PlacementOptions,
+    PlaceRequest,
+    ShelfFile,
+    TaskKind,
+)
 from shelfdrop.releases.types import Volumes
 from shelfdrop.works.types import Kind
 from tests.unit.clients.support import API_KEY, FakeJellyfin, FakeQui
@@ -61,6 +73,8 @@ class FakePlacementRepository(PlacementRepository):
         self.files: list[ShelfFile] = []
         self.tasks: dict[int, tuple[LibraryTask, str]] = {}
         self.ids = itertools.count(1)
+        self.items: dict[int, PlaceItem] = {}
+        self.scans: list[int] = []
 
     @override
     def add_files(self, files: Sequence[PlacedFile], now: int) -> None:
@@ -111,6 +125,117 @@ class FakePlacementRepository(PlacementRepository):
     @override
     def mark_task(self, task_id: int, state: str, now: int) -> None:
         self.tasks[task_id] = (self.tasks[task_id][0], state)
+
+    @override
+    def remove_files(self, paths: Sequence[str]) -> None:
+        self.files = [f for f in self.files if f.path not in paths]
+
+    @override
+    def read_shelf_paths(self) -> set[str]:
+        return {f.path for f in self.files}
+
+    @override
+    def find_shelved(self, text: str, limit: int) -> list[ShelfFile]:
+        return [f for f in reversed(self.files) if text.lower() in f.path.lower()][:limit]
+
+    @override
+    def read_shelf_file(self, file_id: int) -> ShelfFile | None:
+        return next((f for f in self.files if f.id == file_id), None)
+
+    @override
+    def add_item(self, item: NewItem, now: int) -> int:
+        item_id = next(self.ids)
+        self.items[item_id] = PlaceItem(
+            id=item_id,
+            **{k: v for k, v in item.__dict__.items()},
+            request=None,
+            error=None,
+            destination=None,
+            created_at=now,
+            updated_at=now,
+        )
+        return item_id
+
+    def change(self, item_id: int, **values: object) -> None:
+        self.items[item_id] = dataclasses.replace(self.items[item_id], **values)  # type: ignore[arg-type]  # the fields named by the fake
+
+    @override
+    def update_item(self, item_id: int, item: NewItem, now: int) -> None:
+        values = {k: v for k, v in item.__dict__.items() if k not in ("origin", "download_id")}
+        self.change(item_id, **values, updated_at=now)
+
+    @override
+    def read_items(self, *, placed: bool) -> list[PlaceItem]:
+        return [
+            i
+            for i in sorted(self.items.values(), key=lambda i: -i.id)
+            if placed or i.state != "placed"
+        ]
+
+    @override
+    def read_item(self, item_id: int) -> PlaceItem | None:
+        return self.items.get(item_id)
+
+    @override
+    def count_open(self) -> int:
+        return sum(1 for i in self.items.values() if i.state != "placed")
+
+    @override
+    def read_item_downloads(self) -> set[int]:
+        return {i.download_id for i in self.items.values() if i.download_id is not None}
+
+    @override
+    def read_open_of(self, origin: ItemOrigin) -> list[PlaceItem]:
+        return [i for i in self.items.values() if i.origin == origin and i.state != "placed"]
+
+    @override
+    def count_open_of_download(self, download_id: int) -> int:
+        return sum(
+            1 for i in self.items.values() if i.download_id == download_id and i.state != "placed"
+        )
+
+    @override
+    def delete_items(self, item_ids: Sequence[int]) -> None:
+        for item_id in item_ids:
+            del self.items[item_id]
+
+    @override
+    def ask(self, item_id: int, request: PlaceRequest, now: int) -> bool:
+        item = self.items.get(item_id)
+        if item is None or item.state == "placed" or item.request is not None:
+            return False
+        self.change(item_id, request=request, error=None)
+        return True
+
+    @override
+    def read_asked(self) -> list[PlaceItem]:
+        return [i for i in self.items.values() if i.request is not None and i.state != "placed"]
+
+    @override
+    def mark_item_placed(self, item_id: int, destination: str, now: int) -> None:
+        self.change(item_id, state="placed", request=None, error=None, destination=destination)
+
+    @override
+    def mark_item_failed(self, item_id: int, error: str, now: int) -> None:
+        self.change(item_id, request=None, error=error)
+
+    @override
+    def mark_item_kept(
+        self, item_id: int, files: Sequence[str], chapters: Sequence[float], now: int
+    ) -> None:
+        self.change(item_id, request=None, error=None, files=tuple(files), chapters=tuple(chapters))
+
+    @override
+    def record_scan(self, now: int) -> None:
+        self.scans.append(now)
+
+    @override
+    def last_scan(self) -> int | None:
+        return max(self.scans, default=None)
+
+    @override
+    def has_pending_scan(self) -> bool:
+        return any(t.kind == "scan" and s == "pending" for t, s in self.tasks.values())
 
     @override
     def commit(self) -> None:
@@ -173,6 +298,7 @@ class FakePlacementSettings:
     merge: bool = True
     covers_on: bool = True
     lock_on: bool = True
+    scan_at: tuple[int, int] = (4, 30)
 
     async def qbittorrent(self) -> tuple[str | None, str | None]:
         return URL, FakeQui.KEY
@@ -191,6 +317,9 @@ class FakePlacementSettings:
 
     async def lock_jellyfin(self) -> bool:
         return self.lock_on
+
+    async def scan_time(self) -> tuple[int, int]:
+        return self.scan_at
 
 
 def libraries_of(roots: dict[Kind, str]) -> list[dict[str, object]]:
@@ -218,6 +347,7 @@ class Bench:
     tools: FakeTools
     clock: FixedClock
     roots: dict[Kind, Path]
+    hand: HandPlacement
 
 
 def new_bench(
@@ -257,7 +387,8 @@ def new_bench(
         clock,
         PlacementOptions(every_seconds=0),
     )
-    return Bench(service, shelf, downloads, qui, jellyfin, journal, tools, clock, roots)
+    hand = HandPlacement(service, settings)
+    return Bench(service, shelf, downloads, qui, jellyfin, journal, tools, clock, roots, hand)
 
 
 def completed(

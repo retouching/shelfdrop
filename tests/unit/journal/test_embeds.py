@@ -106,3 +106,22 @@ def test_a_failure_says_what_shelfdrop_did() -> None:
     assert embed["title"] == "Échec : qBittorrent n'a pas reçu le torrent"
     assert embed["description"] == "Berserk.T01.CBZ"
     assert embed["fields"][-1]["value"] == "Rien d'envoyé. Réessayer depuis Téléchargements."
+
+
+def test_the_files_misplaced_are_counted_by_library() -> None:
+    embed = embed_of(
+        [
+            event("misplaced", library="BD & Mangas", count=2),
+            event("misplaced", library="Livres", count=1),
+            event("misplaced", library="BD & Mangas", count=1),
+        ],
+        None,
+        None,
+    )
+
+    assert embed["title"] == "Mal rangés"
+    assert embed["description"] == "À ranger dans Ranger."
+    assert [(f["name"], f["value"]) for f in embed["fields"]] == [
+        ("BD & Mangas", "3"),
+        ("Livres", "1"),
+    ]

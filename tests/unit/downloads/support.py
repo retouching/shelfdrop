@@ -119,6 +119,14 @@ class FakeDownloadRepository(DownloadRepository):
         return [d for d in self.rows.values() if d.stage == "completed" and d.mode == "auto"]
 
     @override
+    def read_left(self) -> list[Download]:
+        return [
+            d
+            for d in self.rows.values()
+            if d.stage == "unplaced" or (d.stage == "completed" and d.mode == "manual")
+        ]
+
+    @override
     def mark_placed(self, download_id: int, destination: str, now: int) -> None:
         self.change(download_id, stage="placed", destination=destination, placing_percent=None)
 

@@ -37,6 +37,7 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `waiting.interval_hours` | `6` | The hours between two searches of a waiting search: 1, 3, 6, 12 or 24 ([ADR 0017](adr/0017-waiting.md)). |
 | `placement.merge_mp3` | on | The MP3 tracks of an audiobook merged into one M4B. |
 | `placement.covers` | on | The cover of a series written when it has none (the first page of its first volume). |
+| `placement.scan_time` | `04:30` | The time of the day (`HH:MM`, local time of the worker) of the scan of the files misplaced ([ADR 0018](adr/0018-ranger.md)). |
 | `placement.lock_jellyfin` | on | The name, the series, the number and the authors of a file placed set and locked in Jellyfin. |
 | `discord.events.<event>` | on | The events of the journal sent to Discord: `sent`, `downloaded`, `placed`, `to_place`, `uploaded`, `retry`, `failed`, `misplaced`, `login`, `found` ([ADR 0015](adr/0015-journal.md)). Without the secret `discord.webhook`, nothing is posted. |
 

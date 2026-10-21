@@ -54,11 +54,17 @@ def chapter_label(chapter: float) -> str:
     return f"{chapter:g}"
 
 
-def chapter_name(series: str, volume: int | None, chapter: float, extension: str) -> str:
+def chapter_name(
+    series: str, volume: int | None, chapter: float, extension: str, last: float | None = None
+) -> str:
     """'Chainsaw Man - T23 - Ch. 206.cbz' (a chapter of a volume not complete), 'Chainsaw Man -
-    Ch. 230.cbz' (a chapter of no volume yet)."""
+    Ch. 230.cbz' (a chapter of no volume yet), 'Chainsaw Man - Ch. 233-236.cbz' (a file of
+    several chapters, `last`)."""
     within = "" if volume is None else f" - {volume_label(volume)}"
-    return f"{safe(series)}{within} - Ch. {chapter_label(chapter)}{extension.lower()}"
+    numbers = chapter_label(chapter)
+    if last is not None and last > chapter:
+        numbers += f"-{chapter_label(last)}"
+    return f"{safe(series)}{within} - Ch. {numbers}{extension.lower()}"
 
 
 def chapter_sort_name(series: str, after: int | None, chapter: float) -> str:

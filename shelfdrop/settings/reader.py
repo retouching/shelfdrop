@@ -128,6 +128,15 @@ class SettingsReader:
     async def lock_jellyfin(self) -> bool:
         return await self.switch("placement.lock_jellyfin")
 
+    async def scan_time(self) -> tuple[int, int]:
+        """The hour and the minute of the day of the scan of the files misplaced."""
+        key = "placement.scan_time"
+        values, _ = await anyio.to_thread.run_sync(self.read, (key,), ())
+        value = values[key]
+        text = value if isinstance(value, str) else "04:30"
+        hour, minute = text.split(":")
+        return int(hour), int(minute)
+
     async def discord(self) -> tuple[str | None, frozenset[str]]:
         """The webhook of the journal and the events switched on."""
         keys = tuple(f"discord.events.{event}" for event in EVENTS)

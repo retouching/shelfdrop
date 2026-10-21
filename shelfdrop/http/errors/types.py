@@ -67,6 +67,16 @@ class ErrorCode(StrEnum):
     SERIES_NOT_FOUND = "series_not_found"
     # 404: no waiting search has this id (or it left the list); data = null.
     WAITING_NOT_FOUND = "waiting_not_found"
+    # 404: no file of the page Ranger (`/items/{id}`), or of the shelf (`/shelf/{id}`), has
+    # this id; data = null.
+    PLACE_ITEM_NOT_FOUND = "place_item_not_found"
+    # 409: the file of Ranger is placed already, or the worker has a request of it to do;
+    # data = null.
+    PLACE_ITEM_BUSY = "place_item_busy"
+    # 422: the request does not fit the file: volumes of chapters for a file that is not a
+    # release in chapters (or a volume for one), volumes repeated, ranges of chapters upside
+    # down or that overlap, nothing to place; data = null.
+    PLACE_REQUEST_REFUSED = "place_request_refused"
     # 422: the image chosen for a series is not a JPEG, a PNG or a WebP of 5 MB at most, or its
     # address did not answer one; data = null.
     IMAGE_REFUSED = "image_refused"

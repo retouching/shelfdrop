@@ -37,6 +37,9 @@ PARTS: Final = {
     "test_placement_audio.py": "placement",
     "test_library.py": "library",
     "test_waiting.py": "waiting",
+    "test_ranger_link.py": "ranger",
+    "test_ranger_chapters.py": "ranger",
+    "test_ranger_scan.py": "ranger",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -62,6 +65,9 @@ FILE_BLOCKS: Final = {
     "test_download_manual.py": "downloads_manual",
     "test_placement_comics.py": "placement_comics",
     "test_placement_audio.py": "placement_audio",
+    "test_ranger_link.py": "ranger_link",
+    "test_ranger_chapters.py": "ranger_chapters",
+    "test_ranger_scan.py": "ranger_scan",
 }
 
 

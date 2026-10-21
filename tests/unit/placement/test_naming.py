@@ -25,6 +25,7 @@ def test_a_chapter_placed_alone_names_its_volume_when_it_has_one() -> None:
     assert chapter_name("Chainsaw Man", 23, 206, ".cbz") == "Chainsaw Man - T23 - Ch. 206.cbz"
     assert chapter_name("Chainsaw Man", None, 230, ".cbz") == "Chainsaw Man - Ch. 230.cbz"
     assert chapter_name("Chainsaw Man", None, 12.5, ".cbz") == "Chainsaw Man - Ch. 12.5.cbz"
+    assert chapter_name("Chainsaw Man", None, 233, ".cbz", 236) == "Chainsaw Man - Ch. 233-236.cbz"
 
 
 def test_a_chapter_alone_sorts_between_its_volumes_in_its_order() -> None:

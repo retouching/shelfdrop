@@ -76,3 +76,10 @@ The worker `shelfdrop placement run` ([ADR 0016](adr/0016-placement.md)) runs a 
 5. **After.** The tag `placé` in qBittorrent, the scan of the library in Jellyfin, the download `placed` with its destination, the event `placed` with the cover; not placed: `to_place` with its reason (`failed` too for a link refused or a merge failed).
 6. **The lock.** Each file placed that Jellyfin lists now (by its path, its library found by the name of its folder): its name, its series, its number and its authors set, `Name` and `Cast` locked.
 7. **The writes asked.** The `cover.jpg` the page chose, written in the folder of its series.
+
+## Ranger
+After each round of the placement, the worker takes the files of Ranger ([ADR 0018](adr/0018-ranger.md), `HandPlacement.round`):
+
+1. **Listed.** A download left to Ranger (`unplaced`, or manual and complete): its files read in its torrent, a release in chapters one file with its chapters, another one file a book (a folder of tracks for an audiobook).
+2. **Placed.** What the page asked: a volume, a file of chapters, or the volumes of a release in chapters (a complete one merged into one CBZ, an incomplete one linked as it is, the rest without a volume or kept). A file of a download is hardlinked, one of the libraries moved; a name taken refuses (`exists`), nothing replaced. The download is `placed` once nothing of it is left.
+3. **Scanned.** Once a day at `placement.scan_time`, and when the page asks: the files at the root of a library, out of their names, the folders of chapters and of MP3 tracks not merged; what the placement put there is left aside.

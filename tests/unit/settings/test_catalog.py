@@ -33,6 +33,8 @@ def test_the_catalog_holds_the_settings_of_the_page() -> None:
         ("search.max_names", 10),
         ("search.release_cache_minutes", 0),
         ("sources.kitsu.enabled", False),
+        ("placement.scan_time", "04:30"),
+        ("placement.scan_time", "23:59"),
     ],
 )
 def test_a_valid_value_is_accepted(key: str, value: SettingValue) -> None:
@@ -53,6 +55,9 @@ def test_a_valid_value_is_accepted(key: str, value: SettingValue) -> None:
         ("sources.kitsu.enabled", 1),
         ("unknown.key", 1),
         ("prowlarr.api_key", "abc"),
+        ("placement.scan_time", "24:00"),
+        ("placement.scan_time", "4:30"),
+        ("placement.scan_time", 430),
     ],
 )
 def test_an_invalid_value_or_an_unknown_key_is_refused(key: str, value: SettingValue) -> None:

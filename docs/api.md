@@ -227,3 +227,20 @@ A search now (answers the search), or a removal (`204`). `404 waiting_not_found`
 
 ## GET /api/v1/waiting/owned?kind=manga&title=Chainsaw%20Man&work_id=...
 The volumes of a work already placed or in the library of its kind in Jellyfin: `{"volumes": [1, 2, 3]}`.
+
+## GET /api/v1/place/items?q=
+The files of the page Ranger ([ADR 0018](adr/0018-ranger.md)), the newest first, and the count of those to place: `{"items": [...], "open": 3}`. Each: `id` (`item-<n>`), `origin` (`download`, `library`), `kind` (or `null`), `name`, `path` (as the worker sees it), `size`, `state` (`unlinked`, `chapters`, `misplaced`, `placed`, or `placing` while the worker has a request of it), `reason` (why its download was not placed: `manual`, `chapters`, `no_volume`...; why the scan found it: `root`, `naming`, `tracks`, `chapters`; `relink`), `error` (why the last request failed: `exists`, `link_refused`, `merge_failed`, `no_files`, `unknown_author`), `destination`, `chapters`, `existing` (the volumes of `series` on the shelf), `series`, `author`, `work_id`. With `q` (200 characters at most), the files of the shelf whose path holds it come after, `id` `shelf-<n>`, `placed`.
+
+## POST /api/v1/place/items/{id}/link
+What the worker does with a file of Ranger, at its next round: `202`, the file, `placing`. The body is one of:
+- `{"type": "volume", "kind", "work_id", "series", "author", "volume", "title"}`: one volume (`volume` null: 1);
+- `{"type": "chapter", "work_id", "series", "author", "first", "last", "volume"}`: one file of chapters, `last` and `volume` optional;
+- `{"type": "chapters", "work_id", "series", "author", "summary", "volumes": [{"volume", "first", "last", "replace"}], "rest": "place" | "keep"}`: a release in chapters linked to its volumes.
+
+Errors: `404 place_item_not_found`, `409 place_item_busy` (placed, or a request waits), `422 place_request_refused` (chapters for a file not in chapters or a volume for one, volumes repeated, ranges upside down or overlapping, nothing to place), `422 validation_failed`.
+
+## POST /api/v1/place/shelf/{id}/link
+A file of the shelf (`shelf-<n>`) placed again: the body of a volume; it becomes a file of Ranger of the libraries, moved by the worker. `202`, that file. `404 place_item_not_found`.
+
+## POST /api/v1/place/scan
+A scan of the libraries for the files misplaced, by the worker at its next round (one waiting at most): `202`.

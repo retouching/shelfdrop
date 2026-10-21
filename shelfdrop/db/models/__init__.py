@@ -7,6 +7,7 @@ from shelfdrop.db.models.event import Event
 from shelfdrop.db.models.filter_rule import FilterRule
 from shelfdrop.db.models.library_task import LibraryTask
 from shelfdrop.db.models.login_session import LoginSession
+from shelfdrop.db.models.place_item import PlaceItem
 from shelfdrop.db.models.release_answer import ReleaseAnswer
 from shelfdrop.db.models.secret import Secret
 from shelfdrop.db.models.setting import Setting
@@ -23,6 +24,7 @@ __all__ = [
     "FilterRule",
     "LibraryTask",
     "LoginSession",
+    "PlaceItem",
     "ReleaseAnswer",
     "Secret",
     "Setting",
