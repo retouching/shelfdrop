@@ -1,6 +1,6 @@
 [project]
 name = "shelfdrop"
-version = "0.4.0"
+version = "0.5.0"
 description = "Find, download and shelve manga, books and audiobooks into Jellyfin."
 requires-python = ">=3.13"
 dependencies = [
@@ -102,6 +102,10 @@ markers = [
     "waiting: integration part, the waiting searches on the fake Prowlarr and Discord (test_waiting.py)",
     "placement_comics: block of placement, a manga placed, a release in chapters (test_placement_comics.py)",
     "placement_audio: block of placement, MP3 tracks merged into one M4B, a book (test_placement_audio.py)",
+    "ranger: integration part, the page Ranger and the files the worker places from it",
+    "ranger_link: block of ranger, a download left linked to a work, a name taken, a file corrected (test_ranger_link.py)",
+    "ranger_chapters: block of ranger, a release in chapters merged into its volumes (test_ranger_chapters.py)",
+    "ranger_scan: block of ranger, the scan of the files misplaced and its time (test_ranger_scan.py)",
 ]
 
 [dependency-groups]

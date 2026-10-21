@@ -1,13 +1,35 @@
 import { useState, type ReactElement } from "react";
 
+import { askScan } from "../api/place";
 import { texts } from "../texts";
-import type { FileState, ShelfFile } from "../types";
+import type { FileState, Kind, ShelfFile } from "../types";
 import { formatSize } from "../utils/format";
 import { SearchIcon } from "./icons";
 import { ChaptersDialog } from "./ChaptersDialog";
 import { LinkDialog } from "./LinkDialog";
 
-function stateText(state: FileState): string {
+/** La raison d'un fichier mal rangé, en clair ; une raison inconnue reste telle quelle. */
+function reasonText(reason: string, kind: Kind | null): string {
+  switch (reason) {
+    case "root":
+      return texts.place.reasons.root(kind === null ? "" : texts.libraries[kind]);
+    case "naming":
+    case "tracks":
+    case "chapters":
+    case "relink":
+      return texts.place.reasons[reason];
+    default:
+      return reason;
+  }
+}
+
+function errorText(error: string): string {
+  return error in texts.place.errors
+    ? texts.place.errors[error as keyof typeof texts.place.errors]
+    : texts.place.errors.refused;
+}
+
+function stateText(state: FileState, kind: Kind | null): string {
   switch (state.kind) {
     case "uploading":
       return texts.place.uploading(state.percent);
@@ -16,7 +38,7 @@ function stateText(state: FileState): string {
     case "chapters":
       return texts.chapters.state;
     case "misplaced":
-      return texts.place.misplaced(state.reason);
+      return texts.place.misplaced(reasonText(state.reason, kind));
     case "placing":
       return texts.place.placing;
     case "placed":
@@ -45,12 +67,15 @@ function needsAction(file: ShelfFile): boolean {
 
 type Props = {
   readonly files: readonly ShelfFile[];
-  readonly onPlaced: (id: string, destination: string) => void;
+  readonly onPlaced: (file: ShelfFile) => void;
+  /** Le texte cherché : il cherche aussi dans les fichiers déjà rangés de la bibliothèque. */
+  readonly onSearch: (text: string) => void;
 };
 
-export function PlacePage({ files, onPlaced }: Props): ReactElement {
+export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
   const [filter, setFilter] = useState<"todo" | "all">("todo");
   const [query, setQuery] = useState("");
+  const [scanAsked, setScanAsked] = useState(false);
   const [linking, setLinking] = useState<ShelfFile | null>(null);
   const [chaptering, setChaptering] = useState<ShelfFile | null>(null);
 
@@ -68,6 +93,19 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
           <h2 id="files-title" className="mr-auto font-semibold text-ink">
             {texts.place.filesTitle}
           </h2>
+          <button
+            type="button"
+            disabled={scanAsked}
+            onClick={() => {
+              setScanAsked(true);
+              askScan().catch(() => {
+                setScanAsked(false);
+              });
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {scanAsked ? texts.place.scanAsked : texts.place.scan}
+          </button>
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -75,6 +113,7 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
+                onSearch(event.target.value.trim());
                 if (event.target.value !== "") {
                   setFilter("all");
                 }
@@ -159,10 +198,15 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
                   <td className="px-3 py-3">
                     <span
                       className={`inline-block max-w-full truncate rounded-md px-2 py-0.5 text-xs ring-1 ring-inset ${stateTone(file.state)}`}
-                      title={stateText(file.state)}
+                      title={stateText(file.state, file.kind)}
                     >
-                      {stateText(file.state)}
+                      {stateText(file.state, file.kind)}
                     </span>
+                    {file.error === undefined || file.error === null ? null : (
+                      <span className="mt-1 block truncate text-xs text-rose-700" title={errorText(file.error)}>
+                        {errorText(file.error)}
+                      </span>
+                    )}
                     {file.state.kind === "uploading" ? (
                       <progress
                         max={100}
@@ -216,8 +260,8 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
           onClose={() => {
             setChaptering(null);
           }}
-          onPlaced={(destination) => {
-            onPlaced(chaptering.id, destination);
+          onPlaced={(file) => {
+            onPlaced(file);
             setChaptering(null);
           }}
         />
@@ -228,8 +272,8 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
           onClose={() => {
             setLinking(null);
           }}
-          onPlaced={(destination) => {
-            onPlaced(linking.id, destination);
+          onPlaced={(file) => {
+            onPlaced(file);
             setLinking(null);
           }}
         />

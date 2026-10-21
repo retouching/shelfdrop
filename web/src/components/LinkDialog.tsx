@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
-import { wait } from "../mock/latency";
+import { placeFile, type PlaceBody } from "../api/place";
 import { texts } from "../texts";
 import type { Kind, ShelfFile } from "../types";
 import { Spinner } from "./Skeletons";
@@ -11,8 +11,8 @@ const kinds: readonly Kind[] = ["manga", "ebook", "audiobook"];
 /** « Série - T23 - Ch. 206 » quand le tome est connu, « Série - Ch. 230 » sinon. */
 export function chapterFileName(series: string, volume: string | null, chapter: string, chapterTo = ""): string {
   const pad = (value: string): string => {
-    const number = value.replace(",", ".");
-    return number === "" ? "?" : number.replace(/^(\d+)/u, (whole) => whole.padStart(3, "0"));
+    const number = value.replace(",", ".").replace(/^0+(?=\d)/u, "");
+    return number === "" ? "?" : number;
   };
   const range = chapterTo === "" || chapterTo === chapter ? pad(chapter) : `${pad(chapter)}-${pad(chapterTo)}`;
   return volume === null ? `${series} - Ch. ${range}` : `${series} - T${volume} - Ch. ${range}`;
@@ -21,8 +21,14 @@ export function chapterFileName(series: string, volume: string | null, chapter: 
 type Props = {
   readonly file: ShelfFile;
   readonly onClose: () => void;
-  readonly onPlaced: (destination: string) => void;
+  readonly onPlaced: (file: ShelfFile) => void;
 };
+
+/** « 12,5 » → 12.5 ; vide → null. */
+function chapterNumber(value: string): number | null {
+  const number = Number(value.replace(",", "."));
+  return value.trim() === "" || Number.isNaN(number) ? null : number;
+}
 
 export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
@@ -41,6 +47,7 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
   const [chapter, setChapter] = useState(chapterRange?.[1] ?? "");
   const [chapterTo, setChapterTo] = useState(chapterRange?.[2] ?? "");
   const [pending, setPending] = useState(false);
+  const [refused, setRefused] = useState(false);
 
   useEffect(() => {
     ref.current?.showModal();
@@ -48,9 +55,7 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
 
   const number = volume.trim() === "" ? null : volume.trim().padStart(2, "0");
   const library = texts.libraries[kind];
-  const volumePart = [number, volumeTitle.trim() === "" ? null : volumeTitle.trim()]
-    .filter((part) => part !== null)
-    .join(" - ");
+  const bookFolder = `${number ?? "01"} - ${volumeTitle.trim() === "" ? (pick?.shelfName ?? "") : volumeTitle.trim()}`;
   const destination =
     pick === null
       ? null
@@ -58,17 +63,31 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
         ? unit === "volume"
           ? [library, pick.shelfName, `${pick.shelfName} - T${number ?? "01"}`]
           : [library, pick.shelfName, chapterFileName(pick.shelfName, number, chapter, chapterTo)]
-        : volumePart === ""
-          ? [library, pick.work.author, pick.shelfName]
-          : [library, pick.work.author, pick.shelfName, volumePart];
+        : [library, pick.work.author, pick.shelfName, bookFolder];
+  const first = chapterNumber(chapter);
+  const chapterMissing = kind === "manga" && unit === "chapter" && first === null;
+
+  function body(chosen: Pick): PlaceBody {
+    const common = { work_id: chosen.work.id, series: chosen.shelfName, author: chosen.work.author };
+    const volumeNumber = number === null ? null : Number(number);
+    if (kind === "manga" && unit === "chapter") {
+      return { type: "chapter", ...common, first: first ?? 0, last: chapterNumber(chapterTo), volume: volumeNumber };
+    }
+    return { type: "volume", kind, ...common, volume: volumeNumber, title: volumeTitle.trim() };
+  }
 
   async function place(): Promise<void> {
-    if (destination === null) {
+    if (pick === null || chapterMissing) {
       return;
     }
     setPending(true);
-    await wait(900);
-    onPlaced(destination.slice(0, -1).join(" › "));
+    setRefused(false);
+    try {
+      onPlaced(await placeFile(file.id, body(pick)));
+    } catch {
+      setRefused(true);
+      setPending(false);
+    }
   }
 
   return (
@@ -214,7 +233,12 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
             </div>
           )}
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+          {refused ? (
+            <p role="alert" className="mr-auto text-sm text-rose-700">
+              {texts.place.errors.refused}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => {
@@ -226,7 +250,7 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
           </button>
           <button
             type="button"
-            disabled={destination === null || pending}
+            disabled={destination === null || chapterMissing || pending}
             onClick={() => {
               void place();
             }}

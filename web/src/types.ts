@@ -95,4 +95,10 @@ export type ShelfFile = {
   readonly state: FileState;
   /** Release en chapitres : les numéros trouvés dans les noms de fichiers, et les tomes déjà rangés. */
   readonly chapters?: { readonly numbers: readonly number[]; readonly existing: readonly number[] };
+  /** Pourquoi le dernier rangement demandé n'a pas eu lieu (« exists », « link_refused »…). */
+  readonly error?: string | null;
+  /** Série, auteur et œuvre devinés depuis le téléchargement ou le dossier. */
+  readonly series?: string;
+  readonly author?: string;
+  readonly workId?: string | null;
 };

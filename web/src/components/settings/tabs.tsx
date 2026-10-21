@@ -1,5 +1,5 @@
 // Rubriques Services, Sources, Recherche, Rangement et Journal Discord, lues et enregistrées par l'API ;
-// le dossier des envois, l'heure du scan et la durée des envois viennent avec Ranger.
+// le dossier des envois et la durée des envois viennent avec l'envoi de fichiers.
 import { useEffect, useState, type ReactElement } from "react";
 
 import { testConnection, type SettingValue, type Tracker } from "../../api/settings";
@@ -439,6 +439,24 @@ function PathField({ label, settingKey }: { readonly label: string; readonly set
   );
 }
 
+function TimeField({ label, settingKey }: { readonly label: string; readonly settingKey: string }): ReactElement {
+  const settings = useSettings();
+  return (
+    <Field label={label}>
+      <input
+        type="time"
+        value={textOf(valueOf(settings, settingKey))}
+        onChange={(event) => {
+          if (event.target.value !== "") {
+            setValue(settingKey, event.target.value);
+          }
+        }}
+        className={input}
+      />
+    </Field>
+  );
+}
+
 function SwitchField({ label, settingKey }: { readonly label: string; readonly settingKey: string }): ReactElement {
   const settings = useSettings();
   return (
@@ -452,7 +470,7 @@ function SwitchField({ label, settingKey }: { readonly label: string; readonly s
   );
 }
 
-/** Dossiers et options du rangement : enregistrés ; l'envoi de fichiers et le scan viennent avec Ranger. */
+/** Dossiers et options du rangement, heure du scan : enregistrés ; l'envoi de fichiers vient ensuite. */
 export function PlacementTab(): ReactElement {
   return (
     <div className="space-y-4">
@@ -472,9 +490,7 @@ export function PlacementTab(): ReactElement {
         <SwitchField label={texts.settings.covers} settingKey="placement.covers" />
         <SwitchField label={texts.settings.lockJellyfin} settingKey="placement.lock_jellyfin" />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={texts.settings.scanHour}>
-            <input type="time" defaultValue="04:30" className={input} />
-          </Field>
+          <TimeField label={texts.settings.scanHour} settingKey="placement.scan_time" />
           <Field label={texts.settings.uploadRetention}>
             <input type="number" min={1} defaultValue={7} className={input} />
           </Field>

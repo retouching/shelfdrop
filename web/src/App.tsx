@@ -30,7 +30,8 @@ import { loadSettings, useSettings, valueOf } from "./state/settings";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
 import { retryDownload } from "./api/downloads";
 import { useDownloads } from "./api/useDownloads";
-import { guessKind, mockFiles } from "./mock/files";
+import { usePlace } from "./api/place";
+import { guessKind } from "./utils/files";
 import { texts } from "./texts";
 import type { Download, Kind, ShelfFile, Work } from "./types";
 import { bestPerVolume, coverageLabel, volumeNumbers } from "./utils/volumes";
@@ -93,7 +94,9 @@ export function App(): ReactElement | null {
   const [merges, setMerges] = useState<readonly Work[]>([]);
   const [merging, setMerging] = useState<Work | null>(null);
   const [names, setNames] = useState<ReadonlySet<string>>(() => new Set());
-  const [files, setFiles] = useState<readonly ShelfFile[]>(mockFiles);
+  // Les envois de fichiers de la page Manuel, en cours dans cette page.
+  const [uploads, setUploads] = useState<readonly ShelfFile[]>([]);
+  const [placeText, setPlaceText] = useState("");
 
   const [searchId, setSearchId] = useState(0);
   const [refreshRound, setRefreshRound] = useState(0);
@@ -149,14 +152,17 @@ export function App(): ReactElement | null {
     ["downloading", "waiting", "placing"].includes(download.state.kind),
   ).length;
 
-  // Maquette : fait avancer les envois de fichiers en cours.
-  const uploading = files.some((file) => file.state.kind === "uploading");
+  const place = usePlace(username !== null, page === "place", placeText);
+  const files = [...uploads, ...place.files];
+
+  // Envoi de fichiers simulé : il fait avancer les envois en cours.
+  const uploading = uploads.some((file) => file.state.kind === "uploading");
   useEffect(() => {
     if (!uploading) {
       return undefined;
     }
     const timer = window.setInterval(() => {
-      setFiles((current) =>
+      setUploads((current) =>
         current.map((file) => {
           if (file.state.kind !== "uploading") {
             return file;
@@ -304,7 +310,7 @@ export function App(): ReactElement | null {
       sizeBytes: file.size,
       state: { kind: "uploading", percent: 0 },
     }));
-    setFiles((current) => [...added, ...current]);
+    setUploads((current) => [...added, ...current]);
     setNotice(texts.place.sentToPlace(added.length));
   }
 
@@ -326,7 +332,7 @@ export function App(): ReactElement | null {
         runningCount={running}
         settingsAlert={servicesDown}
         waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
-        toPlaceCount={files.filter((file) => file.state.kind === "unlinked" || file.state.kind === "misplaced").length}
+        toPlaceCount={place.open}
         onNavigate={(next) => {
           setPage(next);
           setSelected(new Set());
@@ -495,16 +501,7 @@ export function App(): ReactElement | null {
           <>
             <PageHeader section={texts.nav.library} title={texts.pages.place} lead={texts.pages.placeLead} />
             <main className="px-10 pt-8 pb-24">
-              <PlacePage
-                files={files}
-                onPlaced={(id, destination) => {
-                  setFiles((current) =>
-                    current.map((file) =>
-                      file.id === id ? { ...file, state: { kind: "placed", destination } } : file,
-                    ),
-                  );
-                }}
-              />
+              <PlacePage files={files} onPlaced={place.refresh} onSearch={setPlaceText} />
             </main>
           </>
         ) : (

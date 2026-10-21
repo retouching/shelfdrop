@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
-import { wait } from "../mock/latency";
+import { placeFile } from "../api/place";
 import { texts } from "../texts";
 import type { ShelfFile } from "../types";
 import { Spinner } from "./Skeletons";
-import { field, WorkPicker, type Pick } from "./WorkPicker";
+import { field, guessQuery, WorkPicker, type Pick } from "./WorkPicker";
 
 type Props = {
   readonly file: ShelfFile;
@@ -12,12 +12,11 @@ type Props = {
   /** Tomes déjà dans la bibliothèque pour cette série. */
   readonly existing: readonly number[];
   readonly onClose: () => void;
-  readonly onPlaced: (destination: string) => void;
+  readonly onPlaced: (file: ShelfFile) => void;
 };
 
 type Link = { readonly volume: number; readonly from: number; readonly to: number };
 
-const PAGES_PER_CHAPTER = 19;
 /** Teintes des tomes, en boucle : un tome = une couleur sur la grille des chapitres. */
 const tones = [
   "bg-violet-200 text-violet-900",
@@ -60,6 +59,7 @@ export function ChaptersDialog({ file, chapters, existing, onClose, onPlaced }: 
   const [rest, setRest] = useState<"place" | "keep">("place");
   const [replace, setReplace] = useState<ReadonlySet<number>>(() => new Set());
   const [pending, setPending] = useState(false);
+  const [refused, setRefused] = useState(false);
 
   useEffect(() => {
     ref.current?.showModal();
@@ -128,9 +128,28 @@ export function ChaptersDialog({ file, chapters, existing, onClose, onPlaced }: 
       return;
     }
     setPending(true);
-    await wait(1200);
-    onPlaced(`${texts.libraries.manga} › ${pick.shelfName}`);
-    ref.current?.close();
+    setRefused(false);
+    try {
+      const placed = await placeFile(file.id, {
+        type: "chapters",
+        work_id: pick.work.id,
+        series: pick.shelfName,
+        author: pick.work.author,
+        summary: "",
+        volumes: links.map((entry) => ({
+          volume: entry.volume,
+          first: entry.from,
+          last: entry.to,
+          replace: replace.has(entry.volume),
+        })),
+        rest,
+      });
+      onPlaced(placed);
+      ref.current?.close();
+    } catch {
+      setRefused(true);
+      setPending(false);
+    }
   }
 
   return (
@@ -152,7 +171,12 @@ export function ChaptersDialog({ file, chapters, existing, onClose, onPlaced }: 
 
         <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto px-6 py-5 lg:grid-cols-[1fr_22rem]">
           <div className="space-y-5">
-            <WorkPicker kind="manga" initialQuery="Chainsaw Man" value={pick} onChange={setPick} />
+            <WorkPicker
+              kind="manga"
+              initialQuery={file.series === undefined || file.series === "" ? guessQuery(file.name) : file.series}
+              value={pick}
+              onChange={setPick}
+            />
 
             <section aria-labelledby="chapters-grid" className="space-y-3">
               <div className="flex flex-wrap items-end gap-3">
@@ -265,8 +289,7 @@ export function ChaptersDialog({ file, chapters, existing, onClose, onPlaced }: 
                           </button>
                         </span>
                         <span className="block text-xs text-slate-500 tabular-nums">
-                          {texts.chapters.range(chapterLabel(entry.from), chapterLabel(entry.to), count)} ·{" "}
-                          {texts.chapters.pages(count * PAGES_PER_CHAPTER)}
+                          {texts.chapters.range(chapterLabel(entry.from), chapterLabel(entry.to), count)}
                         </span>
                         {missing.length === 0 ? (
                           <>
@@ -349,7 +372,13 @@ export function ChaptersDialog({ file, chapters, existing, onClose, onPlaced }: 
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-6 py-4">
-          <span className="text-sm text-slate-500">{texts.chapters.summary(complete.length, looseCount)}</span>
+          {refused ? (
+            <span role="alert" className="text-sm text-rose-700">
+              {texts.place.errors.refused}
+            </span>
+          ) : (
+            <span className="text-sm text-slate-500">{texts.chapters.summary(complete.length, looseCount)}</span>
+          )}
           <span className="flex gap-2">
             <button
               type="button"

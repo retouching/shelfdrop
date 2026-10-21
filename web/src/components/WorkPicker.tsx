@@ -1,7 +1,6 @@
 import { useEffect, useState, type KeyboardEvent, type ReactElement } from "react";
 
-import { mockWorks } from "../mock/data";
-import { wait } from "../mock/latency";
+import { searchWorks } from "../api/works";
 import { texts } from "../texts";
 import type { Kind, Work } from "../types";
 import { CheckIcon, SearchIcon } from "./icons";
@@ -24,21 +23,6 @@ function words(text: string): readonly string[] {
   return normalize(text)
     .split(/[^\p{L}\p{N}]+/u)
     .filter((word) => word.length > 1);
-}
-
-/** Maquette : cherche dans les œuvres fictives, sur tous leurs noms et l'auteur. */
-function findWorks(kind: Kind, query: string): readonly Work[] {
-  const asked = new Set(words(query));
-  // Un livre et son livre audio sont la même œuvre : les deux listes servent aux deux types.
-  const pool = kind === "manga" ? mockWorks.manga : [...mockWorks.ebook, ...mockWorks.audiobook];
-  if (asked.size === 0) {
-    return pool;
-  }
-  const covered = (text: string): boolean => {
-    const needed = words(text);
-    return needed.length > 0 && needed.every((word) => asked.has(word));
-  };
-  return pool.filter((work) => covered(work.author) || work.titles.some((alt) => covered(alt.title)));
 }
 
 /** Nom de fichier ou de release → texte de recherche : sans extension, année, tags ni numéro de tome. */
@@ -89,23 +73,35 @@ export function WorkPicker({
 }: Props): ReactElement {
   const [query, setQuery] = useState(initialQuery);
   const [submitted, setSubmitted] = useState(initialQuery);
-  const [doneKey, setDoneKey] = useState<string | null>(null);
+  const [found, setFound] = useState<{ readonly key: string; readonly works: readonly Work[] } | null>(null);
   const key = `${kind}|${submitted}`;
-  const searching = doneKey !== key;
+  const empty = submitted.trim() === "";
+  const searching = !empty && found?.key !== key;
 
   useEffect(() => {
+    if (submitted.trim() === "") {
+      return undefined;
+    }
     let cancelled = false;
-    void wait(700).then(() => {
-      if (!cancelled) {
-        setDoneKey(key);
-      }
-    });
+    searchWorks(submitted, kind).then(
+      (result) => {
+        if (!cancelled) {
+          setFound({ key, works: result.works });
+        }
+      },
+      () => {
+        if (!cancelled) {
+          setFound({ key, works: [] });
+        }
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, kind, submitted]);
 
-  const works = searching ? [] : findWorks(kind, submitted).filter((candidate) => exclude?.has(candidate.id) !== true);
+  const works =
+    searching || empty || found === null ? [] : found.works.filter((candidate) => exclude?.has(candidate.id) !== true);
 
   // Pas de <form> ici : le sélecteur vit aussi dans le formulaire d'envoi, et les formulaires ne s'imbriquent pas.
   function search(): void {
@@ -146,7 +142,7 @@ export function WorkPicker({
       </div>
 
       <div aria-busy={searching} className="max-h-56 overflow-y-auto">
-        {searching ? (
+        {empty ? null : searching ? (
           <>
             <LoadingLabel label={texts.loading.works} />
             <ul aria-hidden="true" className="space-y-2">
