@@ -45,6 +45,8 @@ export type Release = {
   readonly scoreRules: readonly { readonly name: string; readonly score: number }[];
   /** Écartée : un mot de son nom manque à son titre, ou son score est sous le minimum. */
   readonly rejected?: "relevance" | "score" | null;
+  /** Gardée, d'un tracker autorisé en téléchargement automatique : la page Automatique peut l'envoyer. */
+  readonly automatic: boolean;
 };
 
 export type DownloadState =
@@ -67,6 +69,9 @@ export type Download = {
   readonly kind: Kind;
   readonly state: DownloadState;
   readonly addedAt: string;
+  /** Le nom de l'œuvre, ou le texte d'une recherche manuelle : « Autre release » le cherche. */
+  readonly workTitle: string;
+  readonly manual: boolean;
 };
 
 /** Un fichier à ranger : envoyé depuis la page, ou trouvé dans la bibliothèque ou les téléchargements. */

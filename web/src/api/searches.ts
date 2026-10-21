@@ -37,6 +37,7 @@ type ReleaseRead = {
   readonly score: number;
   readonly score_rules: readonly { readonly name: string; readonly score: number }[];
   readonly rejected: "relevance" | "score" | null;
+  readonly automatic: boolean;
 };
 
 type ReleaseSearchRead = {
@@ -86,6 +87,7 @@ function releaseOf(read: ReleaseRead, author: string, series: string): Release {
     score: read.score,
     scoreRules: read.score_rules,
     rejected: read.rejected,
+    automatic: read.automatic,
   };
 }
 

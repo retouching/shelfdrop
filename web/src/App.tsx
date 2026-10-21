@@ -28,9 +28,9 @@ import { readSession, signOut } from "./api/session";
 import { readHealth } from "./api/settings";
 import { loadSettings, useSettings, valueOf } from "./state/settings";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
-import { mockDownloads, nextDownloads } from "./mock/data";
+import { retryDownload } from "./api/downloads";
+import { useDownloads } from "./api/useDownloads";
 import { guessKind, mockFiles } from "./mock/files";
-import { useLatency, wait } from "./mock/latency";
 import { texts } from "./texts";
 import type { Download, Kind, ShelfFile, Work } from "./types";
 import { bestPerVolume, coverageLabel, volumeNumbers } from "./utils/volumes";
@@ -86,9 +86,6 @@ export function App(): ReactElement | null {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [downloads, setDownloads] = useState<readonly Download[]>(mockDownloads);
-  const [downloadsAt, setDownloadsAt] = useState(() => new Date());
-  const [downloadsRefreshing, setDownloadsRefreshing] = useState(false);
   const [live, setLive] = useState(false);
   const [liveEvery, setLiveEvery] = useState(5);
   const [retrying, setRetrying] = useState<ReadonlySet<string>>(() => new Set());
@@ -123,7 +120,8 @@ export function App(): ReactElement | null {
       : null;
   const releasesState = useReleases(releasesQuery, refreshRound);
   const releasesLoading = releasesState.status === "running";
-  const downloadsLoading = useLatency(`downloads|${page}`, 700);
+  const downloadsList = useDownloads(username !== null, page === "downloads", live, liveEvery);
+  const downloads = downloadsList.downloads ?? [];
 
   const works = withMerges(worksState.status === "done" ? worksState.works : [], merges);
   const [showRejected, setShowRejected] = useState(false);
@@ -143,34 +141,16 @@ export function App(): ReactElement | null {
   const progress = releasesState.status === "running" ? releasesState.progress : null;
   const rejected = found.filter((release) => release.rejected === "score");
   const releases = showRejected ? found : found.filter((release) => release.rejected !== "score");
-  const selectedReleases = releases.filter((release) => selected.has(release.id));
+  // La page Automatique n'envoie que les releases qu'un téléchargement automatique peut prendre.
+  const selectable = manual ? releases : releases.filter((release) => release.automatic);
+  const selectedReleases = selectable.filter((release) => selected.has(release.id));
+  const searchIdOfReleases = releasesState.status === "done" ? releasesState.result.progress.id : null;
   const running = downloads.filter((download) =>
     ["downloading", "waiting", "placing"].includes(download.state.kind),
   ).length;
 
-  // Maquette : fait avancer les envois en cours.
+  // Maquette : fait avancer les envois de fichiers en cours.
   const uploading = files.some((file) => file.state.kind === "uploading");
-  useEffect(() => {
-    if (!live || page !== "downloads") {
-      return undefined;
-    }
-    const timer = window.setInterval(() => {
-      setDownloads((current) => nextDownloads(current, liveEvery));
-      setDownloadsAt(new Date());
-    }, liveEvery * 1000);
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [live, liveEvery, page]);
-
-  async function refreshDownloads(): Promise<void> {
-    setDownloadsRefreshing(true);
-    await wait(600);
-    setDownloads((current) => nextDownloads(current, 5));
-    setDownloadsAt(new Date());
-    setDownloadsRefreshing(false);
-  }
-
   useEffect(() => {
     if (!uploading) {
       return undefined;
@@ -299,15 +279,14 @@ export function App(): ReactElement | null {
     setSelected(new Set());
   }
 
-  // Maquette : le nouvel envoi réussit, puis le téléchargement démarre.
+  /** Le même torrent renvoyé à qBittorrent ; un refus laisse la ligne telle quelle. */
   async function retry(download: Download): Promise<void> {
     setRetrying((current) => new Set(current).add(download.id));
-    await wait(900);
-    setDownloads((current) =>
-      current.map((item) =>
-        item.id === download.id ? { ...item, state: { kind: "downloading", percent: 0, speed: 0, eta: 0 } } : item,
-      ),
-    );
+    try {
+      downloadsList.merge([await retryDownload(download.id)]);
+    } catch {
+      downloadsList.refresh();
+    }
     setRetrying((current) => {
       const next = new Set(current);
       next.delete(download.id);
@@ -327,27 +306,6 @@ export function App(): ReactElement | null {
     }));
     setFiles((current) => [...added, ...current]);
     setNotice(texts.place.sentToPlace(added.length));
-  }
-
-  /** Maquette : une release manuelle terminée arrive dans Ranger, à associer. */
-  function finishManual(id: string, name: string, kindOf: Kind): void {
-    window.setTimeout(() => {
-      setDownloads((current) =>
-        current.map((item) => (item.id === id ? { ...item, state: { kind: "toPlace" } } : item)),
-      );
-      setFiles((current) => [
-        {
-          id: `dl-${id}`,
-          name,
-          path: `téléchargements/${kindOf}/${name}`,
-          origin: "download",
-          kind: kindOf,
-          sizeBytes: 250_000_000,
-          state: { kind: "unlinked" },
-        },
-        ...current,
-      ]);
-    }, 2500);
   }
 
   function toggle(id: string): void {
@@ -429,10 +387,10 @@ export function App(): ReactElement | null {
                     selected={selected}
                     onToggle={toggle}
                     onToggleAll={(select) => {
-                      setSelected(select ? new Set(releases.map((release) => release.id)) : new Set());
+                      setSelected(select ? new Set(selectable.map((release) => release.id)) : new Set());
                     }}
                     onBestPerVolume={() => {
-                      setSelected(new Set(bestPerVolume(releases, selected)));
+                      setSelected(new Set(bestPerVolume(selectable, selected)));
                     }}
                   />
                 )
@@ -480,10 +438,10 @@ export function App(): ReactElement | null {
                             selected={selected}
                             onToggle={toggle}
                             onToggleAll={(select) => {
-                              setSelected(select ? new Set(releases.map((release) => release.id)) : new Set());
+                              setSelected(select ? new Set(selectable.map((release) => release.id)) : new Set());
                             }}
                             onBestPerVolume={() => {
-                              setSelected(new Set(bestPerVolume(releases, selected)));
+                              setSelected(new Set(bestPerVolume(selectable, selected)));
                             }}
                           />
                         </>
@@ -553,7 +511,7 @@ export function App(): ReactElement | null {
           <>
             <PageHeader section={texts.nav.library} title={texts.pages.downloads} lead={texts.pages.downloadsLead} />
             <main className="space-y-8 px-10 py-8">
-              {downloadsLoading ? (
+              {downloadsList.downloads === null ? (
                 <section aria-busy="true" aria-label={texts.loading.downloads} className="space-y-8">
                   <LoadingLabel label={texts.loading.downloads} />
                   <div aria-hidden="true" className="grid gap-4 sm:grid-cols-3">
@@ -570,11 +528,9 @@ export function App(): ReactElement | null {
               ) : (
                 <>
                   <RefreshBar
-                    updatedAt={downloadsAt}
-                    refreshing={downloadsRefreshing}
-                    onRefresh={() => {
-                      void refreshDownloads();
-                    }}
+                    updatedAt={downloadsList.updatedAt}
+                    refreshing={downloadsList.refreshing}
+                    onRefresh={downloadsList.refresh}
                     live={{ on: live, every: liveEvery, onToggle: setLive, onEvery: setLiveEvery }}
                   />
                   <StatStrip stats={stats(downloads)} />
@@ -585,8 +541,8 @@ export function App(): ReactElement | null {
                       void retry(download);
                     }}
                     onOtherRelease={(download) => {
-                      setPage("auto");
-                      search(download.label.replace(/\s+-\s+T.*$/u, ""), download.kind);
+                      setPage(download.manual ? "manual" : "auto");
+                      search(download.workTitle, download.kind);
                     }}
                   />
                 </>
@@ -595,32 +551,21 @@ export function App(): ReactElement | null {
           </>
         )}
       </div>
-      {dialogOpen ? (
+      {dialogOpen && searchIdOfReleases !== null ? (
         <DownloadDialog
           kind={kind}
+          searchId={searchIdOfReleases}
+          workId={manual ? null : (work?.id ?? null)}
           manual={manual}
           releases={selectedReleases}
           onClose={() => {
             setDialogOpen(false);
           }}
-          onSubmit={(label) => {
+          onSent={(sent) => {
             setDialogOpen(false);
             setSelected(new Set());
-            setNotice(manual ? texts.dialog.manualNote : texts.dialog.sent(selectedReleases.length));
-            const id = `new-${String(Date.now())}`;
-            if (manual) {
-              finishManual(id, label, kind);
-            }
-            setDownloads([
-              {
-                id,
-                label,
-                kind,
-                state: { kind: "waiting" },
-                addedAt: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-              },
-              ...downloads,
-            ]);
+            setNotice(manual ? texts.dialog.manualNote : texts.dialog.sent(sent.length));
+            downloadsList.merge(sent);
           }}
         />
       ) : null}

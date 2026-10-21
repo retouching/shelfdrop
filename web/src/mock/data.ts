@@ -1,6 +1,5 @@
 // Données fictives de la maquette, reprises de vraies releases vues sur les trackers.
-import { texts } from "../texts";
-import type { Download, Kind, Release, Work } from "../types";
+import type { Kind, Release, Work } from "../types";
 
 const mb = 1_000_000;
 const rank = { "Nyaa.si": 0, "The Old School": 1, Abnormal: 2, C411: 3 } as const;
@@ -14,7 +13,10 @@ const trackerPages: Readonly<Record<Indexer, string>> = {
 };
 
 function release(
-  fields: Omit<Release, "indexerRank" | "indexer" | "infoUrl" | "matchedName" | "score" | "scoreRules"> & {
+  fields: Omit<
+    Release,
+    "indexerRank" | "indexer" | "infoUrl" | "matchedName" | "score" | "scoreRules" | "automatic"
+  > & {
     readonly indexer: Indexer;
     readonly matchedName?: string;
   },
@@ -26,6 +28,7 @@ function release(
     indexerRank: rank[fields.indexer],
     score: 0,
     scoreRules: [],
+    automatic: fields.indexer !== "C411",
   };
 }
 
@@ -240,51 +243,6 @@ export const mockResults: Readonly<Record<Kind, readonly Release[]>> = {
   ],
 };
 
-export const mockDownloads: readonly Download[] = [
-  {
-    id: "d1",
-    label: "Berserk - T01 à T41",
-    kind: "manga",
-    state: { kind: "downloading", percent: 77, speed: 4.2 * mb, eta: 96 },
-    addedAt: "15:02",
-  },
-  {
-    id: "d5",
-    label: "Gunnm - Édition originale - T01 à T09",
-    kind: "manga",
-    state: { kind: "downloading", percent: 12, speed: 1.6 * mb, eta: 540 },
-    addedAt: "15:09",
-  },
-  {
-    id: "d6",
-    label: "Horimiya - T17",
-    kind: "manga",
-    state: { kind: "waiting" },
-    addedAt: "15:11",
-  },
-  {
-    id: "d2",
-    label: "La Mémoire des os - T02 - La phalène et l'araignée",
-    kind: "audiobook",
-    state: { kind: "placing" },
-    addedAt: "14:48",
-  },
-  {
-    id: "d3",
-    label: "Dusk Maiden of Amnesia - Intégrale",
-    kind: "manga",
-    state: { kind: "placed", library: "BD & Mangas" },
-    addedAt: "14:31",
-  },
-  {
-    id: "d4",
-    label: "Ichi the Witch - T03",
-    kind: "manga",
-    state: { kind: "failed", reason: "not_received" },
-    addedAt: "14:12",
-  },
-];
-
 /** Never Finished : une release sous le nom anglais, une sous le nom français. */
 const neverFinished: Readonly<Record<string, readonly Release[]>> = {
   "openlibrary-OL27896384W": [
@@ -318,29 +276,4 @@ const neverFinished: Readonly<Record<string, readonly Release[]>> = {
 export function mockReleasesForWork(kind: Kind, workId: string): readonly Release[] {
   const parts = workId.split("+");
   return parts.flatMap((part) => (mockWorks[kind][0]?.id === part ? mockResults[kind] : (neverFinished[part] ?? [])));
-}
-
-/** Maquette : l'état suivant des téléchargements, comme le renverrait un nouvel appel à qBittorrent. */
-export function nextDownloads(downloads: readonly Download[], seconds: number): readonly Download[] {
-  return downloads.map((download) => {
-    const state = download.state;
-    switch (state.kind) {
-      case "waiting":
-        return { ...download, state: { kind: "downloading", percent: 0, speed: 2.4 * mb, eta: 600 } };
-      case "downloading": {
-        const speed = state.speed * (0.8 + Math.random() * 0.4) || 2 * mb;
-        const percent = Math.min(100, state.percent + Math.max(1, Math.round(seconds * 0.8)));
-        if (percent >= 100) {
-          return { ...download, state: { kind: "placing" } };
-        }
-        return { ...download, state: { kind: "downloading", percent, speed, eta: Math.round((100 - percent) / 0.8) } };
-      }
-      case "placing":
-        return { ...download, state: { kind: "placed", library: texts.libraries[download.kind] } };
-      case "placed":
-      case "toPlace":
-      case "failed":
-        return download;
-    }
-  });
 }

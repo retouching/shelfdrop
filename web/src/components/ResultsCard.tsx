@@ -42,7 +42,9 @@ export function ResultsCard({
   cachedMinutes,
   onRefresh,
 }: Props): ReactElement {
-  const allSelected = releases.length > 0 && releases.every((release) => selected.has(release.id));
+  // La page Automatique n'envoie que les releases qu'un téléchargement automatique peut prendre.
+  const selectable = manual ? releases : releases.filter((release) => release.automatic);
+  const allSelected = selectable.length > 0 && selectable.every((release) => selected.has(release.id));
 
   return (
     <section aria-labelledby="results-title" className="overflow-hidden rounded-xl border border-slate-200 bg-surface">
@@ -162,11 +164,12 @@ export function ResultsCard({
                     <input
                       type="checkbox"
                       checked={isSelected}
+                      disabled={!manual && !release.automatic}
                       onChange={() => {
                         onToggle(release.id);
                       }}
                       aria-label={texts.results.select(release.title)}
-                      className="size-4 accent-accent"
+                      className="size-4 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
                     />
                   </td>
                   <td className="px-3 py-2.5">
@@ -226,8 +229,8 @@ export function ResultsCard({
                         </a>
                       )}
                       <a
-                        href={`/api/releases/${release.id}/torrent`}
-                        download
+                        href={`/api/v1/releases/${encodeURIComponent(release.id)}/torrent`}
+                        download={`${release.title}.torrent`}
                         title={texts.results.torrentFile}
                         aria-label={texts.results.torrentFile}
                         className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-ink"

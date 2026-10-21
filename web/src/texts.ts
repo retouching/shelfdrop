@@ -488,6 +488,7 @@ export const texts = {
     submit: "Envoyer",
     cancel: "Annuler",
     sent: (n: number): string => `${plural(n, "torrent envoyé", "torrents envoyés")} à qBittorrent.`,
+    failed: "Envoi impossible.",
   },
   downloads: {
     caption: "Téléchargements",

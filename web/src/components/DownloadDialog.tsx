@@ -1,24 +1,27 @@
 import { useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 
+import { sendDownloads } from "../api/downloads";
 import { texts } from "../texts";
-import type { Kind, Release } from "../types";
-import { wait } from "../mock/latency";
+import type { Download, Kind, Release } from "../types";
 import { Spinner } from "./Skeletons";
 import { compareForDisplay, coverageLabel, parseVolumesInput, volumesInput } from "../utils/volumes";
 
 type Props = {
   readonly kind: Kind;
+  /** La recherche des releases, et l'œuvre cherchée (aucune en manuel). */
+  readonly searchId: string;
+  readonly workId: string | null;
   readonly releases: readonly Release[];
   /** Recherche manuelle : pas d'auteur ni de série ici, l'association se fait dans Ranger. */
   readonly manual: boolean;
   readonly onClose: () => void;
-  readonly onSubmit: (label: string) => void;
+  readonly onSent: (downloads: readonly Download[]) => void;
 };
 
 const field =
   "w-full rounded-lg border border-slate-200 px-3 py-2 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-ring";
 
-export function DownloadDialog({ kind, releases, manual, onClose, onSubmit }: Props): ReactElement {
+export function DownloadDialog({ kind, searchId, workId, releases, manual, onClose, onSent }: Props): ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
   const first = releases[0];
   const [author, setAuthor] = useState(first?.author ?? "");
@@ -39,15 +42,27 @@ export function DownloadDialog({ kind, releases, manual, onClose, onSubmit }: Pr
   const destination = kind === "manga" ? [library, series] : [library, author, series];
 
   const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function send(): Promise<void> {
     setPending(true);
-    await wait(900);
-    onSubmit(
-      manual
-        ? `${first?.title ?? ""}${releases.length > 1 ? ` (+${String(releases.length - 1)})` : ""}`
-        : `${series} - ${coverage}`,
-    );
+    setFailed(false);
+    try {
+      const sent = await sendDownloads({
+        searchId,
+        workId: manual ? null : workId,
+        author: manual ? "" : author,
+        series: manual ? "" : series,
+        releases: releases.map((release) => ({
+          id: release.id,
+          volumes: parseVolumesInput(volumes[release.id] ?? ""),
+        })),
+      });
+      onSent(sent);
+    } catch {
+      setPending(false);
+      setFailed(true);
+    }
   }
 
   function submit(event: SubmitEvent<HTMLFormElement>): void {
@@ -126,7 +141,12 @@ export function DownloadDialog({ kind, releases, manual, onClose, onSubmit }: Pr
             </div>
           )}
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+          {failed ? (
+            <p role="alert" className="mr-auto text-sm text-rose-700">
+              {texts.dialog.failed}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => {
