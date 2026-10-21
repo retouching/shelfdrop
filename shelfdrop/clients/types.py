@@ -21,6 +21,23 @@ class JellyfinLogin:
 
 
 @dataclass(frozen=True, kw_only=True)
+class TorrentInfo:
+    """A torrent of qBittorrent (`GET /api/v2/torrents/info`)."""
+
+    hash: str
+    name: str
+    state: str
+    """`downloading`, `stalledDL`, `queuedDL`, `uploading`... (the WebUI API)."""
+    progress: float
+    """From 0 to 1."""
+    speed: int
+    """`dlspeed`, bytes a second."""
+    eta: int
+    """Seconds left; 8640000 when qBittorrent cannot tell."""
+    category: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class JellyfinLibrary:
     name: str
     collection_type: str | None

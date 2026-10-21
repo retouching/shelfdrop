@@ -5,7 +5,9 @@ import pytest
 
 from shelfdrop.clients.exceptions import ServiceError, ServiceNotConfiguredError
 from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.utils.torrent import torrent_id
 from tests.unit.clients.support import FakeQui
+from tests.unit.support import torrent_file
 
 URL = "http://qui.test:7476"
 
@@ -47,3 +49,53 @@ async def test_a_wrong_key_is_refused_and_a_missing_one_asks_nothing() -> None:
 
     assert refused.value.refused
     assert len(qui.requests) == 1
+
+
+@pytest.mark.anyio
+async def test_a_torrent_is_added_into_its_category_and_read_by_its_hash() -> None:
+    qui = FakeQui(added_as={"state": "downloading", "progress": 0.42, "dlspeed": 2048, "eta": 96})
+    client = new_client(qui)
+    data = torrent_file("Berserk T01.cbz")
+    digest = torrent_id(data)
+    assert digest is not None
+
+    assert await client.torrents(URL, FakeQui.KEY, [digest]) == []
+    await client.add(URL, FakeQui.KEY, category="manga", file=data)
+    found = await client.torrents(URL, FakeQui.KEY, [digest, "f" * 40])
+
+    assert [(t.hash, t.state, t.progress, t.speed, t.eta, t.category) for t in found] == [
+        (digest, "downloading", 0.42, 2048, 96, "manga")
+    ]
+    assert qui.added[0]["torrents"] == data
+    add = next(r for r in qui.requests if r.method == "POST")
+    assert add.url.path == f"/proxy/{FakeQui.KEY}/api/v2/torrents/add"
+    assert add.headers["Content-Type"].startswith("multipart/form-data")
+    info = qui.requests[-1]
+    assert info.url.params["hashes"] == f"{digest}|{'f' * 40}"
+
+
+@pytest.mark.anyio
+async def test_a_magnet_link_is_added_as_a_link() -> None:
+    qui = FakeQui()
+    client = new_client(qui)
+    magnet = "magnet:?xt=urn:btih:" + "c" * 40
+
+    await client.add(URL, FakeQui.KEY, category="shelfdrop-manual", magnet=magnet)
+
+    assert qui.added == [{"category": b"shelfdrop-manual", "urls": magnet.encode()}]
+    assert "c" * 40 in qui.torrents
+
+
+@pytest.mark.anyio
+async def test_a_torrent_refused_or_a_qbittorrent_down_is_a_service_error() -> None:
+    qui = FakeQui(refuse=True)
+    client = new_client(qui)
+
+    with pytest.raises(ServiceError, match="refused"):
+        await client.add(URL, FakeQui.KEY, category="manga", file=torrent_file("x"))
+    qui.down = True
+    with pytest.raises(ServiceError) as down:
+        await client.torrents(URL, FakeQui.KEY, ["a" * 40])
+    assert down.value.status == 502
+    # No hash, no request.
+    assert await client.torrents(URL, FakeQui.KEY, []) == []

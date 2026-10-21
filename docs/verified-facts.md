@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F25.
+Next fact ID: F26.
 
 ## Metadata sources
 
@@ -96,6 +96,10 @@ Next fact ID: F25.
   - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_wrong_key_is_refused_and_a_missing_one_asks_nothing`
   - Re-verify: before the first test against the qui of the user, and when qui changes its major version.
 
+- **F25** `POST /api/v2/torrents/add` takes a `multipart/form-data` body: `torrents` (the `.torrent` files) or `urls` (links, a magnet among them, one per line), `category`, and the options (`savepath`, `tags`...). qBittorrent 5.0 answers `200` (`Ok.`, or `Fails.` when it added nothing) and `415` for a file it cannot read; its later versions answer `200` with `added_torrent_ids`, `202` for a link still to fetch, `409` when nothing was added. `GET /api/v2/torrents/info?hashes=<a>|<b>` lists the torrents of these hashes it has, each with `hash`, `name`, `state` (`downloading`, `stalledDL`, `metaDL`, `queuedDL`, `pausedDL`, `uploading`, `stalledUP`...), `progress` (0 to 1), `dlspeed` (bytes a second), `eta` (seconds, `8640000` when unknown), `category`. `QBittorrentClient.add` takes `200` and `202` as accepted but `Fails.`; the hash decides, not the answer.
+  - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" ("Add new torrent", "Get torrent list"), and its source, branch master (`src/webui/api/torrentscontroller.cpp`, `TorrentsController::addAction`), read on 2026-10-21. No real qBittorrent asked; `FakeQui` and the stubs of the downloads answer in this shape.
+  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_torrent_is_added_into_its_category_and_read_by_its_hash`
+  - Re-verify: before the first download to the qBittorrent of the user, and when qBittorrent changes its major version.
 - **F23** qBittorrent names a torrent (`hash` of `GET /api/v2/torrents/info`, the `hashes` it filters on) by its `TorrentID`, libtorrent's `info_hash_t::get_best()`: the SHA-256 of the bencoded `info` cut to 20 bytes when the torrent is of BitTorrent v2 (hybrid ones included), otherwise its SHA-1, in hex. `shelfdrop.utils.torrent.torrent_id` and `magnet_id` give the same id.
   - Evidence: the source of qBittorrent (`src/base/bittorrent/infohash.cpp`, `InfoHash::toTorrentID` returns `m_nativeHash.get_best()` with libtorrent 2) and of libtorrent (`include/libtorrent/info_hash.hpp`, branch RC_2_0: "returns the v2 (truncated) info-hash, if there is one, otherwise returns the v1 info-hash"), read on 2026-10-21. No real qBittorrent asked.
   - Pinned by: `tests/unit/utils/test_torrent.py::test_a_torrent_of_bittorrent_v2_is_named_by_its_sha256_cut_to_20_bytes`

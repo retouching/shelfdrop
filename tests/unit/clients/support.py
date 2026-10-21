@@ -5,9 +5,13 @@ ever asked."""
 import json
 import re
 from dataclasses import dataclass, field
+from email.parser import BytesParser
+from email.policy import HTTP
 from typing import Any, Final
 
 import httpx
+
+from shelfdrop.utils.torrent import magnet_id, torrent_id
 
 URL: Final = "http://jellyfin.test"
 API_KEY: Final = "jellyfin-api-key"
@@ -81,14 +85,61 @@ class FakeJellyfin:
 @dataclass
 class FakeQui:
     """qBittorrent behind the client proxy of qui: `/proxy/<key>/api/v2/...` (the
-    documentation of qui and the WebUI API of qBittorrent 5.0); another key gets a 401."""
+    documentation of qui and the WebUI API of qBittorrent 5.0); another key gets a 401.
+
+    `torrents`: what `torrents/info` lists, by hash. A torrent added is listed once `lost` adds
+    have been lost (accepted, then never listed: the trap of the lost sends), with the state
+    `added_as`; `refuse` answers `Fails.` to every add."""
 
     KEY = "qui-client-key"
     categories: list[str] = field(default_factory=list)
     requests: list[httpx.Request] = field(default_factory=list)
+    torrents: dict[str, dict[str, Any]] = field(default_factory=dict)
+    added: list[dict[str, bytes]] = field(default_factory=list)
+    lost: int = 0
+    refuse: bool = False
+    down: bool = False
+    added_as: dict[str, Any] = field(
+        default_factory=lambda: {"state": "downloading", "progress": 0.0, "dlspeed": 0, "eta": 0}
+    )
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
+        if self.down:
+            return httpx.Response(502, request=request)
+        prefix = f"/proxy/{self.KEY}"
+        if request.url.path == f"{prefix}/api/v2/torrents/info":
+            wanted = str(request.url.params.get("hashes", "")).split("|")
+            body = [t for h, t in self.torrents.items() if h in wanted]
+            return httpx.Response(200, json=body, request=request)
+        if request.url.path == f"{prefix}/api/v2/torrents/add":
+            return self.add(request)
+        return self.answer(request)
+
+    def add(self, request: httpx.Request) -> httpx.Response:
+        """Keeps the fields of the multipart body; qBittorrent names the torrent by its id."""
+        fields = multipart_fields(request)
+        self.added.append(fields)
+        if self.refuse:
+            return httpx.Response(200, text="Fails.", request=request)
+        if self.lost > 0:
+            self.lost -= 1
+            return httpx.Response(200, text="Ok.", request=request)
+        if "torrents" in fields:
+            digest = torrent_id(fields["torrents"])
+        else:
+            digest = magnet_id(fields.get("urls", b"").decode())
+        if digest is None:
+            return httpx.Response(415, request=request)
+        self.torrents[digest] = {
+            "hash": digest,
+            "name": digest,
+            "category": fields.get("category", b"").decode(),
+            **self.added_as,
+        }
+        return httpx.Response(200, text="Ok.", request=request)
+
+    def answer(self, request: httpx.Request) -> httpx.Response:
         prefix = f"/proxy/{self.KEY}"
         path = request.url.path
         if not path.startswith(prefix + "/"):
@@ -100,3 +151,16 @@ class FakeQui:
             body = {name: {"name": name, "savePath": f"/data/{name}"} for name in self.categories}
             return httpx.Response(200, json=body, request=request)
         return httpx.Response(404, request=request)
+
+
+def multipart_fields(request: httpx.Request) -> dict[str, bytes]:
+    """The fields of a `multipart/form-data` body, by name."""
+    head = f"Content-Type: {request.headers['Content-Type']}\r\n\r\n".encode()
+    message = BytesParser(policy=HTTP).parsebytes(head + request.read())
+    fields: dict[str, bytes] = {}
+    for part in message.iter_parts():
+        name = part.get_param("name", header="content-disposition")
+        payload = part.get_payload(decode=True)
+        if isinstance(name, str) and isinstance(payload, bytes):
+            fields[name] = payload
+    return fields
