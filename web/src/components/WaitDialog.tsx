@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
-import { wait } from "../mock/latency";
-import { setWaiting, useWaiting, type WaitingSearch } from "../mock/waiting";
+import { addWaiting, readOwned, useWaiting, type Wanted } from "../api/waiting";
 import { texts } from "../texts";
 import type { Kind, Work } from "../types";
 import { Spinner } from "./Skeletons";
@@ -19,19 +18,17 @@ type Props = {
   readonly onAdded: (count: number) => void;
 };
 
-/** Maquette : tomes déjà dans la bibliothèque Jellyfin, par série. */
-const libraryVolumes: Readonly<Record<string, number>> = { "Chainsaw Man": 22, "Ichi the Witch": 2 };
-
-function clock(): string {
-  return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
+// Les noms cherchés : ceux de l'œuvre cochés, 10 au plus.
+const MAX_NAMES = 10;
 
 export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props): ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
-  const waiting = useWaiting();
+  const waiting = useWaiting(true)?.searches ?? [];
   const [pick, setPick] = useState<Pick | null>(null);
   const chosen = work ?? pick?.work ?? null;
-  const owned = chosen === null ? 0 : (libraryVolumes[chosen.title] ?? 0);
+  const [ownedOf, setOwnedOf] = useState<{ readonly id: string; readonly volumes: ReadonlySet<number> } | null>(null);
+  const ownedSet: ReadonlySet<number> = chosen !== null && ownedOf?.id === chosen.id ? ownedOf.volumes : new Set();
+  const owned = Math.max(0, ...ownedSet);
   // Tomes connus des sources, puis quelques tomes à venir, plus ceux saisis à la main.
   const known = Math.max(chosen?.volumeCount ?? 0, owned);
   const [extra, setExtra] = useState<readonly number[]>([]);
@@ -43,16 +40,36 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
   const [chapterFrom, setChapterFrom] = useState("");
   const [chapterTo, setChapterTo] = useState("");
   const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     ref.current?.showModal();
   }, []);
 
-  const already = new Set(waiting.filter((entry) => entry.title === chosen?.title).map((entry) => entry.detail));
+  useEffect(() => {
+    if (chosen === null) {
+      return undefined;
+    }
+    const run = { stopped: false };
+    readOwned(kind, chosen.title, chosen.id)
+      .then((volumes) => {
+        if (!run.stopped) {
+          setOwnedOf({ id: chosen.id, volumes: new Set(volumes) });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      run.stopped = true;
+    };
+  }, [kind, chosen]);
+
+  const already = new Set(
+    waiting.filter((entry) => entry.title === chosen?.title && entry.kind === kind).map((entry) => entry.detail),
+  );
   // Par défaut : les tomes qui ne sont ni dans la bibliothèque, ni dans les releases trouvées.
   const proposed = new Set(
     Array.from({ length: total }, (_, i) => i + 1).filter(
-      (n) => n > owned && !foundVolumes.includes(n) && n <= Math.max(known, owned + 1),
+      (n) => !ownedSet.has(n) && !foundVolumes.includes(n) && n <= Math.max(known, owned + 1),
     ),
   );
   const selected = touched ? volumes : proposed;
@@ -61,21 +78,28 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
   const chaptersValid =
     chapterFrom !== "" && fromNumber > 0 && (chapterTo === "" || (toNumber >= fromNumber && Number.isFinite(toNumber)));
 
-  const entries: readonly string[] =
+  const wanted: readonly { readonly detail: string; readonly wanted: Wanted }[] =
     chosen === null
       ? []
       : target === "any"
-        ? [texts.waiting.anything]
+        ? [{ detail: texts.waiting.anything, wanted: { target: "any" } }]
         : target === "volumes"
-          ? [...selected].sort((a, b) => a - b).map((n) => `T${String(n).padStart(2, "0")}`)
+          ? [...selected]
+              .sort((a, b) => a - b)
+              .map((n) => ({ detail: `T${String(n).padStart(2, "0")}`, wanted: { target: "volume", volume: n } }))
           : chaptersValid
             ? [
-                chapterTo === ""
-                  ? texts.waitDialog.chaptersFrom(chapterFrom)
-                  : texts.waitDialog.chaptersRange(chapterFrom, chapterTo),
+                {
+                  detail:
+                    chapterTo === ""
+                      ? texts.waitDialog.chaptersFrom(String(fromNumber))
+                      : texts.waitDialog.chaptersRange(String(fromNumber), String(toNumber)),
+                  wanted: { target: "chapters", from: fromNumber, to: chapterTo === "" ? null : toNumber },
+                },
               ]
             : [];
-  const fresh = entries.filter((detail) => !already.has(detail));
+  const entries = wanted.map((entry) => entry.detail);
+  const fresh = wanted.filter((entry) => !already.has(entry.detail));
 
   /** « 26 », « 26-30 », « 26, 28 » : des tomes pas encore dans les métadonnées. */
   function addTyped(): void {
@@ -89,7 +113,7 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
         const end = b !== undefined && Number.isInteger(b) && b >= a ? Math.min(b, a + 50) : a;
         return Array.from({ length: end - a + 1 }, (_, i) => a + i);
       })
-      .filter((n) => n > owned);
+      .filter((n) => !ownedSet.has(n));
     if (numbers.length === 0) {
       return;
     }
@@ -115,23 +139,25 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
       return;
     }
     setPending(true);
-    await wait(500);
-    const now = clock();
-    const added: readonly WaitingSearch[] = fresh.map((detail, index) => ({
-      id: `w${String(Date.now())}-${String(index)}`,
-      title: chosen.title,
-      detail,
-      kind,
-      names: chosen.titles.length,
-      addedAt: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
-      lastSearch: now,
-      nextSearch: "22:00",
-      attempts: 1,
-      state: { kind: "waiting" },
-    }));
-    setWaiting([...added, ...waiting]);
-    onAdded(added.length);
-    ref.current?.close();
+    setFailed(false);
+    const names = [
+      ...new Set([chosen.title, ...chosen.titles.filter((t) => t.checked !== false).map((t) => t.title)]),
+    ].slice(0, MAX_NAMES);
+    try {
+      const result = await addWaiting({
+        workId: chosen.id,
+        title: chosen.title,
+        author: chosen.author,
+        kind,
+        names,
+        wanted: fresh.map((entry) => entry.wanted),
+      });
+      onAdded(result.added);
+      ref.current?.close();
+    } catch {
+      setFailed(true);
+      setPending(false);
+    }
   }
 
   return (
@@ -190,7 +216,7 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
                 <div className="space-y-2">
                   <ul className="grid grid-cols-[repeat(auto-fill,minmax(3.2rem,1fr))] gap-1.5">
                     {Array.from({ length: total }, (_, i) => i + 1).map((n) => {
-                      const inLibrary = n <= owned;
+                      const inLibrary = ownedSet.has(n);
                       const found = foundVolumes.includes(n);
                       const unknown = n > known;
                       const active = selected.has(n);
@@ -328,7 +354,12 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
             </>
           )}
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+          {failed ? (
+            <p role="alert" className="mr-auto text-sm text-rose-700">
+              {texts.waitDialog.failed}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => {

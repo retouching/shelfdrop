@@ -101,6 +101,7 @@ export const texts = {
     already: "Déjà en attente",
     add: (n: number): string => (n <= 1 ? "Mettre en attente" : `Mettre en attente · ${String(n)} recherches`),
     added: (n: number): string => `${plural(n, "recherche mise", "recherches mises")} en attente.`,
+    failed: "Échec : rien n'a été mis en attente.",
   },
   waiting: {
     add: "Mettre en attente",
@@ -124,6 +125,9 @@ export const texts = {
     remove: "Retirer",
     addNew: "Ajouter",
     removeFor: (title: string): string => `Retirer ${title} de l'attente`,
+    loading: "Lecture des recherches en attente…",
+    never: "Pas encore cherchée",
+    failed: "Échec : l'API n'a pas répondu, rien n'a changé.",
   },
   refresh: {
     refresh: "Actualiser",

@@ -19,7 +19,7 @@ import { MergeDialog, unionTitles } from "./components/MergeDialog";
 import { WorkList } from "./components/WorkList";
 import { ReleasesLoading } from "./components/ReleasesLoading";
 import { RefreshBar } from "./components/RefreshBar";
-import { useWaiting } from "./mock/waiting";
+import { useWaiting } from "./api/waiting";
 import { WaitingPage } from "./components/WaitingPage";
 import { WaitDialog } from "./components/WaitDialog";
 import { whenSignedOut } from "./api/http";
@@ -125,7 +125,7 @@ export function App(): ReactElement | null {
 
   const works = withMerges(worksState.status === "done" ? worksState.works : [], merges);
   const [showRejected, setShowRejected] = useState(false);
-  const waitingList = useWaiting();
+  const waitingList = useWaiting(username !== null)?.searches ?? [];
   const [waitOpen, setWaitOpen] = useState(false);
   const [waitAdding, setWaitAdding] = useState(false);
   // Releases dans l'ordre du serveur ; celles écartées pour un mot manquant ne sont pas montrées.
