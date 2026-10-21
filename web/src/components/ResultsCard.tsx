@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { texts } from "../texts";
 import type { Release } from "../types";
 import { formatSize } from "../utils/format";
+import { formatScore } from "../utils/score";
 import { volumesLabel } from "../utils/volumes";
 import { ExternalIcon, FileIcon } from "./icons";
 
@@ -14,6 +15,12 @@ type Props = {
   readonly onToggle: (id: string) => void;
   readonly onToggleAll: (select: boolean) => void;
   readonly onBestPerVolume: () => void;
+  readonly rejectedCount: number;
+  readonly showRejected: boolean;
+  readonly onShowRejected: (show: boolean) => void;
+  readonly minimum: number;
+  /** Quand rien n'est trouvé : garder la recherche en attente. */
+  readonly onWait?: () => void;
 };
 
 export function ResultsCard({
@@ -24,6 +31,11 @@ export function ResultsCard({
   onToggle,
   onToggleAll,
   onBestPerVolume,
+  rejectedCount,
+  showRejected,
+  onShowRejected,
+  minimum,
+  onWait,
 }: Props): ReactElement {
   const allSelected = releases.length > 0 && releases.every((release) => selected.has(release.id));
 
@@ -37,6 +49,11 @@ export function ResultsCard({
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-slate-500">{texts.results.count(releases.length)}</span>
+          {onWait === undefined || releases.length === 0 ? null : (
+            <button type="button" onClick={onWait} className="text-sm font-medium text-accent-text hover:underline">
+              {texts.waiting.add}
+            </button>
+          )}
           <button
             type="button"
             onClick={onBestPerVolume}
@@ -46,8 +63,33 @@ export function ResultsCard({
           </button>
         </div>
       </div>
+      {rejectedCount === 0 ? null : (
+        <p className="flex items-center justify-between gap-3 border-b border-slate-100 bg-band px-5 py-2 text-xs text-slate-500">
+          {texts.filters.rejected(rejectedCount, minimum)}
+          <button
+            type="button"
+            onClick={() => {
+              onShowRejected(!showRejected);
+            }}
+            className="font-medium text-accent-text hover:underline"
+          >
+            {showRejected ? texts.filters.hideRejected : texts.filters.showRejected}
+          </button>
+        </p>
+      )}
       {releases.length === 0 ? (
-        <p className="px-5 py-10 text-center text-sm text-slate-500">{texts.search.empty(workTitle)}</p>
+        <div className="space-y-3 px-5 py-10 text-center text-sm text-slate-500">
+          <p>{texts.search.empty(workTitle)}</p>
+          {onWait === undefined ? null : (
+            <button
+              type="button"
+              onClick={onWait}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong"
+            >
+              {texts.waiting.add}
+            </button>
+          )}
+        </div>
       ) : (
         <table className="w-full table-fixed text-sm">
           <caption className="sr-only">{texts.results.caption}</caption>
@@ -56,6 +98,7 @@ export function ResultsCard({
             <col />
             <col className="w-28" />
             <col className="w-36" />
+            <col className="w-20" />
             <col className="w-20" />
             <col className="w-24" />
             <col className="w-24" />
@@ -81,6 +124,9 @@ export function ResultsCard({
               </th>
               <th scope="col" className="px-3 py-3 font-semibold">
                 {texts.results.indexer}
+              </th>
+              <th scope="col" className="px-3 py-3 text-right font-semibold">
+                {texts.filters.score}
               </th>
               <th scope="col" className="px-3 py-3 text-right font-semibold">
                 {texts.results.seeders}
@@ -125,6 +171,26 @@ export function ResultsCard({
                       className={`rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 ring-1 ring-slate-200 ring-inset`}
                     >
                       {release.indexer}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <span
+                      title={
+                        release.scoreRules.length === 0
+                          ? texts.filters.noRule
+                          : release.scoreRules.map((rule) => `${rule.name} ${formatScore(rule.score)}`).join("\n")
+                      }
+                      className={`rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums ${
+                        release.score < minimum
+                          ? "bg-rose-50 text-rose-700"
+                          : release.score > 0
+                            ? "bg-emerald-50 text-emerald-700"
+                            : release.score < 0
+                              ? "bg-amber-50 text-amber-800"
+                              : "text-slate-500"
+                      }`}
+                    >
+                      {formatScore(release.score)}
                     </span>
                   </td>
                   <td className="px-3 py-3 text-right text-slate-700 tabular-nums">{release.seeders}</td>

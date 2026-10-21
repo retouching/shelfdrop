@@ -8,6 +8,16 @@ import { field, guessQuery, WorkPicker, type Pick } from "./WorkPicker";
 
 const kinds: readonly Kind[] = ["manga", "ebook", "audiobook"];
 
+/** « Série - T23 - Ch. 206 » quand le tome est connu, « Série - Ch. 230 » sinon. */
+export function chapterFileName(series: string, volume: string | null, chapter: string, chapterTo = ""): string {
+  const pad = (value: string): string => {
+    const number = value.replace(",", ".");
+    return number === "" ? "?" : number.replace(/^(\d+)/u, (whole) => whole.padStart(3, "0"));
+  };
+  const range = chapterTo === "" || chapterTo === chapter ? pad(chapter) : `${pad(chapter)}-${pad(chapterTo)}`;
+  return volume === null ? `${series} - Ch. ${range}` : `${series} - T${volume} - Ch. ${range}`;
+}
+
 type Props = {
   readonly file: ShelfFile;
   readonly onClose: () => void;
@@ -20,6 +30,16 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
   const [pick, setPick] = useState<Pick | null>(null);
   const [volume, setVolume] = useState(() => /T(\d+)/u.exec(file.name)?.[1] ?? "");
   const [volumeTitle, setVolumeTitle] = useState("");
+  // Manga : un fichier est un tome, ou un chapitre (avec ou sans tome).
+  const [unit, setUnit] = useState<"volume" | "chapter">(() =>
+    /\b(ch(ap(itre)?)?\.?\s?\d|c\d{2,})/iu.test(file.name) ? "chapter" : "volume",
+  );
+  // « Ch. 206 » ou « Ch. 206-210 » : un fichier peut porter une plage de chapitres.
+  const [chapterRange] = useState(
+    () => /ch(?:ap(?:itre)?)?\.?\s?(\d+(?:[.,]\d)?)(?:\s?(?:-|à)\s?(\d+(?:[.,]\d)?))?/iu.exec(file.name) ?? null,
+  );
+  const [chapter, setChapter] = useState(chapterRange?.[1] ?? "");
+  const [chapterTo, setChapterTo] = useState(chapterRange?.[2] ?? "");
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -35,7 +55,9 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
     pick === null
       ? null
       : kind === "manga"
-        ? [library, pick.shelfName, `${pick.shelfName} - T${number ?? "01"}`]
+        ? unit === "volume"
+          ? [library, pick.shelfName, `${pick.shelfName} - T${number ?? "01"}`]
+          : [library, pick.shelfName, chapterFileName(pick.shelfName, number, chapter, chapterTo)]
         : volumePart === ""
           ? [library, pick.work.author, pick.shelfName]
           : [library, pick.work.author, pick.shelfName, volumePart];
@@ -90,7 +112,70 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
 
           <WorkPicker kind={kind} initialQuery={guessQuery(file.name)} value={pick} onChange={setPick} />
 
-          {pick === null ? null : (
+          {pick === null || kind !== "manga" ? null : (
+            <div role="radiogroup" aria-label={texts.place.unit} className="inline-flex rounded-lg bg-slate-100 p-1">
+              {(["volume", "chapter"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={option === unit}
+                  onClick={() => {
+                    setUnit(option);
+                  }}
+                  className={
+                    option === unit
+                      ? "rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow-sm"
+                      : "rounded-md px-3 py-1.5 text-sm text-slate-500 hover:text-ink"
+                  }
+                >
+                  {texts.place.units[option]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {pick === null || kind !== "manga" || unit !== "chapter" ? null : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">{texts.place.chapter}</span>
+                <input
+                  value={chapter}
+                  inputMode="decimal"
+                  onChange={(event) => {
+                    setChapter(event.target.value.replace(/[^\d.,]/gu, ""));
+                  }}
+                  className={field}
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">{texts.place.chapterTo}</span>
+                <input
+                  value={chapterTo}
+                  inputMode="decimal"
+                  onChange={(event) => {
+                    setChapterTo(event.target.value.replace(/[^\d.,]/gu, ""));
+                  }}
+                  className={field}
+                />
+                <span className="block text-xs text-slate-500">{texts.place.chapterToHint}</span>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">{texts.place.chapterVolume}</span>
+                <input
+                  value={volume}
+                  inputMode="numeric"
+                  onChange={(event) => {
+                    setVolume(event.target.value.replace(/\D/gu, ""));
+                  }}
+                  className={field}
+                />
+                <span className="block text-xs text-slate-500">{texts.place.chapterVolumeHint}</span>
+              </label>
+            </div>
+          )}
+
+          {pick === null || (kind === "manga" && unit === "chapter") ? null : (
             <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">{texts.place.volume}</span>
@@ -123,6 +208,9 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
             <div className="rounded-lg bg-band px-4 py-3">
               <p className="text-xs text-slate-500">{texts.place.destination}</p>
               <p className="mt-1 text-sm font-medium break-words">{destination.join(" › ")}</p>
+              {kind === "manga" && unit === "chapter" ? (
+                <p className="mt-1 text-xs text-slate-500">{texts.place.chapterOrder}</p>
+              ) : null}
             </div>
           )}
         </div>

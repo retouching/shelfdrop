@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 
 import { texts } from "../texts";
 import type { Download, DownloadState } from "../types";
+import { formatDuration, formatSpeed } from "../utils/format";
 import { Spinner } from "./Skeletons";
 
 function stateText(state: DownloadState): string {
@@ -79,7 +80,7 @@ export function DownloadsTable({
             <col className="w-24" />
             <col />
             <col className="w-32" />
-            <col className="w-72" />
+            <col className="w-80" />
             <col className="w-56" />
           </colgroup>
           <thead className="bg-band text-left text-ink">
@@ -115,6 +116,11 @@ export function DownloadsTable({
                   >
                     {stateText(download.state)}
                   </span>
+                  {download.state.kind === "downloading" && download.state.speed > 0 ? (
+                    <span className="ml-2 text-xs text-slate-500 tabular-nums">
+                      {texts.downloads.pace(formatSpeed(download.state.speed), formatDuration(download.state.eta))}
+                    </span>
+                  ) : null}
                   {download.state.kind === "downloading" ? (
                     <progress
                       max={100}

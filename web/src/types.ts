@@ -7,7 +7,7 @@ export type Volumes =
   | { readonly kind: "complete" }
   | { readonly kind: "unknown" };
 
-export type MetadataSource = "AniList" | "Open Library" | "Wikidata" | "Hardcover";
+export type MetadataSource = "AniList" | "Open Library" | "Wikidata" | "BnF" | "Hardcover";
 
 export type AltTitle = {
   readonly title: string;
@@ -23,6 +23,8 @@ export type Work = {
   readonly year: number;
   readonly volumeCount: number | null;
   readonly titles: readonly AltTitle[];
+  /** Les œuvres réunies à la main (deux ou plus), quand celle-ci en est la fusion. */
+  readonly mergedFrom?: readonly Work[];
 };
 
 export type Release = {
@@ -37,10 +39,19 @@ export type Release = {
   readonly author: string;
   readonly series: string;
   readonly volumes: Volumes;
+  /** Score des filtres, et les règles qui l'ont donné. */
+  readonly score: number;
+  readonly scoreRules: readonly { readonly name: string; readonly score: number }[];
 };
 
 export type DownloadState =
-  | { readonly kind: "downloading"; readonly percent: number }
+  | {
+      readonly kind: "downloading";
+      readonly percent: number;
+      /** Octets par seconde, et secondes restantes. */
+      readonly speed: number;
+      readonly eta: number;
+    }
   | { readonly kind: "waiting" }
   | { readonly kind: "placing" }
   | { readonly kind: "placed"; readonly library: string }
@@ -61,6 +72,7 @@ export type FileOrigin = "upload" | "library" | "download";
 export type FileState =
   | { readonly kind: "uploading"; readonly percent: number }
   | { readonly kind: "unlinked" }
+  | { readonly kind: "chapters" }
   | { readonly kind: "misplaced"; readonly reason: string }
   | { readonly kind: "placing"; readonly destination: string }
   | { readonly kind: "placed"; readonly destination: string };
@@ -73,4 +85,6 @@ export type ShelfFile = {
   readonly kind: Kind | null;
   readonly sizeBytes: number;
   readonly state: FileState;
+  /** Release en chapitres : les numéros trouvés dans les noms de fichiers, et les tomes déjà rangés. */
+  readonly chapters?: { readonly numbers: readonly number[]; readonly existing: readonly number[] };
 };

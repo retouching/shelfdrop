@@ -49,7 +49,7 @@ export function guessQuery(name: string): string {
     .replace(/\[[^\]]*\]/gu, " ")
     .replace(/\b(19|20)\d{2}\b/gu, " ")
     .replace(/\b(french|fr|vf|multi|epub|pdf|cbz|cbr|m4b|mp3|nogrp|notag|integrale)\b.*$/giu, " ")
-    .replace(/\s+-?\s*(T|tome|chap)\s*\d.*$/iu, "")
+    .replace(/\s+-?\s*(T|tome|ch|chap|chapitre)\.?\s*\d.*$/iu, "")
     .replace(/\s+/gu, " ")
     .trim();
 }
@@ -67,10 +67,26 @@ type Props = {
   readonly initialQuery: string;
   readonly value: Pick | null;
   readonly onChange: (pick: Pick | null) => void;
+  /** Œuvres à ne pas proposer (celles qu'on fusionne). */
+  readonly exclude?: ReadonlySet<string>;
+  /** Choix multiple : les œuvres cochées, et le changement d'une case. */
+  readonly picked?: ReadonlySet<string>;
+  readonly onToggle?: (work: Work) => void;
+  /** Choix du nom dans la bibliothèque sous la liste. */
+  readonly withName?: boolean;
 };
 
 /** Recherche d'œuvre dans les API de livres, utilisée pour associer un fichier ou une release. */
-export function WorkPicker({ kind, initialQuery, value, onChange }: Props): ReactElement {
+export function WorkPicker({
+  kind,
+  initialQuery,
+  value,
+  onChange,
+  exclude,
+  withName = true,
+  picked,
+  onToggle,
+}: Props): ReactElement {
   const [query, setQuery] = useState(initialQuery);
   const [submitted, setSubmitted] = useState(initialQuery);
   const [doneKey, setDoneKey] = useState<string | null>(null);
@@ -89,7 +105,7 @@ export function WorkPicker({ kind, initialQuery, value, onChange }: Props): Reac
     };
   }, [key]);
 
-  const works = searching ? [] : findWorks(kind, submitted);
+  const works = searching ? [] : findWorks(kind, submitted).filter((candidate) => exclude?.has(candidate.id) !== true);
 
   // Pas de <form> ici : le sélecteur vit aussi dans le formulaire d'envoi, et les formulaires ne s'imbriquent pas.
   function search(): void {
@@ -152,14 +168,18 @@ export function WorkPicker({ kind, initialQuery, value, onChange }: Props): Reac
         ) : (
           <ul className="space-y-2">
             {works.map((candidate) => {
-              const active = candidate.id === value?.work.id;
+              const active = picked === undefined ? candidate.id === value?.work.id : picked.has(candidate.id);
               return (
                 <li key={candidate.id}>
                   <button
                     type="button"
                     aria-pressed={active}
                     onClick={() => {
-                      onChange({ work: candidate, shelfName: defaultName(candidate, submitted) });
+                      if (onToggle === undefined) {
+                        onChange({ work: candidate, shelfName: defaultName(candidate, submitted) });
+                      } else {
+                        onToggle(candidate);
+                      }
                     }}
                     className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left ${
                       active ? "border-accent ring-2 ring-accent-ring" : "border-slate-200 hover:border-slate-300"
@@ -190,7 +210,7 @@ export function WorkPicker({ kind, initialQuery, value, onChange }: Props): Reac
         )}
       </div>
 
-      {value === null ? null : (
+      {value === null || !withName ? null : (
         <label className="block space-y-1.5">
           <span className="text-sm font-medium">{texts.place.shelfName}</span>
           <select

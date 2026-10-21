@@ -125,3 +125,30 @@ export function GearIcon(props: Props): ReactElement {
     </Svg>
   );
 }
+
+export function MergeIcon(props: Props): ReactElement {
+  return (
+    <Svg {...props}>
+      <path d="M6 4v4a6 6 0 0 0 6 6h0a6 6 0 0 1 6 6M18 4v4a6 6 0 0 1-6 6M12 14v6" />
+    </Svg>
+  );
+}
+
+export function ImageIcon(props: Props): ReactElement {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="m3 16 5-5 4 4 3-3 6 6" />
+      <circle cx="15.5" cy="8.5" r="1.5" />
+    </Svg>
+  );
+}
+
+export function ClockIcon(props: Props): ReactElement {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </Svg>
+  );
+}

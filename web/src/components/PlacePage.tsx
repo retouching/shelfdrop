@@ -4,6 +4,7 @@ import { texts } from "../texts";
 import type { FileState, ShelfFile } from "../types";
 import { formatSize } from "../utils/format";
 import { SearchIcon } from "./icons";
+import { ChaptersDialog } from "./ChaptersDialog";
 import { LinkDialog } from "./LinkDialog";
 
 function stateText(state: FileState): string {
@@ -12,6 +13,8 @@ function stateText(state: FileState): string {
       return texts.place.uploading(state.percent);
     case "unlinked":
       return texts.place.unlinked;
+    case "chapters":
+      return texts.chapters.state;
     case "misplaced":
       return texts.place.misplaced(state.reason);
     case "placing":
@@ -27,6 +30,7 @@ function stateTone(state: FileState): string {
     case "placing":
       return "bg-violet-50 text-violet-700 ring-violet-200";
     case "unlinked":
+    case "chapters":
       return "bg-amber-50 text-amber-800 ring-amber-200";
     case "misplaced":
       return "bg-rose-50 text-rose-700 ring-rose-200";
@@ -36,7 +40,7 @@ function stateTone(state: FileState): string {
 }
 
 function needsAction(file: ShelfFile): boolean {
-  return file.state.kind === "unlinked" || file.state.kind === "misplaced";
+  return file.state.kind === "unlinked" || file.state.kind === "misplaced" || file.state.kind === "chapters";
 }
 
 type Props = {
@@ -48,6 +52,7 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
   const [filter, setFilter] = useState<"todo" | "all">("todo");
   const [query, setQuery] = useState("");
   const [linking, setLinking] = useState<ShelfFile | null>(null);
+  const [chaptering, setChaptering] = useState<ShelfFile | null>(null);
 
   const needle = query.trim().toLowerCase();
   const shown = files.filter(
@@ -168,7 +173,18 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
                     ) : null}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    {file.state.kind === "uploading" || file.state.kind === "placing" ? null : (
+                    {file.state.kind === "chapters" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChaptering(file);
+                        }}
+                        aria-label={texts.chapters.linkFor(file.name)}
+                        className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
+                      >
+                        {texts.chapters.open}
+                      </button>
+                    ) : file.state.kind === "uploading" || file.state.kind === "placing" ? null : (
                       <button
                         type="button"
                         onClick={() => {
@@ -192,6 +208,20 @@ export function PlacePage({ files, onPlaced }: Props): ReactElement {
         )}
       </section>
 
+      {chaptering?.chapters === undefined ? null : (
+        <ChaptersDialog
+          file={chaptering}
+          chapters={chaptering.chapters.numbers}
+          existing={chaptering.chapters.existing}
+          onClose={() => {
+            setChaptering(null);
+          }}
+          onPlaced={(destination) => {
+            onPlaced(chaptering.id, destination);
+            setChaptering(null);
+          }}
+        />
+      )}
       {linking === null ? null : (
         <LinkDialog
           file={linking}

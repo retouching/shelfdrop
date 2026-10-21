@@ -30,9 +30,9 @@ export function volumeNumbers(volumes: Volumes): readonly number[] {
   }
 }
 
-/** Ordre de Sylvain : tracker (Nyaa > TOS > ABN > C411), puis seeds. */
+/** Score des filtres, puis l'ordre des trackers choisi dans Paramètres, puis les seeds. */
 export function compareReleases(a: Release, b: Release): number {
-  return a.indexerRank - b.indexerRank || b.seeders - a.seeders;
+  return b.score - a.score || a.indexerRank - b.indexerRank || b.seeders - a.seeders;
 }
 
 /** Une release par tome, la mieux classée, en laissant de côté les packs. */

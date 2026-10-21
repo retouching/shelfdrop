@@ -1,4 +1,5 @@
 // Données fictives de la maquette, reprises de vraies releases vues sur les trackers.
+import { texts } from "../texts";
 import type { Download, Kind, Release, Work } from "../types";
 
 const mb = 1_000_000;
@@ -13,7 +14,7 @@ const trackerPages: Readonly<Record<Indexer, string>> = {
 };
 
 function release(
-  fields: Omit<Release, "indexerRank" | "indexer" | "infoUrl" | "matchedName"> & {
+  fields: Omit<Release, "indexerRank" | "indexer" | "infoUrl" | "matchedName" | "score" | "scoreRules"> & {
     readonly indexer: Indexer;
     readonly matchedName?: string;
   },
@@ -23,6 +24,8 @@ function release(
     matchedName: fields.matchedName ?? fields.series,
     infoUrl: `${trackerPages[fields.indexer]}${fields.id}`,
     indexerRank: rank[fields.indexer],
+    score: 0,
+    scoreRules: [],
   };
 }
 
@@ -78,7 +81,31 @@ export const mockWorks: Readonly<Record<Kind, readonly Work[]>> = {
       volumeCount: null,
       titles: [
         { title: "Never Finished", language: "EN" },
+        { title: "Never Finished: Unshackle Your Mind and Win the War Within", language: "EN" },
+      ],
+    },
+    {
+      id: "wikidata-Q115870318",
+      source: "Wikidata",
+      title: "Never Finished: Unshackle Your Mind and Win the War Within",
+      author: "David Goggins",
+      year: 2022,
+      volumeCount: null,
+      titles: [
+        { title: "Never Finished: Unshackle Your Mind and Win the War Within", language: "EN" },
+        { title: "Nunca terminado", language: "ES" },
+      ],
+    },
+    {
+      id: "bnf-cb47168934r",
+      source: "BnF",
+      title: "Ne cède jamais",
+      author: "David Goggins",
+      year: 2023,
+      volumeCount: null,
+      titles: [
         { title: "Ne cède jamais", language: "FR" },
+        { title: "Ne cède jamais : libère ton mental et gagne la guerre intérieure", language: "FR" },
       ],
     },
   ],
@@ -134,6 +161,27 @@ const chainsawC411Doubles: readonly Release[] = [1, 2, 3].map((n) =>
 );
 
 const chainsawPacks: readonly Release[] = [
+  release({
+    id: "csm-eng",
+    title: "Chainsaw Man v01-v11 (2020-2023) (Digital) (1r0n)",
+    indexer: "Nyaa.si",
+    seeders: 212,
+    sizeBytes: 2_900 * mb,
+    author: "Tatsuki Fujimoto",
+    series: "Chainsaw Man",
+    volumes: { kind: "range", from: 1, to: 11 },
+  }),
+  release({
+    id: "csm-raw",
+    title: "[RAW] チェンソーマン 第01-17巻 (JPN)",
+    indexer: "Nyaa.si",
+    seeders: 38,
+    sizeBytes: 3_400 * mb,
+    author: "Tatsuki Fujimoto",
+    series: "Chainsaw Man",
+    matchedName: "チェンソーマン",
+    volumes: { kind: "range", from: 1, to: 17 },
+  }),
   release({
     id: "csm-color",
     title: "Chainsaw.Man.FullColor.FR.T01-T11.CBZ-Chromatique",
@@ -197,8 +245,22 @@ export const mockDownloads: readonly Download[] = [
     id: "d1",
     label: "Berserk - T01 à T41",
     kind: "manga",
-    state: { kind: "downloading", percent: 77 },
+    state: { kind: "downloading", percent: 77, speed: 4.2 * mb, eta: 96 },
     addedAt: "15:02",
+  },
+  {
+    id: "d5",
+    label: "Gunnm - Édition originale - T01 à T09",
+    kind: "manga",
+    state: { kind: "downloading", percent: 12, speed: 1.6 * mb, eta: 540 },
+    addedAt: "15:09",
+  },
+  {
+    id: "d6",
+    label: "Horimiya - T17",
+    kind: "manga",
+    state: { kind: "waiting" },
+    addedAt: "15:11",
   },
   {
     id: "d2",
@@ -223,7 +285,62 @@ export const mockDownloads: readonly Download[] = [
   },
 ];
 
-/** Releases trouvées pour une œuvre (la 1re œuvre de chaque type en a ; les autres montrent l'état vide). */
+/** Never Finished : une release sous le nom anglais, une sous le nom français. */
+const neverFinished: Readonly<Record<string, readonly Release[]>> = {
+  "openlibrary-OL27896384W": [
+    release({
+      id: "e21",
+      title: "David Goggins - Never Finished (2022) EPUB",
+      indexer: "The Old School",
+      seeders: 41,
+      sizeBytes: 2.1 * mb,
+      author: "David Goggins",
+      series: "Never Finished",
+      volumes: { kind: "complete" },
+    }),
+  ],
+  "bnf-cb47168934r": [
+    release({
+      id: "e22",
+      title: "David.Goggins.Ne.Cede.Jamais.2023.French.Epub-NoTag",
+      indexer: "Abnormal",
+      seeders: 17,
+      sizeBytes: 2.6 * mb,
+      author: "David Goggins",
+      series: "Ne cède jamais",
+      volumes: { kind: "complete" },
+    }),
+  ],
+};
+
+/** Releases trouvées pour une œuvre (la 1re œuvre de chaque type en a ; les autres montrent l'état vide).
+ * Une œuvre fusionnée a les releases de ses deux parties. */
 export function mockReleasesForWork(kind: Kind, workId: string): readonly Release[] {
-  return mockWorks[kind][0]?.id === workId ? mockResults[kind] : [];
+  const parts = workId.split("+");
+  return parts.flatMap((part) => (mockWorks[kind][0]?.id === part ? mockResults[kind] : (neverFinished[part] ?? [])));
+}
+
+/** Maquette : l'état suivant des téléchargements, comme le renverrait un nouvel appel à qBittorrent. */
+export function nextDownloads(downloads: readonly Download[], seconds: number): readonly Download[] {
+  return downloads.map((download) => {
+    const state = download.state;
+    switch (state.kind) {
+      case "waiting":
+        return { ...download, state: { kind: "downloading", percent: 0, speed: 2.4 * mb, eta: 600 } };
+      case "downloading": {
+        const speed = state.speed * (0.8 + Math.random() * 0.4) || 2 * mb;
+        const percent = Math.min(100, state.percent + Math.max(1, Math.round(seconds * 0.8)));
+        if (percent >= 100) {
+          return { ...download, state: { kind: "placing" } };
+        }
+        return { ...download, state: { kind: "downloading", percent, speed, eta: Math.round((100 - percent) / 0.8) } };
+      }
+      case "placing":
+        return { ...download, state: { kind: "placed", library: texts.libraries[download.kind] } };
+      case "placed":
+      case "toPlace":
+      case "failed":
+        return download;
+    }
+  });
 }

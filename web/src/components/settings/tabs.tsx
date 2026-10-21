@@ -1,7 +1,10 @@
 // Rubriques Services, Sources, Recherche, Rangement et Journal Discord. Valeurs fictives de la maquette.
 import { useState, type ReactElement } from "react";
 
+import { wait } from "../../mock/latency";
+import { setTrackers, useTrackers, type Tracker } from "../../mock/trackers";
 import { texts } from "../../texts";
+import { Spinner } from "../Skeletons";
 import {
   Card,
   Field,
@@ -228,13 +231,20 @@ export function SourcesTab(): ReactElement {
 }
 
 export function SearchTab(): ReactElement {
-  const [order, setOrder] = useState<readonly string[]>(["Nyaa.si", "The Old School", "Abnormal", "C411"]);
+  const trackers = useTrackers();
   const [hideNoSeed, setHideNoSeed] = useState(true);
   const [relevance, setRelevance] = useState(true);
+  const [reading, setReading] = useState(false);
+  const shown = trackers.filter((tracker) => tracker.prowlarrEnabled);
+  const off = trackers.filter((tracker) => !tracker.prowlarrEnabled);
 
-  function move(index: number, delta: number): void {
-    const next = [...order];
-    const target = index + delta;
+  function move(name: string, delta: number): void {
+    const next = [...trackers];
+    const index = next.findIndex((tracker) => tracker.name === name);
+    let target = index + delta;
+    while (next[target]?.prowlarrEnabled === false) {
+      target += delta;
+    }
     const a = next[index];
     const b = next[target];
     if (a === undefined || b === undefined) {
@@ -242,42 +252,123 @@ export function SearchTab(): ReactElement {
     }
     next[index] = b;
     next[target] = a;
-    setOrder(next);
+    setTrackers(next);
+  }
+
+  function update(name: string, change: Partial<Tracker>): void {
+    setTrackers(trackers.map((tracker) => (tracker.name === name ? { ...tracker, ...change } : tracker)));
+  }
+
+  async function reread(): Promise<void> {
+    setReading(true);
+    await wait(800);
+    setReading(false);
   }
 
   return (
     <div className="space-y-4">
-      <Card title={texts.settings.trackerOrder}>
-        <ol className="divide-y divide-slate-200 rounded-lg border border-slate-200">
-          {order.map((name, index) => (
-            <li key={name} className="flex items-center gap-3 px-3 py-2">
-              <span className="w-5 text-sm text-slate-500 tabular-nums">{index + 1}</span>
-              <span className="flex-1 text-sm text-ink">{name}</span>
-              <button
-                type="button"
-                disabled={index === 0}
-                onClick={() => {
-                  move(index, -1);
-                }}
-                aria-label={texts.settings.moveUp(name)}
-                className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                disabled={index === order.length - 1}
-                onClick={() => {
-                  move(index, 1);
-                }}
-                aria-label={texts.settings.moveDown(name)}
-                className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
-              >
-                ↓
-              </button>
-            </li>
-          ))}
-        </ol>
+      <Card
+        title={texts.settings.trackers}
+        hint={texts.settings.trackersHint}
+        aside={
+          <button
+            type="button"
+            disabled={reading}
+            onClick={() => {
+              void reread();
+            }}
+            className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
+          >
+            {reading ? <Spinner className="size-3.5" /> : null}
+            {texts.settings.trackersReread}
+          </button>
+        }
+      >
+        <table className="w-full rounded-lg border border-slate-200 text-sm">
+          <thead className="bg-band text-left text-ink">
+            <tr>
+              <th scope="col" className="w-10 px-3 py-2 font-semibold">
+                #
+              </th>
+              <th scope="col" className="px-3 py-2 font-semibold">
+                {texts.settings.tracker}
+              </th>
+              <th scope="col" className="w-20 px-3 py-2 font-semibold">
+                {texts.settings.trackerLanguage}
+              </th>
+              <th scope="col" className="w-28 px-3 py-2 font-semibold">
+                {texts.settings.trackerUsed}
+              </th>
+              <th scope="col" className="w-36 px-3 py-2 font-semibold">
+                {texts.settings.trackerAuto}
+              </th>
+              <th scope="col" className="w-24 px-3 py-2">
+                <span className="sr-only">{texts.settings.trackerOrder}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {shown.map((tracker, index) => (
+              <tr key={tracker.name} className={tracker.used ? "" : "text-slate-400"}>
+                <td className="px-3 py-2 tabular-nums">{tracker.used ? index + 1 : "–"}</td>
+                <td className="px-3 py-2 font-medium">{tracker.name}</td>
+                <td className="px-3 py-2 text-slate-500">{tracker.language}</td>
+                <td className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={tracker.used}
+                    aria-label={`${texts.settings.trackerUsed} : ${tracker.name}`}
+                    onChange={(event) => {
+                      update(tracker.name, { used: event.target.checked, auto: event.target.checked && tracker.auto });
+                    }}
+                    className="size-4 accent-accent"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={tracker.auto}
+                    disabled={!tracker.used}
+                    aria-label={`${texts.settings.trackerAuto} : ${tracker.name}`}
+                    onChange={(event) => {
+                      update(tracker.name, { auto: event.target.checked });
+                    }}
+                    className="size-4 accent-accent disabled:opacity-40"
+                  />
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={() => {
+                      move(tracker.name, -1);
+                    }}
+                    aria-label={texts.settings.moveUp(tracker.name)}
+                    className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === shown.length - 1}
+                    onClick={() => {
+                      move(tracker.name, 1);
+                    }}
+                    aria-label={texts.settings.moveDown(tracker.name)}
+                    className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {off.length === 0 ? null : (
+          <p className="text-xs text-slate-500">
+            {texts.settings.trackersOff(off.map((tracker) => tracker.name).join(", "))}
+          </p>
+        )}
       </Card>
       <Card title={texts.nav.search}>
         <div className="grid gap-4 sm:grid-cols-2">

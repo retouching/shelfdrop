@@ -4,11 +4,12 @@ import { wait } from "../../mock/latency";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import { AccessTab } from "./AccessTab";
+import { FiltersTab } from "./FiltersTab";
 import { DiscordTab, PlacementTab, SearchTab, ServicesTab, SourcesTab } from "./tabs";
 
 type Tab = keyof typeof texts.settings.tabs;
 
-const tabs: readonly Tab[] = ["services", "sources", "search", "placement", "discord", "access"];
+const tabs: readonly Tab[] = ["services", "sources", "search", "filters", "placement", "discord", "access"];
 
 function TabContent({ tab }: { readonly tab: Tab }): ReactElement | null {
   switch (tab) {
@@ -18,6 +19,8 @@ function TabContent({ tab }: { readonly tab: Tab }): ReactElement | null {
       return <SourcesTab />;
     case "search":
       return <SearchTab />;
+    case "filters":
+      return <FiltersTab />;
     case "placement":
       return <PlacementTab />;
     case "discord":

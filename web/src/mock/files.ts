@@ -1,7 +1,23 @@
 // Maquette : fichiers à ranger (bibliothèque et téléchargements). Données fictives.
 import type { ShelfFile } from "../types";
 
+const chainsawChapters: readonly number[] = [
+  ...Array.from({ length: 232 }, (_, i) => i + 1).filter((n) => n !== 98 && (n < 212 || n > 214)),
+  10.5,
+  54.5,
+].sort((a, b) => a - b);
+
 export const mockFiles: readonly ShelfFile[] = [
+  {
+    id: "f0",
+    name: "Chainsaw Man - Ch. 001-232 [Scan FR]",
+    path: "téléchargements/manga/Chainsaw Man - Ch. 001-232 [Scan FR]/",
+    origin: "download",
+    kind: "manga",
+    sizeBytes: 4_100_000_000,
+    state: { kind: "chapters" },
+    chapters: { numbers: chainsawChapters, existing: Array.from({ length: 22 }, (_, i) => i + 1) },
+  },
   {
     id: "f1",
     name: "David.Goggins.2023.Plus.Rien.Ne.Pourra.Me.Blesser.French.epub",
@@ -10,6 +26,15 @@ export const mockFiles: readonly ShelfFile[] = [
     kind: "ebook",
     sizeBytes: 3_400_000,
     state: { kind: "misplaced", reason: "à la racine de Livres" },
+  },
+  {
+    id: "f9",
+    name: "Chainsaw Man Ch. 233-236 [Scan FR].cbz",
+    path: "téléchargements/manga/Chainsaw Man Ch. 233-236 [Scan FR].cbz",
+    origin: "download",
+    kind: "manga",
+    sizeBytes: 21_000_000,
+    state: { kind: "unlinked" },
   },
   {
     id: "f2",

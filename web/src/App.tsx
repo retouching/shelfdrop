@@ -14,14 +14,45 @@ import { SelectionBar } from "./components/SelectionBar";
 import { Sidebar, type Page } from "./components/Sidebar";
 import { StatStrip, type Stat } from "./components/StatStrip";
 import { Bone, LoadingLabel, ResultsSkeleton, WorkListSkeleton } from "./components/Skeletons";
+import { LibraryPage } from "./components/library/LibraryPage";
+import { MergeDialog, unionTitles } from "./components/MergeDialog";
 import { WorkList } from "./components/WorkList";
 import { ReleasesLoading } from "./components/ReleasesLoading";
-import { mockDownloads, mockQueries, mockReleasesForWork, mockResults, mockWorks } from "./mock/data";
+import { RefreshBar } from "./components/RefreshBar";
+import { useFilters } from "./mock/filters";
+import { useWaiting } from "./mock/waiting";
+import { WaitingPage } from "./components/WaitingPage";
+import { WaitDialog } from "./components/WaitDialog";
+import { useTrackers } from "./mock/trackers";
+import { scoreTitle } from "./utils/score";
+import { mockDownloads, nextDownloads, mockQueries, mockReleasesForWork, mockResults, mockWorks } from "./mock/data";
 import { guessKind, mockFiles } from "./mock/files";
 import { useLatency, wait } from "./mock/latency";
 import { texts } from "./texts";
 import type { Download, Kind, ShelfFile, Work } from "./types";
-import { bestPerVolume, compareForDisplay, coverageLabel } from "./utils/volumes";
+import { bestPerVolume, compareForDisplay, coverageLabel, volumeNumbers } from "./utils/volumes";
+
+/** Les œuvres d'une liste, chaque paire fusionnée remplacée par sa fusion, à la place de la première. */
+function withMerges(list: readonly Work[], merges: readonly Work[]): readonly Work[] {
+  const absorbed = new Map<string, Work>();
+  for (const merged of merges) {
+    for (const part of merged.mergedFrom ?? []) {
+      absorbed.set(part.id, merged);
+    }
+  }
+  const shown = new Set<string>();
+  return list.flatMap((entry) => {
+    const merged = absorbed.get(entry.id);
+    if (merged === undefined) {
+      return [entry];
+    }
+    if (shown.has(merged.id)) {
+      return [];
+    }
+    shown.add(merged.id);
+    return [merged];
+  });
+}
 
 /** Maquette : temps simulé de la recherche Prowlarr pour un nom. */
 const NAME_STEP_MS = 450;
@@ -45,8 +76,14 @@ export function App(): ReactElement {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<readonly Download[]>(mockDownloads);
+  const [downloadsAt, setDownloadsAt] = useState(() => new Date());
+  const [downloadsRefreshing, setDownloadsRefreshing] = useState(false);
+  const [live, setLive] = useState(false);
+  const [liveEvery, setLiveEvery] = useState(5);
   const [retrying, setRetrying] = useState<ReadonlySet<string>>(() => new Set());
   const [work, setWork] = useState<Work | null>(null);
+  const [merges, setMerges] = useState<readonly Work[]>([]);
+  const [merging, setMerging] = useState<Work | null>(null);
   const [names, setNames] = useState<ReadonlySet<string>>(() => new Set());
   const [files, setFiles] = useState<readonly ShelfFile[]>(mockFiles);
 
@@ -62,21 +99,38 @@ export function App(): ReactElement {
   const releasesLoading = useLatency(releasesKey, NAME_STEP_MS * (searchedNames.length + 1));
   const downloadsLoading = useLatency(`downloads|${page}`, 700);
 
-  const works = mockWorks[kind];
-  const releases = useMemo(
-    () =>
-      manual
-        ? [...mockResults[kind]].sort(compareForDisplay)
-        : work === null
-          ? []
-          : mockReleasesForWork(kind, work.id)
-              .filter(
-                (release) =>
-                  names.has(release.matchedName) || !work.titles.some((t) => t.title === release.matchedName),
-              )
-              .sort(compareForDisplay),
-    [manual, kind, work, names],
-  );
+  const works = withMerges(mockWorks[kind], merges);
+  const filters = useFilters();
+  const trackers = useTrackers();
+  const [showRejected, setShowRejected] = useState(false);
+  const waitingList = useWaiting();
+  const [waitOpen, setWaitOpen] = useState(false);
+  const [waitAdding, setWaitAdding] = useState(false);
+  const found = useMemo(() => {
+    const raw = manual
+      ? mockResults[kind]
+      : work === null
+        ? []
+        : mockReleasesForWork(kind, work.id).filter(
+            (release) => names.has(release.matchedName) || !work.titles.some((t) => t.title === release.matchedName),
+          );
+    // Trackers choisis et ordonnés dans Paramètres, puis score des filtres.
+    const used = trackers.filter((tracker) => tracker.used && tracker.prowlarrEnabled).map((tracker) => tracker.name);
+    return raw
+      .filter((release) => used.includes(release.indexer))
+      .map((release) => {
+        const score = scoreTitle(release.title, kind, filters.rules);
+        return {
+          ...release,
+          indexerRank: used.indexOf(release.indexer),
+          score: score.total,
+          scoreRules: score.matches.map((match) => ({ name: match.rule.name, score: match.score })),
+        };
+      })
+      .sort(compareForDisplay);
+  }, [manual, kind, work, names, trackers, filters]);
+  const rejected = found.filter((release) => release.score < filters.minimum);
+  const releases = showRejected ? found : found.filter((release) => release.score >= filters.minimum);
   const selectedReleases = releases.filter((release) => selected.has(release.id));
   const running = downloads.filter((download) =>
     ["downloading", "waiting", "placing"].includes(download.state.kind),
@@ -84,6 +138,27 @@ export function App(): ReactElement {
 
   // Maquette : fait avancer les envois en cours.
   const uploading = files.some((file) => file.state.kind === "uploading");
+  useEffect(() => {
+    if (!live || page !== "downloads") {
+      return undefined;
+    }
+    const timer = window.setInterval(() => {
+      setDownloads((current) => nextDownloads(current, liveEvery));
+      setDownloadsAt(new Date());
+    }, liveEvery * 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [live, liveEvery, page]);
+
+  async function refreshDownloads(): Promise<void> {
+    setDownloadsRefreshing(true);
+    await wait(600);
+    setDownloads((current) => nextDownloads(current, 5));
+    setDownloadsAt(new Date());
+    setDownloadsRefreshing(false);
+  }
+
   useEffect(() => {
     if (!uploading) {
       return undefined;
@@ -117,6 +192,30 @@ export function App(): ReactElement {
     chooseWork(null);
   }
 
+  function merge(base: Work, others: readonly Work[], shelfName: string): void {
+    const parts = [...(base.mergedFrom ?? [base]), ...others.flatMap((other) => other.mergedFrom ?? [other])];
+    const first = parts[0] ?? base;
+    const merged: Work = {
+      id: parts.map((part) => part.id).join("+"),
+      source: first.source,
+      title: shelfName,
+      author: first.author,
+      year: Math.min(...parts.map((part) => part.year)),
+      volumeCount: parts.find((part) => part.volumeCount !== null)?.volumeCount ?? null,
+      // Le nom gardé en tête, comme le titre de la carte.
+      titles: [...unionTitles(parts)].sort((x, y) => Number(y.title === shelfName) - Number(x.title === shelfName)),
+      mergedFrom: parts,
+    };
+    const replaced = new Set([base.id, ...others.map((other) => other.id)]);
+    setMerges((current) => [...current.filter((entry) => !replaced.has(entry.id)), merged]);
+    chooseWork(null);
+  }
+
+  function split(merged: Work): void {
+    setMerges((current) => current.filter((entry) => entry.id !== merged.id));
+    chooseWork(null);
+  }
+
   function chooseWork(next: Work | null): void {
     setWork(next);
     setNames(new Set(next?.titles.map((t) => t.title)));
@@ -139,7 +238,9 @@ export function App(): ReactElement {
     setRetrying((current) => new Set(current).add(download.id));
     await wait(900);
     setDownloads((current) =>
-      current.map((item) => (item.id === download.id ? { ...item, state: { kind: "downloading", percent: 0 } } : item)),
+      current.map((item) =>
+        item.id === download.id ? { ...item, state: { kind: "downloading", percent: 0, speed: 0, eta: 0 } } : item,
+      ),
     );
     setRetrying((current) => {
       const next = new Set(current);
@@ -199,6 +300,7 @@ export function App(): ReactElement {
         page={page}
         username={username}
         runningCount={running}
+        waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
         toPlaceCount={files.filter((file) => file.state.kind === "unlinked" || file.state.kind === "misplaced").length}
         onNavigate={(next) => {
           setPage(next);
@@ -242,6 +344,10 @@ export function App(): ReactElement {
                     workTitle={query}
                     manual
                     releases={releases}
+                    rejectedCount={rejected.length}
+                    showRejected={showRejected}
+                    onShowRejected={setShowRejected}
+                    minimum={filters.minimum}
                     selected={selected}
                     onToggle={toggle}
                     onToggleAll={(select) => {
@@ -270,6 +376,8 @@ export function App(): ReactElement {
                         selectedId={work?.id ?? null}
                         loading={releasesLoading}
                         onChoose={chooseWork}
+                        onMerge={setMerging}
+                        onSplit={split}
                       />
                       {work === null ? null : (
                         <>
@@ -286,6 +394,13 @@ export function App(): ReactElement {
                               workTitle={work.title}
                               manual={false}
                               releases={releases}
+                              rejectedCount={rejected.length}
+                              showRejected={showRejected}
+                              onShowRejected={setShowRejected}
+                              minimum={filters.minimum}
+                              onWait={() => {
+                                setWaitOpen(true);
+                              }}
                               selected={selected}
                               onToggle={toggle}
                               onToggleAll={(select) => {
@@ -319,6 +434,28 @@ export function App(): ReactElement {
             <PageHeader section={texts.nav.admin} title={texts.pages.settings} lead={texts.pages.settingsLead} />
             <main className="px-10 pt-8 pb-24">
               <SettingsPage />
+            </main>
+          </>
+        ) : page === "waiting" ? (
+          <>
+            <PageHeader section={texts.nav.search} title={texts.pages.waiting} lead={texts.pages.waitingLead} />
+            <main className="px-10 pt-8 pb-24">
+              <WaitingPage
+                onAdd={() => {
+                  setWaitAdding(true);
+                }}
+                onOpen={(entry) => {
+                  setPage("auto");
+                  search(entry.title, entry.kind);
+                }}
+              />
+            </main>
+          </>
+        ) : page === "metadata" ? (
+          <>
+            <PageHeader section={texts.nav.library} title={texts.pages.metadata} lead={texts.pages.metadataLead} />
+            <main className="px-10 pt-8 pb-24">
+              <LibraryPage />
             </main>
           </>
         ) : page === "place" ? (
@@ -357,6 +494,14 @@ export function App(): ReactElement {
                 </section>
               ) : (
                 <>
+                  <RefreshBar
+                    updatedAt={downloadsAt}
+                    refreshing={downloadsRefreshing}
+                    onRefresh={() => {
+                      void refreshDownloads();
+                    }}
+                    live={{ on: live, every: liveEvery, onToggle: setLive, onEvery: setLiveEvery }}
+                  />
                   <StatStrip stats={stats(downloads)} />
                   <DownloadsTable
                     downloads={downloads}
@@ -404,6 +549,42 @@ export function App(): ReactElement {
           }}
         />
       ) : null}
+      {waitOpen && work !== null ? (
+        <WaitDialog
+          kind={kind}
+          work={work}
+          foundVolumes={releases.flatMap((release) => volumeNumbers(release.volumes))}
+          onClose={() => {
+            setWaitOpen(false);
+          }}
+          onAdded={(count) => {
+            setNotice(texts.waitDialog.added(count));
+          }}
+        />
+      ) : null}
+      {waitAdding ? (
+        <WaitDialog
+          kind={kind}
+          work={null}
+          foundVolumes={[]}
+          onClose={() => {
+            setWaitAdding(false);
+          }}
+          onAdded={() => undefined}
+        />
+      ) : null}
+      {merging === null ? null : (
+        <MergeDialog
+          kind={kind}
+          work={merging}
+          onClose={() => {
+            setMerging(null);
+          }}
+          onMerged={(others, shelfName) => {
+            merge(merging, others, shelfName);
+          }}
+        />
+      )}
     </div>
   );
 }

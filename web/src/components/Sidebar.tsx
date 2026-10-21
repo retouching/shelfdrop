@@ -3,9 +3,11 @@ import { useState, type ReactElement } from "react";
 import { texts } from "../texts";
 import { readTheme, saveTheme, type ThemeChoice } from "../theme";
 import {
+  ClockIcon,
   DownloadIcon,
   FileIcon,
   GearIcon,
+  ImageIcon,
   LogoutIcon,
   MonitorIcon,
   MoonIcon,
@@ -48,13 +50,14 @@ function ThemeSwitch(): ReactElement {
   );
 }
 
-export type Page = "auto" | "manual" | "downloads" | "place" | "settings";
+export type Page = "auto" | "manual" | "waiting" | "downloads" | "place" | "metadata" | "settings";
 
 type Props = {
   readonly page: Page;
   readonly username: string;
   readonly runningCount: number;
   readonly toPlaceCount: number;
+  readonly waitingFound: number;
   readonly onNavigate: (page: Page) => void;
   readonly onSignOut: () => void;
 };
@@ -92,7 +95,15 @@ function NavButton({
   );
 }
 
-export function Sidebar({ page, username, runningCount, toPlaceCount, onNavigate, onSignOut }: Props): ReactElement {
+export function Sidebar({
+  page,
+  username,
+  runningCount,
+  toPlaceCount,
+  waitingFound,
+  onNavigate,
+  onSignOut,
+}: Props): ReactElement {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-surface">
       <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
@@ -123,6 +134,15 @@ export function Sidebar({ page, username, runningCount, toPlaceCount, onNavigate
               onNavigate("manual");
             }}
           />
+          <NavButton
+            active={page === "waiting"}
+            label={texts.nav.waiting}
+            icon={<ClockIcon />}
+            badge={waitingFound}
+            onClick={() => {
+              onNavigate("waiting");
+            }}
+          />
         </div>
         <div className="space-y-1">
           <p className="px-3 pb-1 text-sm font-semibold text-ink">{texts.nav.library}</p>
@@ -142,6 +162,14 @@ export function Sidebar({ page, username, runningCount, toPlaceCount, onNavigate
             badge={toPlaceCount}
             onClick={() => {
               onNavigate("place");
+            }}
+          />
+          <NavButton
+            active={page === "metadata"}
+            label={texts.nav.metadata}
+            icon={<ImageIcon />}
+            onClick={() => {
+              onNavigate("metadata");
             }}
           />
         </div>
