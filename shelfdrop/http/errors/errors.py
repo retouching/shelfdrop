@@ -31,6 +31,16 @@ def not_signed_in() -> ApiError:
     return unauthorized(ErrorCode.NOT_SIGNED_IN, "Not signed in")
 
 
+def token_forbidden() -> ApiError:
+    """An access token where only the session of an administrator goes, or a token of reading
+    on a write."""
+    return forbidden(ErrorCode.TOKEN_FORBIDDEN, "Not allowed with this token")
+
+
+def token_throttled() -> ApiError:
+    return too_many_requests(ErrorCode.TOO_MANY_REQUESTS, "Too many requests")
+
+
 def conflict(code: ErrorCode, detail: str) -> ApiError:
     """409: the request is valid, the state of what it names refuses it."""
     return ApiError(status.HTTP_409_CONFLICT, code=code, detail=detail)

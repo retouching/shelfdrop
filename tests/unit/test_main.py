@@ -9,7 +9,7 @@ from pydantic import SecretStr
 
 from shelfdrop.auth.types import Account
 from shelfdrop.config import Settings
-from shelfdrop.http.dependencies import require_session
+from shelfdrop.http.dependencies import require_access, require_reader, require_session
 from shelfdrop.main import build_app
 
 
@@ -38,7 +38,8 @@ def client_for(settings: Settings, *, signed_in: bool = True) -> httpx.AsyncClie
     has its own tests (tests/unit/auth, tests/integration/test_sign_in.py)."""
     app = build_app(settings)
     if signed_in:
-        app.dependency_overrides[require_session] = lambda: ACCOUNT
+        for dependency in (require_session, require_reader, require_access):
+            app.dependency_overrides[dependency] = lambda: ACCOUNT
     transport = httpx.ASGITransport(app=app)
     return httpx.AsyncClient(transport=transport, base_url="http://test")
 
@@ -140,6 +141,46 @@ async def test_without_a_session_the_api_answers_401(
 
     assert response.status_code == 401
     assert response.json() == {"code": "not_signed_in", "detail": "Not signed in", "data": None}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", "/api/v1/settings"),
+        ("PUT", "/api/v1/settings"),
+        ("GET", "/api/v1/trackers"),
+        ("PUT", "/api/v1/filters"),
+        ("GET", "/api/v1/tokens"),
+        ("POST", "/api/v1/tokens"),
+        ("DELETE", "/api/v1/tokens/1"),
+        ("GET", "/api/v1/session"),
+    ],
+)
+async def test_a_token_never_reaches_the_routes_of_the_administrators(
+    tmp_path: Path, method: str, path: str
+) -> None:
+    async with client_for(settings_for(tmp_path), signed_in=False) as client:
+        response = await client.request(
+            method, path, headers={"Authorization": "Bearer sd_x", "Origin": "http://test"}
+        )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "token_forbidden"
+
+
+@pytest.mark.anyio
+async def test_a_write_with_a_token_needs_no_origin_and_never_reads_the_cookie(
+    tmp_path: Path,
+) -> None:
+    async with client_for(settings_for(tmp_path), signed_in=False) as client:
+        client.cookies.set("__Host-shelfdrop", "some-session")
+        response = await client.post(
+            "/api/v1/downloads/1/retry", headers={"Authorization": "Bearer not-a-token"}
+        )
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "not_signed_in"
 
 
 @pytest.mark.anyio

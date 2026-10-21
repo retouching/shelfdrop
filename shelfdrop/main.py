@@ -19,7 +19,12 @@ from wireup.integration.fastapi import get_app_container, setup
 from shelfdrop.config import Settings
 from shelfdrop.container import environment_values, injectables
 from shelfdrop.downloads.sender import DownloadSender
-from shelfdrop.http.dependencies import release_session, require_session
+from shelfdrop.http.dependencies import (
+    release_session,
+    require_access,
+    require_reader,
+    require_session,
+)
 from shelfdrop.http.errors.handlers import (
     handle_http_exception,
     handle_request_validation_error,
@@ -41,6 +46,7 @@ from shelfdrop.modules.releases.router import router as releases_router
 from shelfdrop.modules.searches.router import router as searches_router
 from shelfdrop.modules.session.router import router as session_router
 from shelfdrop.modules.settings.router import router as settings_router
+from shelfdrop.modules.tokens.router import router as tokens_router
 from shelfdrop.modules.trackers.router import router as trackers_router
 from shelfdrop.modules.uploads.router import router as uploads_router
 from shelfdrop.modules.waiting.router import router as waiting_router
@@ -124,23 +130,22 @@ def build_app(settings: Settings) -> FastAPI:
     app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health"}))
     app.add_middleware(RequestIdMiddleware)
     app.include_router(health_router)
-    # The session asks for itself; every other route of the API needs one (plan section 5).
+    # The session asks for itself; every other route of the API needs one (plan section 5), or
+    # an access token where one may go (ADR 0020).
     app.include_router(session_router, prefix=prefix)
-    signed_in = [Depends(require_session)]
+    for router in (settings_router, trackers_router, filters_router, tokens_router):
+        app.include_router(router, prefix=prefix, dependencies=[Depends(require_session)])
+    for router in (searches_router, releases_router):
+        app.include_router(router, prefix=prefix, dependencies=[Depends(require_reader)])
     for router in (
         works_router,
-        searches_router,
-        releases_router,
         downloads_router,
-        trackers_router,
-        filters_router,
-        settings_router,
         library_router,
         waiting_router,
         place_router,
         uploads_router,
     ):
-        app.include_router(router, prefix=prefix, dependencies=signed_in)
+        app.include_router(router, prefix=prefix, dependencies=[Depends(require_access)])
     # The front-end, last: its route answers every path the others leave.
     if (settings.static_dir / "index.html").is_file():
         for folder in ("assets", "fonts"):

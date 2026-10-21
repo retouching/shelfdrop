@@ -42,6 +42,7 @@ PARTS: Final = {
     "test_ranger_chapters.py": "ranger",
     "test_ranger_scan.py": "ranger",
     "test_uploads.py": "uploads",
+    "test_tokens.py": "access",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -71,6 +72,7 @@ FILE_BLOCKS: Final = {
     "test_ranger_link.py": "ranger_link",
     "test_ranger_chapters.py": "ranger_chapters",
     "test_ranger_scan.py": "ranger_scan",
+    "test_tokens.py": "access_tokens",
 }
 
 

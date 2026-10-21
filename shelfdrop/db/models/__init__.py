@@ -1,5 +1,6 @@
 """The registry of the ORM models: import them from here, so Base.metadata knows every table."""
 
+from shelfdrop.db.models.api_token import ApiToken
 from shelfdrop.db.models.audit_entry import AuditEntry
 from shelfdrop.db.models.cached_work import CachedWork
 from shelfdrop.db.models.download import Download
@@ -19,6 +20,7 @@ from shelfdrop.db.models.waiting_search import WaitingSearch
 from shelfdrop.db.models.work_merge import WorkMerge
 
 __all__ = [
+    "ApiToken",
     "AuditEntry",
     "CachedWork",
     "Download",

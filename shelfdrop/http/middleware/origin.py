@@ -1,7 +1,9 @@
 """Writes of the API come from its own pages alone: a POST, PUT, PATCH or DELETE under the
 prefix of the API needs an `Origin` header that names the host of the request (`Host`), or it
 gets a 403 `origin_refused`. Browsers send `Origin` with every such request; the session cookie
-is SameSite=Strict on top of it."""
+is SameSite=Strict on top of it. A request with an `Authorization` header is let through: the
+API then reads its access token alone, never the cookie, and no page of another site can set
+that header (ADR 0020)."""
 
 from typing import Final
 from urllib.parse import urlsplit
@@ -34,7 +36,9 @@ class OriginMiddleware:
             and str(scope["path"]).startswith(self.api_paths)
         ):
             headers = Headers(scope=scope)
-            if not same_host(headers.get("origin"), headers.get("host")):
+            if "authorization" not in headers and not same_host(
+                headers.get("origin"), headers.get("host")
+            ):
                 response = error_response(403, ErrorCode.ORIGIN_REFUSED, "Origin refused")
                 await response(scope, receive, send)
                 return

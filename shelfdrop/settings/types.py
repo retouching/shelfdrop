@@ -7,7 +7,7 @@ from typing import Literal
 
 type ValueKind = Literal["address", "number", "switch", "path", "time"]
 type SettingValue = str | int | bool | None
-type AuditAction = Literal["changed", "replaced", "cleared", "imported"]
+type AuditAction = Literal["changed", "replaced", "cleared", "imported", "created", "revoked"]
 type ProbeState = Literal["connected", "no_address", "no_key", "refused", "unavailable"]
 
 

@@ -16,7 +16,7 @@ from shelfdrop.downloads.exceptions import (
 )
 from shelfdrop.downloads.service import DownloadService
 from shelfdrop.downloads.types import Choice, DownloadView, SendOrder
-from shelfdrop.http.dependencies import require_session
+from shelfdrop.http.dependencies import require_access
 from shelfdrop.modules.downloads.errors import (
     download_not_found,
     download_not_retryable,
@@ -68,7 +68,7 @@ async def read_downloads(service: Injected[DownloadService]) -> DownloadsRead:
 @router.post("")
 async def send_downloads(
     service: Injected[DownloadService],
-    account: Annotated[Account, Depends(require_session)],
+    account: Annotated[Account, Depends(require_access)],
     body: DownloadsCreate,
 ) -> DownloadsRead:
     order = SendOrder(

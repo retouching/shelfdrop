@@ -8,7 +8,7 @@ from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
 from shelfdrop.auth.types import Account
-from shelfdrop.http.dependencies import require_session
+from shelfdrop.http.dependencies import require_access
 from shelfdrop.modules.waiting.errors import waiting_not_found
 from shelfdrop.modules.waiting.schemas import (
     OwnedRead,
@@ -66,7 +66,7 @@ async def read_waiting(
 async def add_waiting(
     body: WaitingCreate,
     service: Injected[WaitingService],
-    account: Annotated[Account, Depends(require_session)],
+    account: Annotated[Account, Depends(require_access)],
 ) -> WaitingAdded:
     order = WaitOrder(
         work_id=body.work_id,

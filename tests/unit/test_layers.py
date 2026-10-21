@@ -30,6 +30,7 @@ DOMAIN: Final = (
     "shelfdrop/library/",
     "shelfdrop/waiting/",
     "shelfdrop/settings/",
+    "shelfdrop/tokens/",
     "shelfdrop/utils/",
     "shelfdrop/db/",
     "shelfdrop/logging/",

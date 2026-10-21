@@ -1,4 +1,5 @@
-"""AuditEntry: who changed which setting, and when; never a value."""
+"""AuditEntry: who changed which setting, created or revoked which access token, and when;
+never a value."""
 
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -14,7 +15,8 @@ class AuditEntry(Base):
     at: Mapped[int] = mapped_column(Integer, index=True)
     # The account, or "environment" for a value imported at start.
     actor: Mapped[str] = mapped_column(String(255))
-    # "changed", "replaced", "cleared", "imported" (shelfdrop.settings.types.AuditAction).
+    # "changed", "replaced", "cleared", "imported" (shelfdrop.settings.types.AuditAction), or
+    # "created", "revoked" for an access token.
     action: Mapped[str] = mapped_column(String(20))
-    # The key of the setting or of the secret.
+    # The key of the setting or of the secret, or `token.<id>`.
     target: Mapped[str] = mapped_column(String(100))

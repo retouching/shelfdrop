@@ -1,6 +1,6 @@
 [project]
 name = "shelfdrop"
-version = "0.7.0"
+version = "0.8.0"
 description = "Find, download and shelve manga, books and audiobooks into Jellyfin."
 requires-python = ">=3.13"
 dependencies = [
@@ -108,6 +108,8 @@ markers = [
     "ranger_link: block of ranger, a download left linked to a work, a name taken, a file corrected (test_ranger_link.py)",
     "ranger_chapters: block of ranger, a release in chapters merged into its volumes (test_ranger_chapters.py)",
     "ranger_scan: block of ranger, the scan of the files misplaced and its time (test_ranger_scan.py)",
+    "access: integration part, the access tokens, the OpenAPI document and the MCP server",
+    "access_tokens: block of access, the tokens created, scoped, counted, revoked (test_tokens.py)",
 ]
 
 [dependency-groups]

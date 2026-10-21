@@ -1,24 +1,29 @@
-// Rubrique API et MCP : jetons d'accès (affichés une seule fois), configuration MCP, lien OpenAPI.
+// Rubrique API et MCP : jetons d'accès lus, créés (secret affiché une seule fois) et révoqués par
+// l'API, configuration MCP et lien vers la documentation OpenAPI.
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
+import { ApiError } from "../../api/http";
+import { createToken, readTokens, revokeToken, type AccessToken, type Scope } from "../../api/tokens";
 import { texts } from "../../texts";
+import { Spinner } from "../Skeletons";
 import { Card, Field, input } from "./parts";
 
-type Scope = "read" | "write";
 type Expiry = "d30" | "d90" | "d365" | "never";
 
-type Token = {
-  readonly id: string;
-  readonly name: string;
-  readonly scope: Scope;
-  readonly lastUsed: string | null;
-  readonly expires: string | null;
-};
+const expiryDays: Readonly<Record<Expiry, 30 | 90 | 365 | null>> = { d30: 30, d90: 90, d365: 365, never: null };
 
-const initialTokens: readonly Token[] = [
-  { id: "t1", name: "Hermes", scope: "write", lastUsed: "21/10 à 18:42", expires: null },
-  { id: "t2", name: "Grafana (lecture)", scope: "read", lastUsed: "21/10 à 18:40", expires: "19/01/2027" },
-];
+/** « 21/10 à 18:42 » : la dernière utilisation d'un jeton (secondes Unix). */
+function usedAt(seconds: number): string {
+  const date = new Date(seconds * 1000);
+  return texts.settings.usedAt(
+    date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+    date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+  );
+}
+
+function dayOf(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleDateString("fr-FR");
+}
 
 const mcpTools: readonly string[] = [
   "search_works",
@@ -30,22 +35,17 @@ const mcpTools: readonly string[] = [
   "place_file",
 ];
 
+const origin = window.location.origin;
+
 const mcpConfig = `{
   "mcpServers": {
     "shelfdrop": {
       "type": "http",
-      "url": "https://shelfdrop.maigo.party/mcp",
+      "url": "${origin}/mcp",
       "headers": { "Authorization": "Bearer <jeton>" }
     }
   }
 }`;
-
-/** Maquette : jeton fictif, au format prévu (préfixe lisible + 32 octets aléatoires). */
-function fakeToken(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return `sd_${[...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
-}
 
 function CopyButton({ value }: { readonly value: string }): ReactElement {
   const [copied, setCopied] = useState(false);
@@ -69,29 +69,34 @@ function CreateTokenDialog({
   onCreate,
 }: {
   readonly onClose: () => void;
-  readonly onCreate: (token: Token) => void;
+  readonly onCreate: (token: AccessToken) => void;
 }): ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
   const [scope, setScope] = useState<Scope>("read");
   const [expiry, setExpiry] = useState<Expiry>("d90");
   const [secret, setSecret] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     ref.current?.showModal();
   }, []);
 
   function create(): void {
-    const value = fakeToken();
-    setSecret(value);
-    const days = { d30: 30, d90: 90, d365: 365, never: null }[expiry];
-    onCreate({
-      id: `t-${String(Date.now())}`,
-      name: name.trim() === "" ? "Sans nom" : name.trim(),
-      scope,
-      lastUsed: null,
-      expires: days === null ? null : new Date(Date.now() + days * 86_400_000).toLocaleDateString("fr-FR"),
-    });
+    setBusy(true);
+    setFailed(false);
+    createToken(name.trim(), scope, expiryDays[expiry]).then(
+      (created) => {
+        setSecret(created.secret);
+        onCreate(created.token);
+        setBusy(false);
+      },
+      () => {
+        setFailed(true);
+        setBusy(false);
+      },
+    );
   }
 
   return (
@@ -114,7 +119,8 @@ function CreateTokenDialog({
               onChange={(event) => {
                 setName(event.target.value);
               }}
-              placeholder="Hermes"
+              placeholder={texts.settings.tokenNamePlaceholder}
+              maxLength={100}
               className={input}
             />
           </Field>
@@ -148,6 +154,7 @@ function CreateTokenDialog({
               ))}
             </select>
           </Field>
+          {failed ? <p className="text-sm text-rose-700">{texts.settings.tokensFailed}</p> : null}
         </div>
       ) : (
         <div className="space-y-3 px-6 py-5">
@@ -175,7 +182,8 @@ function CreateTokenDialog({
             <button
               type="button"
               onClick={create}
-              className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong"
+              disabled={busy || name.trim() === ""}
+              className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-50"
             >
               {texts.settings.create}
             </button>
@@ -197,8 +205,31 @@ function CreateTokenDialog({
 }
 
 export function AccessTab(): ReactElement {
-  const [tokens, setTokens] = useState<readonly Token[]>(initialTokens);
+  const [tokens, setTokens] = useState<readonly AccessToken[] | null>(null);
   const [creating, setCreating] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    readTokens().then(setTokens, () => {
+      setFailed(true);
+    });
+  }, []);
+
+  function revoke(token: AccessToken): void {
+    setFailed(false);
+    revokeToken(token.id).then(
+      () => {
+        setTokens((current) => (current ?? []).filter((item) => item.id !== token.id));
+      },
+      (error: unknown) => {
+        if (error instanceof ApiError && error.code === "token_not_found") {
+          setTokens((current) => (current ?? []).filter((item) => item.id !== token.id));
+          return;
+        }
+        setFailed(true);
+      },
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -237,17 +268,21 @@ export function AccessTab(): ReactElement {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {tokens.map((token) => (
+            {(tokens ?? []).map((token) => (
               <tr key={token.id}>
                 <td className="px-5 py-3 font-medium text-ink">{token.name}</td>
                 <td className="px-3 py-3 text-slate-600">{texts.settings.scopes[token.scope]}</td>
-                <td className="px-3 py-3 text-slate-600">{token.lastUsed ?? texts.settings.never}</td>
-                <td className="px-3 py-3 text-slate-600">{token.expires ?? texts.settings.never}</td>
+                <td className="px-3 py-3 text-slate-600">
+                  {token.lastUsedAt === null ? texts.settings.never : usedAt(token.lastUsedAt)}
+                </td>
+                <td className="px-3 py-3 text-slate-600">
+                  {token.expiresAt === null ? texts.settings.never : dayOf(token.expiresAt)}
+                </td>
                 <td className="px-5 py-3 text-right">
                   <button
                     type="button"
                     onClick={() => {
-                      setTokens(tokens.filter((item) => item.id !== token.id));
+                      revoke(token);
                     }}
                     aria-label={texts.settings.revokeFor(token.name)}
                     className="text-sm text-slate-500 hover:text-rose-700"
@@ -259,6 +294,8 @@ export function AccessTab(): ReactElement {
             ))}
           </tbody>
         </table>
+        {tokens === null && !failed ? <Spinner /> : null}
+        {failed ? <p className="text-sm text-rose-700">{texts.settings.tokensFailed}</p> : null}
       </Card>
 
       <Card title={texts.settings.mcp} aside={<CopyButton value={mcpConfig} />}>
@@ -277,8 +314,7 @@ export function AccessTab(): ReactElement {
 
       <Card title={texts.settings.api}>
         <p className="text-sm text-slate-600">
-          {texts.settings.apiLead}{" "}
-          <span className="font-mono text-xs text-accent-text">https://shelfdrop.maigo.party/api/docs</span>
+          {texts.settings.apiLead} <span className="font-mono text-xs text-accent-text">{`${origin}/api/docs`}</span>
         </p>
       </Card>
 
@@ -288,7 +324,7 @@ export function AccessTab(): ReactElement {
             setCreating(false);
           }}
           onCreate={(token) => {
-            setTokens([token, ...tokens]);
+            setTokens((current) => [token, ...(current ?? [])]);
           }}
         />
       ) : null}

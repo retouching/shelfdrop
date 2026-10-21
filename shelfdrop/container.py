@@ -53,6 +53,9 @@ from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.settings.reader import SettingsReader
 from shelfdrop.settings.repository import SettingsRepository, settings_repository_factory
 from shelfdrop.settings.service import Probes, SettingsService
+from shelfdrop.tokens.repository import TokenRepository
+from shelfdrop.tokens.service import TokenService
+from shelfdrop.tokens.throttle import TokenThrottle
 from shelfdrop.uploads.repository import UploadRepository, upload_repository_factory
 from shelfdrop.uploads.service import UploadEvents, UploadService
 from shelfdrop.uploads.store import UploadStore
@@ -495,6 +498,7 @@ def injectables(settings: Settings) -> list[object]:
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.instance(LoginThrottle(), as_type=LoginThrottle),
+        wireup.instance(TokenThrottle(), as_type=TokenThrottle),
         wireup.injectable(open_http),
         wireup.injectable(new_secret_box),
         wireup.injectable(new_settings_reader),
@@ -551,6 +555,8 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(SettingsService, lifetime="scoped"),
         wireup.injectable(SessionRepository, lifetime="scoped"),
         wireup.injectable(AuthService, lifetime="scoped"),
+        wireup.injectable(TokenRepository, lifetime="scoped"),
+        wireup.injectable(TokenService, lifetime="scoped"),
         wireup.injectable(UploadRepository, lifetime="scoped"),
         wireup.injectable(UploadService, lifetime="scoped"),
     ]

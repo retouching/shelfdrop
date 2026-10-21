@@ -17,6 +17,14 @@ class ErrorCode(StrEnum):
     # 403: a write (POST, PUT, PATCH, DELETE) whose Origin header is missing or names another
     # host than the request; data = null.
     ORIGIN_REFUSED = "origin_refused"
+    # 403: an access token on a route kept for the session of an administrator (the settings,
+    # the trackers, the filters, the tokens, the session), or a token of reading on a write;
+    # data = null.
+    TOKEN_FORBIDDEN = "token_forbidden"  # noqa: S105 - an error code, not a secret
+    # 404: no access token to revoke with this id, or one revoked already; data = null.
+    TOKEN_NOT_FOUND = "token_not_found"  # noqa: S105 - an error code, not a secret
+    # 429: more than 60 requests in a minute with one access token; data = null.
+    TOO_MANY_REQUESTS = "too_many_requests"
     # 404: no route for the path.
     NOT_FOUND = "not_found"
     # 404: no work with this id in the cache: unknown, or its search is older than 7 days;

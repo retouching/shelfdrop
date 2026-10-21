@@ -3,7 +3,13 @@
 Every route but `/health` and the pages is served under the prefix `/api` (`SHELFDROP_API_PREFIX`). The API serves neither its schema nor a documentation page: this page describes it.
 
 ## Session
-Every route of the API but `POST /api/v1/session` needs the session cookie `__Host-shelfdrop`, otherwise `401 not_signed_in` ([ADR 0013](adr/0013-sign-in-and-sessions.md)). A write (`POST`, `PUT`, `PATCH`, `DELETE`) needs an `Origin` header naming the host of the request, otherwise `403 origin_refused`, before any other check.
+Every route of the API but `POST /api/v1/session` needs the session cookie `__Host-shelfdrop`, or an access token where one may go, otherwise `401 not_signed_in` ([ADR 0013](adr/0013-sign-in-and-sessions.md)). A write (`POST`, `PUT`, `PATCH`, `DELETE`) with the cookie needs an `Origin` header naming the host of the request, otherwise `403 origin_refused`, before any other check.
+
+### Access tokens
+A program sends `Authorization: Bearer sd_...` instead of the cookie ([ADR 0020](adr/0020-access-tokens.md)); with that header the cookie is never read and no `Origin` is needed. A token unknown, expired or revoked gets `401 not_signed_in`; past 60 requests in a minute, `429 too_many_requests`. A token never reaches the settings, the trackers, the filters, the tokens nor the session (`403 token_forbidden`). Every token reads; a write (a download sent or tried again, a file placed, a waiting search, an upload, a merge of works, a series of Jellyfin changed) needs a token `write` (Lecture et téléchargement), else `403 token_forbidden`; a search of releases (`POST /api/v1/searches`) is a read.
+
+### GET /api/v1/tokens, POST /api/v1/tokens, DELETE /api/v1/tokens/{id}
+The session alone. `GET`: the tokens not revoked, the newest first, never a secret: `{"tokens": [{"id": 1, "name": "Hermes", "scope": "write", "created_by": "Sylvain", "created_at": 1792598400, "expires_at": null, "last_used_at": 1792602000}]}` (Unix seconds; `expires_at` null: without end). `POST {"name": "Hermes", "scope": "read" | "write", "days": 30 | 90 | 365 | null}`: `201 {"token": {...}, "secret": "sd_..."}`, the one time the secret is given. `DELETE`: `204`, the token is refused from the next request; `404 token_not_found` for a token unknown or revoked already. Both go to the audit.
 
 ### POST /api/v1/session
 `{"username": "...", "password": "..."}`: an account of Jellyfin, an administrator. `200 {"username": "Sylvain"}`, the name Jellyfin gives, and the cookie `__Host-shelfdrop` (`Secure; HttpOnly; SameSite=Strict; Path=/`, 30 days). Errors: `401 login_refused` (wrong credentials, or an account that is not an administrator or is disabled: the same answer), `429 too_many_attempts` (5 a minute from one address, 30 an hour in all), `503 jellyfin_unavailable` (Jellyfin does not answer, or `jellyfin.url` is not set), `422 validation_failed`.
@@ -197,7 +203,7 @@ Errors: `422 invalid_settings` (an unknown service, or an address refused: `data
 The last tests of the background, run at start then every 5 minutes, of each service whose address and key are saved: `{"services": [<the object of the test>], "checked_at": 1792598400}`.
 
 ## GET /api/v1/settings/audit
-The last 100 changes, the newest first: `{"entries": [{"at": 1792598400, "actor": "Sylvain", "action": "replaced", "target": "prowlarr.api_key"}]}`. `action`: `changed`, `replaced`, `cleared`, `imported` (`actor` `environment`); the target `trackers` or `filters` for a change of those.
+The last 100 changes, the newest first: `{"entries": [{"at": 1792598400, "actor": "Sylvain", "action": "replaced", "target": "prowlarr.api_key"}]}`. `action`: `changed`, `replaced`, `cleared`, `imported` (`actor` `environment`); the target `trackers` or `filters` for a change of those; `created`, `revoked` for an access token (target `token.<id>`).
 
 ## GET /api/v1/library/series
 The series of the libraries of books of Jellyfin (the library of each kind, found by the name of its folder, [ADR 0016](adr/0016-placement.md)): the folders of their series (`<Series>/` of a manga, `<Author>/<Series>/` of a book) and the books under each, by name. `503 jellyfin_unavailable` when Jellyfin does not answer or its address or key is not set.

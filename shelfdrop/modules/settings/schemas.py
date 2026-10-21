@@ -57,7 +57,7 @@ class AuditEntryRead(BaseModel):
 
     at: int
     actor: str
-    action: Literal["changed", "replaced", "cleared", "imported"]
+    action: Literal["changed", "replaced", "cleared", "imported", "created", "revoked"]
     target: str
 
 

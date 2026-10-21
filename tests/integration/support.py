@@ -559,6 +559,19 @@ def cookie_of(response: httpx.Response) -> str:
     return token
 
 
+def new_access_token(client: httpx.Client, scope: str, name: str = "Hermes") -> dict[str, Any]:
+    """A token created by the session of `client` (the administrator): `{"token", "secret"}`."""
+    response = client.post("/api/v1/tokens", json={"name": name, "scope": scope, "days": 30})
+    assert response.status_code == 201, response.text
+    created: dict[str, Any] = response.json()
+    return created
+
+
+def bearer(secret: str) -> dict[str, str]:
+    """The headers of a client of the API with an access token: no cookie, no Origin."""
+    return {"Authorization": f"Bearer {secret}"}
+
+
 def signed_in_headers(base_url: str, token: str) -> dict[str, str]:
     """The headers of a request of the pages, signed in: the session cookie and the Origin."""
     return {"Cookie": f"{SESSION_COOKIE}={token}", "Origin": base_url}
