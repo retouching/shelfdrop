@@ -68,6 +68,8 @@ def test_a_torrent_lost_is_not_received_then_sent_again_as_it_is(
         "speed": None,
         "eta": None,
         "reason": "not_received",
+        "destination": None,
+        "unplaced": None,
     }
     looks = [
         r for r in fake_sources.requests("GET", f"{QUI_PROXY}/torrents/info") if digest in r["url"]

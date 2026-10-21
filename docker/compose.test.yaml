@@ -44,6 +44,9 @@ services:
       SHELFDROP_PLACEMENT_EVERY_SECONDS: "1"
       # The covers of the sources through the fake sources too.
       SHELFDROP_SOURCES_ORIGIN: http://fake-sources:8080
+    # The fixture `media` makes the folders of the tests as root (`exec --user 0:0`): the capability
+    # to give them to the user of the worker. The worker itself runs as 10001, without it.
+    cap_add: [CHOWN, FOWNER]
     # The torrents and the libraries of the tests: a volume of their own, made by the tests.
     volumes: !override
       - data:/var/lib/shelfdrop
