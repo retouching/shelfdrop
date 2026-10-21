@@ -18,7 +18,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app
 # Third-party dependencies first: this layer is rebuilt only when the lock changes. No BuildKit
 # mount, so that the plain builder of a host builds it too.
-COPY pyproject.toml uv.lock alembic.ini ./
+COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project --no-editable --no-cache
 COPY shelfdrop ./shelfdrop
 # No uv cache here: a cached wheel of shelfdrop would ship stale code while pyproject.toml is
@@ -29,7 +29,6 @@ FROM python:3.13-slim-trixie
 RUN groupadd --system --gid 10001 shelfdrop \
     && useradd --system --uid 10001 --gid shelfdrop --no-create-home --shell /usr/sbin/nologin shelfdrop
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/alembic.ini /app/alembic.ini
 COPY --from=web /web/dist /app/static
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \

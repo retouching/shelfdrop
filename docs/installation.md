@@ -19,6 +19,8 @@ docker compose --env-file .env -f docker/compose.yaml down
 ## Database and upgrades
 The database is one SQLite file, `shelfdrop.db`, in `SHELFDROP_DATA_DIR` (`/data/shelfdrop` in the image), in WAL mode. Today it holds caches alone: the answers of the metadata sources (a day) and the works found (a week). Deleting it loses nothing but those caches.
 
+`docker compose --env-file .env -f docker/compose.yaml exec api shelfdrop db check` compares the database with the models of the image.
+
 An upgrade is a new image: `up -d --build --wait` applies its migrations at start. A database migrated by a newer image stops an older one (`Can't locate revision`): go back to the newer image.
 
 ## Reverse proxy
