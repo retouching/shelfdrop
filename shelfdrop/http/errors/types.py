@@ -63,6 +63,11 @@ class ErrorCode(StrEnum):
     # 503: Jellyfin does not answer, or its address is not set: nobody can sign in;
     # data = null.
     JELLYFIN_UNAVAILABLE = "jellyfin_unavailable"
+    # 404: no series of a library of books of Jellyfin has this id; data = null.
+    SERIES_NOT_FOUND = "series_not_found"
+    # 422: the image chosen for a series is not a JPEG, a PNG or a WebP of 5 MB at most, or its
+    # address did not answer one; data = null.
+    IMAGE_REFUSED = "image_refused"
     # 503: Prowlarr does not answer, answers an error, or its address or key is not set;
     # data = null.
     PROWLARR_UNAVAILABLE = "prowlarr_unavailable"

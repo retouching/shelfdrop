@@ -8,6 +8,7 @@ import anyio
 import anyio.to_thread
 import httpx
 
+from shelfdrop.utils.pictures import picture_of
 from shelfdrop.works.repository import WorkRepositoryFactory
 from shelfdrop.works.types import Clock
 
@@ -15,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 # A cover larger than this is not taken.
 COVER_MAX_BYTES: Final = 5 * 1024 * 1024
-PICTURES: Final = ("image/jpeg", "image/png", "image/webp")
 
 
 class WorkCovers:
@@ -47,9 +47,7 @@ class WorkCovers:
         except httpx.HTTPError as exc:
             logger.info("Cover not read", extra={"error": type(exc).__name__})
             return None
-        kind = response.headers.get("Content-Type", "").split(";")[0].strip()
-        if response.status_code != 200 or kind not in PICTURES:
+        if response.status_code != 200 or len(response.content) > COVER_MAX_BYTES:
             return None
-        if len(response.content) > COVER_MAX_BYTES:
-            return None
-        return response.content
+        # The picture by its first bytes, whatever its type says.
+        return response.content if picture_of(response.content) is not None else None

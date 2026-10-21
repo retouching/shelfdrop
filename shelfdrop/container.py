@@ -26,6 +26,7 @@ from shelfdrop.downloads.types import DownloadOptions
 from shelfdrop.journal.repository import event_repository_factory
 from shelfdrop.journal.service import DiscordSettings, Journal, JournalSender
 from shelfdrop.journal.types import JournalOptions
+from shelfdrop.library.service import LibraryService, LibrarySettings
 from shelfdrop.placement.audio import AudioTools
 from shelfdrop.placement.repository import placement_repository_factory
 from shelfdrop.placement.service import (
@@ -222,6 +223,24 @@ async def run_placement(settings: Settings) -> None:
         await container.close()
 
 
+def as_library_settings(reader: SettingsReader) -> LibrarySettings:
+    return reader
+
+
+def new_library_service(
+    jellyfin: JellyfinClient,
+    settings: LibrarySettings,
+    works: WorkService,
+    covers: WorkCovers,
+    engine: Engine,
+    clock: Clock,
+) -> LibraryService:
+    """The page Métadonnées: the cover.jpg it asks for on sessions of their own."""
+    return LibraryService(
+        jellyfin, settings, works, covers, placement_repository_factory(engine), clock
+    )
+
+
 def as_probes(probes: ConnectionProbes) -> Probes:
     return probes
 
@@ -373,6 +392,8 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(as_placement_events),
         wireup.injectable(new_placement_service),
         wireup.injectable(PlacementWorker),
+        wireup.injectable(as_library_settings),
+        wireup.injectable(new_library_service, lifetime="scoped"),
         wireup.injectable(open_engine),
         wireup.injectable(open_session, lifetime="scoped"),
         wireup.injectable(WorkRepository, lifetime="scoped"),

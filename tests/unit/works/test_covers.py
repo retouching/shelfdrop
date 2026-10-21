@@ -50,7 +50,7 @@ def answer(request: httpx.Request) -> httpx.Response:
     if request.url.path == "/cover.jpg":
         return httpx.Response(200, content=JPEG, headers={"Content-Type": "image/jpeg"})
     if request.url.path == "/page.html":
-        return httpx.Response(200, content=b"<html>", headers={"Content-Type": "text/html"})
+        return httpx.Response(200, content=b"<html>", headers={"Content-Type": "image/jpeg"})
     return httpx.Response(404)
 
 

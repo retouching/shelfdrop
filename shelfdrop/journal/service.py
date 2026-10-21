@@ -19,14 +19,13 @@ from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.journal.embeds import embed_of
 from shelfdrop.journal.repository import EventRepository, EventRepositoryFactory
 from shelfdrop.journal.types import Event, EventState, JournalOptions, NewEvent
+from shelfdrop.utils.pictures import picture_of
 from shelfdrop.works.types import Clock
 
 logger = logging.getLogger(__name__)
 
 # A picture over this size is not kept (Discord takes 10 MB a message without Nitro).
 COVER_MAX_BYTES: Final = 8 * 1024 * 1024
-# The picture types Discord shows in an embed, by their first bytes.
-PICTURES: Final = ((b"\xff\xd8\xff", "jpg", "image/jpeg"), (b"\x89PNG", "png", "image/png"))
 
 
 class DiscordSettings(Protocol):
@@ -65,16 +64,6 @@ def batches(events: Sequence[Event]) -> list[list[Event]]:
     for event in events:
         found.setdefault((event.type, event.group), []).append(event)
     return list(found.values())
-
-
-def picture_of(data: bytes) -> tuple[str, str] | None:
-    """The extension and the type of a JPEG, a PNG or a WebP picture; None for anything else."""
-    for magic, extension, content_type in PICTURES:
-        if data.startswith(magic):
-            return extension, content_type
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "webp", "image/webp"
-    return None
 
 
 def cover_of(events: Sequence[Event]) -> tuple[str, bytes, str] | None:

@@ -191,3 +191,27 @@ The last tests of the background, run at start then every 5 minutes, of each ser
 
 ## GET /api/v1/settings/audit
 The last 100 changes, the newest first: `{"entries": [{"at": 1792598400, "actor": "Sylvain", "action": "replaced", "target": "prowlarr.api_key"}]}`. `action`: `changed`, `replaced`, `cleared`, `imported` (`actor` `environment`); the target `trackers` or `filters` for a change of those.
+
+## GET /api/v1/library/series
+The series of the libraries of books of Jellyfin (the library of each kind, found by the name of its folder, [ADR 0016](adr/0016-placement.md)): the folders of their series (`<Series>/` of a manga, `<Author>/<Series>/` of a book) and the books under each, by name. `503 jellyfin_unavailable` when Jellyfin does not answer or its address or key is not set.
+
+```json
+{"series": [{"id": "f2c1...", "kind": "manga", "name": "Berserk", "original_title": "", "authors": ["Kentaro Miura"],
+  "year": 1990, "genres": ["Seinen"], "summary": "", "has_image": true, "volumes": 42,
+  "volumes_without_summary": 42, "volumes_without_image": 0}]}
+```
+
+## GET /api/v1/library/series/{id}/proposals
+What the page proposes for a series: the images of its volumes (`volumes`: `item_id`, `label` « Tome 3 · CBZ »), then the covers and the summaries of the first work the sources find under its name (`covers`, `summaries`: `source`, and `url` or `text`; empty when no source answers), and `work_id`. `404 series_not_found`.
+
+## GET /api/v1/library/items/{id}/image?width=400
+The image Jellyfin holds for a series or a volume (50 to 2000 pixels wide), through the session of the page.
+
+## PUT /api/v1/library/series/{id}
+The fields of a series set in Jellyfin (`name`, `original_title`, `authors`, `year`, `genres`, `summary`), locked with `lock` (`Name`, `Genres`, `Cast`, `Overview`); `summary_to_volumes` copies the summary on its volumes without one. `image`: `{"kind": "item", "item_id"}` (the image of a volume), `{"kind": "url", "url"}` (read by shelfdrop, 5 MB at most) or `{"kind": "data", "data": "<base64>"}`; set on the series (`image_to_series`), on its volumes without one (`image_to_volumes`), and written as the `cover.jpg` of its folder by the placement worker (`save_cover`). Answers the series read again. `404 series_not_found`, `422 image_refused` (not a JPEG, a PNG or a WebP of 5 MB at most: nothing is changed), `503 jellyfin_unavailable`.
+
+## POST /api/v1/library/summaries
+`{"summaries": {"<series id>": "<text>"}}`: each summary set on its series when it has none, and on its volumes without one, locked. Answers `{"series": <the number of series changed>}`.
+
+## POST /api/v1/library/scan, GET /api/v1/library/scan
+`POST {"mode": "new" | "missing" | "all", "kind": null, "series_id": null}` asks Jellyfin for a scan of a series, of the library of a kind, or of every library (`202`); `new` the new and changed files, `missing` the missing metadata and images, `all` everything replaced. Both answer the progress of the scan of each library, from 0 to 100, `null` when idle: `{"progress": {"manga": 42.5, "ebook": null}}`.

@@ -25,6 +25,7 @@ DOMAIN: Final = (
     "shelfdrop/downloads/",
     "shelfdrop/journal/",
     "shelfdrop/placement/",
+    "shelfdrop/library/",
     "shelfdrop/settings/",
     "shelfdrop/utils/",
     "shelfdrop/db/",
@@ -168,6 +169,7 @@ def test_only_the_domains_that_call_a_service_and_the_composition_import_its_cli
                         "shelfdrop/downloads/",
                         "shelfdrop/journal/",
                         "shelfdrop/placement/",
+                        "shelfdrop/library/",
                         "shelfdrop/clients/",
                     )
                 )
