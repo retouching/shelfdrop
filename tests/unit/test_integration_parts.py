@@ -28,6 +28,10 @@ PARTS: Final = {
     "test_sign_in.py": "auth",
     "test_settings.py": "settings",
     "test_settings_tests.py": "settings",
+    "test_download_send.py": "downloads",
+    "test_download_follow.py": "downloads",
+    "test_download_retry.py": "downloads",
+    "test_download_manual.py": "downloads",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -47,6 +51,10 @@ FILE_BLOCKS: Final = {
     "test_sign_in.py": "auth_sign_in",
     "test_settings.py": "settings_store",
     "test_settings_tests.py": "settings_tests",
+    "test_download_send.py": "downloads_send",
+    "test_download_follow.py": "downloads_follow",
+    "test_download_retry.py": "downloads_retry",
+    "test_download_manual.py": "downloads_manual",
 }
 
 

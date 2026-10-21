@@ -1,6 +1,6 @@
 [project]
 name = "shelfdrop"
-version = "0.3.0"
+version = "0.4.0"
 description = "Find, download and shelve manga, books and audiobooks into Jellyfin."
 requires-python = ">=3.13"
 dependencies = [
@@ -91,6 +91,11 @@ markers = [
     "settings: integration part, the settings, their secrets and the tests of the connections",
     "settings_store: block of settings, kept, audited, imported, read at each use (test_settings.py)",
     "settings_tests: block of settings, the tests of the connections (test_settings_tests.py)",
+    "downloads: integration part, the downloads through the fake Prowlarr and qBittorrent",
+    "downloads_send: block of downloads, the send, its hash, a duplicate, the automatic rules (test_download_send.py)",
+    "downloads_follow: block of downloads, the figures of qBittorrent, the end (test_download_follow.py)",
+    "downloads_retry: block of downloads, a torrent lost, sent again (test_download_retry.py)",
+    "downloads_manual: block of downloads, a manual download, to place (test_download_manual.py)",
 ]
 
 [dependency-groups]

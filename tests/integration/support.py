@@ -1,10 +1,13 @@
 """What the integration tests share: the Compose project of the test stack, its logs, and the fake
 metadata sources that replay the recorded exchanges of `tests/unit/works/fixtures/`."""
 
+import base64
 import json
 import os
 import subprocess
+import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
@@ -318,10 +321,14 @@ def jellyfin_stubs() -> list[dict[str, Any]]:
     return stubs
 
 
+QUI_PROXY: Final = f"/proxy/{QUI_KEY}/api/v2"
+
+
 def qbittorrent_stubs() -> list[dict[str, Any]]:
     """qBittorrent behind the client proxy of qui, as the fake sources play it: its version and
-    three of the four categories of shelfdrop under the key of the tests, a 401 under another."""
-    proxy = f"/proxy/{QUI_KEY}/api/v2"
+    three of the four categories of shelfdrop under the key of the tests, no torrent but those a
+    test adds (`torrent_stubs`), a 401 under another key."""
+    proxy = QUI_PROXY
     categories = {
         name: {"name": name, "savePath": f"/data/{name}"}
         for name in ("manga", "ebook", "audiobook")
@@ -342,11 +349,153 @@ def qbittorrent_stubs() -> list[dict[str, Any]]:
             "response": json_response(categories),
         },
         {
+            "priority": 5,
+            "request": {"method": "GET", "urlPath": f"{proxy}/torrents/info"},
+            "response": json_response([]),
+        },
+        {
             "priority": 10,
             "request": {"method": "GET", "urlPathPattern": "/proxy/.*"},
             "response": {"status": 401},
         },
     ]
+
+
+def torrent_info(digest: str, **fields: object) -> dict[str, Any]:
+    """A torrent of `GET /api/v2/torrents/info` (the WebUI API of qBittorrent 5.0)."""
+    return {
+        "hash": digest,
+        "name": digest,
+        "category": "",
+        "state": "downloading",
+        "progress": 0.0,
+        "dlspeed": 0,
+        "eta": 8640000,
+        **fields,
+    }
+
+
+def torrent_stubs(
+    digest: str,
+    name: str,
+    *,
+    lost: bool = False,
+    added: dict[str, Any] | None = None,
+    complete: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """qBittorrent and the torrent `digest` (its file names `name`), in a scenario of its own:
+    not listed until an add of it; `lost`, the first add is accepted and lost. Added, it is
+    listed with the fields `added`; `POST /tests/complete/<digest>` on the fake sources makes
+    it listed with the fields `complete`."""
+    scenario = f"torrent-{digest}"
+    info = {"method": "GET", "urlPath": f"{QUI_PROXY}/torrents/info"}
+    hashes = {"hashes": {"contains": digest}}
+    add = {
+        "method": "POST",
+        "urlPath": f"{QUI_PROXY}/torrents/add",
+        "bodyPatterns": [{"contains": name}],
+    }
+    ok = {"status": 200, "headers": {"Content-Type": "text/plain"}, "body": "Ok."}
+    stubs: list[dict[str, Any]] = [
+        {
+            "priority": 1,
+            "scenarioName": scenario,
+            "requiredScenarioState": "Started",
+            "newScenarioState": "lost" if lost else "added",
+            "request": add,
+            "response": ok,
+        },
+        {
+            "priority": 1,
+            "scenarioName": scenario,
+            "requiredScenarioState": "lost",
+            "newScenarioState": "added",
+            "request": add,
+            "response": ok,
+        },
+        {
+            "priority": 1,
+            "scenarioName": scenario,
+            "requiredScenarioState": "added",
+            "request": {**info, "queryParameters": hashes},
+            "response": json_response([torrent_info(digest, **(added or {}))]),
+        },
+        {
+            "priority": 1,
+            "scenarioName": scenario,
+            "requiredScenarioState": "added",
+            "newScenarioState": "complete",
+            "request": {"method": "POST", "urlPath": f"/tests/complete/{digest}"},
+            "response": {"status": 200},
+        },
+        {
+            "priority": 1,
+            "scenarioName": scenario,
+            "requiredScenarioState": "complete",
+            "request": {**info, "queryParameters": hashes},
+            "response": json_response(
+                [torrent_info(digest, **(complete or {"state": "stalledUP", "progress": 1.0}))]
+            ),
+        },
+    ]
+    return stubs
+
+
+def prowlarr_release(
+    guid: str, title: str, link: str, *, indexer_id: int = 1, indexer: str = "Nyaa.si"
+) -> dict[str, Any]:
+    """A release of `GET /api/v1/search` whose download link, through Prowlarr, carries its
+    key, as Prowlarr writes it (`<prowlarr>/<indexer>/download?apikey=...&link=...&file=...`)."""
+    return {
+        "guid": guid,
+        "title": title,
+        "indexerId": indexer_id,
+        "indexer": indexer,
+        "size": 104857600,
+        "seeders": 12,
+        "leechers": 0,
+        "protocol": "torrent",
+        "publishDate": "2026-10-20T10:00:00Z",
+        "downloadUrl": f"http://prowlarr.test/{indexer_id}/download?apikey={PROWLARR_KEY}"
+        f"&link={link}&file={title}",
+        "categories": [{"id": 7030, "name": "Books/Comics"}],
+    }
+
+
+def prowlarr_download_stub(indexer_id: int, link: str, data: bytes) -> dict[str, Any]:
+    """Prowlarr gives the `.torrent` `data` behind `link`, to its key in the header alone."""
+    return {
+        "priority": 1,
+        "request": {
+            "method": "GET",
+            "urlPath": f"/{indexer_id}/download",
+            "headers": {"X-Api-Key": {"equalTo": PROWLARR_KEY}},
+            "queryParameters": {"link": {"equalTo": link}, "apikey": {"absent": True}},
+        },
+        "response": {
+            "status": 200,
+            "headers": {"Content-Type": "application/x-bittorrent"},
+            "base64Body": base64.b64encode(data).decode(),
+        },
+    }
+
+
+def wait_for_download(
+    client: httpx.Client, download_id: int, done: Callable[[dict[str, Any]], bool]
+) -> dict[str, Any]:
+    """The download `download_id` of `GET /api/v1/downloads` once `done` holds: its send goes on
+    after its request (looked for in qBittorrent every second in the test stack). Read again
+    without sleeping, 30 seconds at most."""
+    deadline = time.monotonic() + 30
+    found: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        response = client.get("/api/v1/downloads")
+        response.raise_for_status()
+        found = next(d for d in response.json()["downloads"] if d["id"] == download_id)
+        if done(found):
+            return found
+    msg = f"download {download_id} never got there: {found}"
+    raise AssertionError(msg)
 
 
 def sign_in(base_url: str, account: tuple[str, str] = ADMIN) -> httpx.Response:
@@ -434,6 +583,22 @@ class FakeSources:
             params = request.get("queryParams", {})
             found.append({name: value["values"] for name, value in params.items()})
         return found
+
+    def requests(self, method: str, path: str) -> list[dict[str, Any]]:
+        """The requests to `path` the fake received, as its journal keeps them (`url`, `headers`,
+        `body`)."""
+        response = httpx.post(
+            f"{self.url}/__admin/requests/find",
+            json={"method": method, "urlPath": path},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        found: list[dict[str, Any]] = response.json()["requests"]
+        return found
+
+    def post(self, path: str) -> None:
+        """A request to the fake itself: a step of a scenario of a test."""
+        httpx.post(f"{self.url}{path}", timeout=10.0).raise_for_status()
 
     def reset_journal(self) -> None:
         httpx.delete(f"{self.url}/__admin/requests", timeout=10.0).raise_for_status()

@@ -7,6 +7,8 @@ import httpx
 import pytest
 
 from tests.integration.support import (
+    FAKE_ORIGIN,
+    QUI_KEY,
     UP_TIMEOUT_SECONDS,
     FakeSources,
     Stack,
@@ -88,3 +90,16 @@ def anonymous(stack: Stack) -> Iterator[httpx.Client]:
     headers = {"Origin": stack.base_url}
     with httpx.Client(base_url=stack.base_url, timeout=30.0, headers=headers) as http_client:
         yield http_client
+
+
+@pytest.fixture
+def qbittorrent_saved(client: httpx.Client) -> Iterator[None]:
+    """qBittorrent saved in the settings (the fake one, behind qui), then cleared again."""
+    saved = {
+        "values": {"qbittorrent.url": FAKE_ORIGIN},
+        "secrets": {"qbittorrent.api_key": QUI_KEY},
+    }
+    client.put("/api/v1/settings", json=saved).raise_for_status()
+    yield
+    cleared = {"values": {"qbittorrent.url": None}, "secrets": {"qbittorrent.api_key": None}}
+    client.put("/api/v1/settings", json=cleared).raise_for_status()
