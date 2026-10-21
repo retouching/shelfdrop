@@ -2,11 +2,12 @@
 filters (plan 2.4, 2.5, section 3 points 12 and 13)."""
 
 import anyio
+import httpx
 import pytest
 
-from shelfdrop.releases.exceptions import InvalidRuleError, TooManyNamesError
+from shelfdrop.releases.exceptions import InvalidRuleError, ReleaseNotFoundError, TooManyNamesError
 from shelfdrop.releases.service import DEFAULT_MINIMUM, ReleaseService
-from shelfdrop.releases.types import FilterRule, Filters, ReleaseSearch
+from shelfdrop.releases.types import FilterRule, Filters, ReleaseSearch, Torrent
 from shelfdrop.works.exceptions import QueryTooShortError
 from shelfdrop.works.types import Kind
 from tests.unit.releases.support import (
@@ -16,6 +17,7 @@ from tests.unit.releases.support import (
     new_prowlarr,
 )
 from tests.unit.settings.support import FakeSettingsReader
+from tests.unit.support import torrent_file
 from tests.unit.works.support import FixedClock
 
 ENGLISH = FilterRule(name="Anglais", pattern="ENGLISH, 1r0n", regex=False, score=-50)
@@ -213,3 +215,33 @@ async def test_a_read_of_prowlarr_again_keeps_the_choices() -> None:
     ]
     assert [t.name for t in trackers if not t.prowlarr_enabled] == ["YggTorrent"]
     assert "NZBgeek" not in {t.name for t in trackers}
+
+
+@pytest.mark.anyio
+async def test_an_automatic_download_takes_a_release_kept_from_a_tracker_allowed() -> None:
+    service, _, _ = new_service()
+    await service.save_filters(Filters(rules=(ENGLISH,), minimum=-10), "sylvain")
+
+    found = await search(service, "Jujutsu Kaisen", "Sorcery Fight")
+
+    # C411 is left out of the automatic downloads at the first read of the trackers.
+    assert {r.indexer for r in found.releases if r.automatic} == {
+        "Nyaa.si",
+        "The Old School",
+        "Abnormal",
+    }
+    assert any(r.indexer == "C411" for r in found.releases)
+    assert not any(r.automatic for r in found.releases if r.rejected is not None)
+
+
+@pytest.mark.anyio
+async def test_the_torrent_of_a_release_is_asked_by_its_id_through_its_download_link() -> None:
+    service, _, replay = new_service()
+    data = torrent_file("Jujutsu Kaisen T00.cbz")
+    replay.downloads["101"] = httpx.Response(200, content=data)
+    found = await search(service, "Jujutsu Kaisen")
+    t00 = next(r for r in found.releases if r.title.startswith("Jujutsu.Kaisen.T00"))
+
+    assert await service.torrent(t00.id) == Torrent(file=data)
+    with pytest.raises(ReleaseNotFoundError):
+        await service.torrent("0" * 16)

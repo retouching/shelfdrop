@@ -8,10 +8,14 @@ import anyio
 import anyio.to_thread
 
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
-from shelfdrop.releases.exceptions import InvalidRuleError, TooManyNamesError
+from shelfdrop.releases.exceptions import (
+    InvalidRuleError,
+    ReleaseNotFoundError,
+    TooManyNamesError,
+)
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository
-from shelfdrop.releases.results import assemble
+from shelfdrop.releases.results import assemble, release_id
 from shelfdrop.releases.scoring import invalid_rules
 from shelfdrop.releases.trackers import merge_trackers, ordered_choices
 from shelfdrop.releases.types import (
@@ -21,6 +25,7 @@ from shelfdrop.releases.types import (
     ReleaseSearch,
     SearchMode,
     SearchProgress,
+    Torrent,
     Tracker,
 )
 from shelfdrop.utils.text import normalize
@@ -108,8 +113,17 @@ class ReleaseService:
             relevance=job.mode == "work",
             ranks={t.indexer_id: rank for rank, t in enumerate(trackers)},
             filters=filters,
+            automatic={t.indexer_id for t in trackers if t.auto},
         )
         return ReleaseSearch(progress=progress, releases=tuple(releases), minimum=filters.minimum)
+
+    async def torrent(self, release: str) -> Torrent:
+        """The torrent of a release of a search kept, by its id, through Prowlarr. Raises
+        ReleaseNotFoundError, ProwlarrError."""
+        found = self.board.find(lambda guid: release_id(guid) == release)
+        if found is None or found.download_url is None:
+            raise ReleaseNotFoundError
+        return await self.prowlarr.torrent(found.download_url)
 
     async def read_trackers(self) -> list[Tracker]:
         return await anyio.to_thread.run_sync(self.repository.read_trackers)

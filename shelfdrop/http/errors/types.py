@@ -25,6 +25,9 @@ class ErrorCode(StrEnum):
     # 404: no release search with this id: unknown, or finished more than 10 minutes ago;
     # data = null.
     SEARCH_NOT_FOUND = "search_not_found"
+    # 404: no release with this id in the searches kept (10 minutes after their end), or one
+    # Prowlarr gave no download link for; data = null.
+    RELEASE_NOT_FOUND = "release_not_found"
     # 405: the path exists, the method does not; the Allow header lists the methods.
     METHOD_NOT_ALLOWED = "method_not_allowed"
     # Any other HTTP error raised by the framework itself, with its own status.

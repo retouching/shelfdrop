@@ -18,6 +18,10 @@ class SearchNotFoundError(Exception):
     """No search with this id: unknown, or finished too long ago."""
 
 
+class ReleaseNotFoundError(Exception):
+    """No release with this id in the searches kept, or one without a download link."""
+
+
 class TooManyNamesError(Exception):
     """More names than a work search may send to Prowlarr."""
 

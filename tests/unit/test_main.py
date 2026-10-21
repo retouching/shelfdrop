@@ -123,6 +123,7 @@ async def test_without_a_build_no_page_is_served(tmp_path: Path) -> None:
         ("GET", "/api/v1/searches/x"),
         ("GET", "/api/v1/searches/x/events"),
         ("GET", "/api/v1/trackers"),
+        ("GET", "/api/v1/releases/0123456789abcdef/torrent"),
         ("PUT", "/api/v1/filters"),
         ("GET", "/api/v1/session"),
         ("DELETE", "/api/v1/session"),
@@ -180,3 +181,12 @@ async def test_a_read_needs_no_origin_and_a_sign_in_never_echoes_its_input(
     assert read.json() == {"username": "sylvain"}
     assert refused.status_code == 422
     assert "secret-name" not in refused.text
+
+
+@pytest.mark.anyio
+async def test_the_torrent_of_a_release_no_search_holds_is_a_404(tmp_path: Path) -> None:
+    async with client_for(settings_for(tmp_path)) as client:
+        response = await client.get("/api/v1/releases/0123456789abcdef/torrent")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "release_not_found"

@@ -86,6 +86,8 @@ class ReleaseRead(BaseModel):
     # Set aside: "relevance" (its title misses a word of its name) or "score" (under the
     # minimum); null when kept.
     rejected: Rejection | None
+    # Kept, from a tracker allowed for the automatic downloads: a download of a work may take it.
+    automatic: bool
 
 
 class ReleaseSearchRead(BaseModel):

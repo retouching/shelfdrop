@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F24.
+Next fact ID: F25.
 
 ## Metadata sources
 
@@ -64,6 +64,11 @@ Next fact ID: F24.
   - Evidence: the OpenAPI document of Prowlarr (`src/Prowlarr.Api.V1/openapi.json`, branch develop, read on 2026-10-21). No answer of a real Prowlarr; `prowlarr.json` holds one in this shape.
   - Pinned by: `tests/unit/releases/clients/test_prowlarr.py::test_the_status_gives_the_version`
   - Re-verify: when Prowlarr changes its major version.
+
+- **F24** The `downloadUrl` and `magnetUrl` of a release are links of Prowlarr itself, `<address of the request>[<url base>]/<indexer id>/download?apikey=<key>&link=<link of the tracker, encrypted by Prowlarr>&file=<title>`. `GET /<indexer id>/download` takes the key as the query `apikey` or the header `X-Api-Key`, and answers the `.torrent` (`application/x-bittorrent`), a `301` to a magnet link, or, for an indexer set to redirect, a `301` to the link of the tracker; `410`, `429` or `500` with an XML body when the tracker fails. `POST /api/v1/search` (`guid`, `indexerId`) sends the release to a download client of Prowlarr, not to shelfdrop: shelfdrop does not use it.
+  - Evidence: the source of Prowlarr, branch develop, read on 2026-10-21: `src/NzbDrone.Core/Download/DownloadMappingService.cs` (`ConvertToProxyLink`), `src/Prowlarr.Api.V1/Search/SearchController.cs` (`MapReleases`, `GrabRelease`), `src/Prowlarr.Api.V1/Indexers/NewznabController.cs` (`GetDownload`), `src/Prowlarr.Http/Authentication/ApiKeyAuthenticationHandler.cs` (`ParseApiKey`). No answer of a real Prowlarr; `ProwlarrReplay.downloads` and the stubs of the downloads answer in this shape.
+  - Pinned by: `tests/unit/releases/clients/test_prowlarr.py::test_the_torrent_is_asked_at_the_address_of_prowlarr_with_its_key_in_a_header`, `tests/unit/releases/clients/test_prowlarr.py::test_a_download_link_is_kept_without_its_key`
+  - Re-verify: before the first download through the Prowlarr of the user, then when Prowlarr changes its major version.
 
 ### Jellyfin (REST API, OpenAPI 12.2.0)
 

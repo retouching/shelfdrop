@@ -2,7 +2,7 @@
 each, scored, in the order of the page."""
 
 import hashlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 
 from shelfdrop.releases.guess import is_relevant, volumes_of
 from shelfdrop.releases.scoring import score_of
@@ -25,12 +25,14 @@ def assemble(
     relevance: bool,
     ranks: Mapping[int, int],
     filters: Filters,
+    automatic: Collection[int] = (),
 ) -> list[Release]:
     """`answers`: the names in the order they were searched, with what Prowlarr found for each.
 
     A release without seeds goes; a release found twice (same guid or same infohash) is kept
     once, with the first name that found it. With `relevance` (the search of a work), a title
     that misses a significant word of its name is set aside, as is a score under the minimum.
+    A release kept from an indexer of `automatic` may be taken by an automatic download.
     """
     seen: set[str] = set()
     found: list[Release] = []
@@ -65,6 +67,8 @@ def assemble(
                     score=score,
                     score_rules=rules,
                     rejected=rejected,
+                    automatic=rejected is None and item.indexer_id in automatic,
+                    download_url=item.download_url,
                 )
             )
     return sorted(found, key=display_order)

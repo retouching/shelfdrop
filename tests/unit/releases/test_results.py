@@ -108,3 +108,28 @@ def test_an_indexer_no_longer_listed_comes_last() -> None:
 def test_the_id_is_short_and_stable() -> None:
     assert release_id("https://tos.test/t/101") == release_id("https://tos.test/t/101")
     assert len(release_id("https://tos.test/t/101")) == 16
+
+
+def test_a_release_kept_from_a_tracker_allowed_may_be_taken_automatically() -> None:
+    releases = assemble(
+        [
+            (
+                "Jujutsu Kaisen",
+                [
+                    found("g1", "Jujutsu Kaisen T01", indexer_id=1),
+                    found("g2", "Jujutsu Kaisen T02", indexer_id=4),
+                    found("g3", "Jujutsu Kaisen T03 ENGLISH", indexer_id=1),
+                ],
+            )
+        ],
+        kind="manga",
+        relevance=True,
+        ranks=RANKS,
+        filters=Filters(
+            rules=(FilterRule(name="Anglais", pattern="ENGLISH", regex=False, score=-50),),
+            minimum=0,
+        ),
+        automatic={1, 2, 3},
+    )
+
+    assert {r.guid: r.automatic for r in releases} == {"g1": True, "g2": False, "g3": False}

@@ -32,6 +32,7 @@ from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from shelfdrop.logging.setup import configure_logging
 from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
+from shelfdrop.modules.releases.router import router as releases_router
 from shelfdrop.modules.searches.router import router as searches_router
 from shelfdrop.modules.session.router import router as session_router
 from shelfdrop.modules.settings.router import router as settings_router
@@ -108,6 +109,7 @@ def build_app(settings: Settings) -> FastAPI:
     for router in (
         works_router,
         searches_router,
+        releases_router,
         trackers_router,
         filters_router,
         settings_router,

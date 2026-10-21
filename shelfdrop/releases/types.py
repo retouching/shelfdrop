@@ -43,6 +43,9 @@ class FoundRelease:
     info_url: str | None = None
     info_hash: str | None = None
     publish_date: str | None = None
+    download_url: str | None = None
+    """Where Prowlarr gives its torrent: its download link without the key, or a magnet link.
+    Kept on the server alone (ADR 0011)."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -120,6 +123,11 @@ class Release:
     score_rules: tuple[RuleMatch, ...]
     rejected: Rejection | None
     """Set aside: its title misses a word of its name, or its score is under the minimum."""
+    automatic: bool
+    """Kept, from a tracker allowed for the automatic downloads: an automatic download may
+    take it."""
+    download_url: str | None
+    """Where Prowlarr gives its torrent (`FoundRelease.download_url`); never sent to a page."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -151,6 +159,14 @@ class ReleaseSearch:
     progress: SearchProgress
     releases: tuple[Release, ...]
     minimum: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class Torrent:
+    """The torrent of a release, as Prowlarr gives it: a `.torrent` file, or a magnet link."""
+
+    file: bytes | None = None
+    magnet: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)

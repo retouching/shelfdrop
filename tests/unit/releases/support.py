@@ -40,6 +40,8 @@ class ProwlarrReplay:
     def __init__(self) -> None:
         self.data = load()
         self.requests: list[httpx.Request] = []
+        # The answers of `GET /<indexer>/download`, by the `link` of the request.
+        self.downloads: dict[str, httpx.Response] = {}
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -56,6 +58,10 @@ class ProwlarrReplay:
                 if search["query"] == query and search["categories"] == categories:
                     return httpx.Response(200, json=search["releases"], request=request)
             return httpx.Response(200, json=[], request=request)
+        if request.url.path.endswith("/download"):
+            answer = self.downloads.get(str(request.url.params.get("link")))
+            if answer is not None:
+                return answer
         return httpx.Response(404, request=request)
 
     def searched(self) -> list[str]:

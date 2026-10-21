@@ -104,14 +104,19 @@ The progress and the releases found so far, scored and ranked with the filters a
   {"id": "3f1c...", "title": "Jujutsu.Kaisen.T01.FRENCH.MANGA.CBZ.eBook-PapriKa+", "matched_name": "Jujutsu Kaisen",
    "indexer_id": 2, "indexer": "The Old School", "indexer_rank": 1, "info_url": "https://...", "info_hash": "...",
    "seeders": 30, "size": 99614720, "volumes": {"kind": "single", "first": 1, "last": 1},
-   "score": 100, "score_rules": [{"name": "Français", "score": 100}], "rejected": null}]}
+   "score": 100, "score_rules": [{"name": "Français", "score": 100}], "rejected": null, "automatic": true}]}
 ```
 
 - In the order of the page: packs and complete editions first, then volume by volume; for one volume, the score, the order of the trackers, the seeds. No release without seeds; one found twice once.
 - `volumes.kind`: `single`, `range`, `complete` or `unknown`.
 - `rejected`: `relevance` (its title misses a word of its name), `score` (under `minimum`), or `null`.
+- `automatic`: kept, and from a tracker whose `auto` is on: a download of a work may take it.
+- The download link of Prowlarr is never in the answer: it carries its key.
 
 Errors: `404 search_not_found`.
+
+## GET /api/v1/releases/{id}/torrent
+The torrent of a release of a search kept, asked to Prowlarr: `200` with the `.torrent` file (`application/x-bittorrent`), or `303` to its magnet link. Errors: `404 release_not_found` (no search kept holds it, or Prowlarr gave no download link), `503 prowlarr_unavailable`.
 
 ## GET /api/v1/searches/{id}/events
 Server-Sent Events: a `progress` event (the object of `POST`) now and at each change, then an `end` event. `404 search_not_found`.

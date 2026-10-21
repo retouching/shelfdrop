@@ -7,7 +7,7 @@ One instance per process (a container singleton)."""
 import asyncio
 import logging
 import secrets
-from collections.abc import AsyncIterator, Coroutine, Sequence
+from collections.abc import AsyncIterator, Callable, Coroutine, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -304,6 +304,15 @@ class SearchBoard:
 
     def answers(self, job: SearchJob) -> list[tuple[str, tuple[FoundRelease, ...]]]:
         return [(name, q.releases) for name, q in job.names if q.state == "done"]
+
+    def find(self, guids: Callable[[str], bool]) -> FoundRelease | None:
+        """A release of a search kept whose guid `guids` accepts, the newest search first."""
+        for job in reversed(list(self.jobs.values())):
+            for _, releases in self.answers(job):
+                for release in releases:
+                    if guids(release.guid):
+                        return release
+        return None
 
     async def watch(self, job: SearchJob) -> AsyncIterator[SearchProgress]:
         """The progress of `job` now, then at each change, until it is finished."""
