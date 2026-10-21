@@ -1,12 +1,21 @@
 """Merge the candidates of every source into works, and choose the names of each work."""
 
 from collections import defaultdict
-from collections.abc import Iterable
-from dataclasses import dataclass
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, replace
 
 from shelfdrop.utils.text import compact, is_latin, normalize, words
 from shelfdrop.works.names import is_abbreviation, language_of, match_key
-from shelfdrop.works.types import Candidate, Form, Name, NameChoice, SourceName, Work
+from shelfdrop.works.types import (
+    Candidate,
+    Form,
+    Name,
+    NameChoice,
+    SourceName,
+    Work,
+    WorkMerge,
+    WorkPart,
+)
 
 # Most trusted first, for the title, the authors, the form and the year.
 PRIORITY: tuple[SourceName, ...] = (
@@ -251,11 +260,47 @@ def build_work(members: list[Candidate]) -> Work:
         links={m.source: m.url for m in members if m.url},
         covers={m.source: m.cover_url for m in members if m.cover_url},
         summaries={m.source: m.summary for m in members if m.summary},
+        keys=tuple(f"{m.source}:{m.source_id}" for m in members),
     )
 
 
 def merge(candidates: list[Candidate]) -> list[tuple[Work, list[Candidate]]]:
     return [(build_work(members), members) for members in group(candidates)]
+
+
+def part_of(work: Work) -> WorkPart:
+    return WorkPart(id=work.id, title=work.shelf_name, authors=work.authors, sources=work.sources)
+
+
+def join_merges(
+    merged: list[tuple[Work, list[Candidate]]], merges: Sequence[WorkMerge]
+) -> list[tuple[Work, list[Candidate]]]:
+    """The works a merge by hand joins made one, in the place of the first of them: built again
+    from all their members, under the name on the shelf chosen. A merge whose works the search
+    found one of, or none, changes nothing."""
+    owner = {key: m for m in merges for key in m.keys}
+    joined: dict[int, list[int]] = defaultdict(list)
+    for index, (work, _) in enumerate(merged):
+        found = next((owner[key] for key in work.keys if key in owner), None)
+        if found is not None:
+            joined[found.id].append(index)
+    by_id = {m.id: m for m in merges}
+    first: dict[int, tuple[Work, list[Candidate]]] = {}
+    gone: set[int] = set()
+    for merge_id, indexes in joined.items():
+        if len(indexes) < 2:
+            continue
+        works = [merged[i][0] for i in indexes]
+        members = [c for i in indexes for c in merged[i][1]]
+        built = replace(
+            build_work(members),
+            shelf_name=by_id[merge_id].shelf_name,
+            merge_id=merge_id,
+            parts=tuple(part_of(w) for w in works),
+        )
+        first[indexes[0]] = (built, members)
+        gone.update(indexes[1:])
+    return [first.get(i, pair) for i, pair in enumerate(merged) if i not in gone]
 
 
 # The BnF is asked again for the best works it did not find, at most this many times.

@@ -63,6 +63,16 @@ class NameChoice:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WorkPart:
+    """One of the works a merge by hand joined, as the search found it alone."""
+
+    id: str
+    title: str
+    authors: tuple[str, ...]
+    sources: tuple[SourceName, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
 class Work:
     """A work merged from every source that knows it."""
 
@@ -85,6 +95,23 @@ class Work:
     """The cover at each source that has one, by source name."""
     summaries: Mapping[str, str] = field(default_factory=dict)
     """The summary at each source that has one, by source name."""
+    keys: tuple[str, ...] = ()
+    """The key of each of its members, `<source>:<id at that source>`."""
+    merge_id: int | None = None
+    """The merge by hand it comes from, when the page joined several works into it."""
+    parts: tuple[WorkPart, ...] = ()
+    """The works that merge joined, in their order."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class WorkMerge:
+    """Works joined by hand (plan section 3, point 9): the keys of their members, applied to
+    every search of the family after, and the name on the shelf chosen."""
+
+    id: int
+    family: Family
+    keys: tuple[str, ...]
+    shelf_name: str
 
 
 @dataclass(frozen=True, kw_only=True)

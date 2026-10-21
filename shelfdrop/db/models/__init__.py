@@ -15,6 +15,7 @@ from shelfdrop.db.models.shelf_file import ShelfFile
 from shelfdrop.db.models.source_answer import SourceAnswer
 from shelfdrop.db.models.tracker import Tracker
 from shelfdrop.db.models.waiting_search import WaitingSearch
+from shelfdrop.db.models.work_merge import WorkMerge
 
 __all__ = [
     "AuditEntry",
@@ -32,4 +33,5 @@ __all__ = [
     "SourceAnswer",
     "Tracker",
     "WaitingSearch",
+    "WorkMerge",
 ]

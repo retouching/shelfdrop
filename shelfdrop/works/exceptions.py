@@ -16,3 +16,11 @@ class NoSourceAnsweredError(Exception):
 
 class WorkNotFoundError(Exception):
     """No work with this id in the cache."""
+
+
+class MergeRefusedError(ValueError):
+    """A merge by hand of fewer than two works, or under an empty name."""
+
+
+class MergeNotFoundError(Exception):
+    """No merge by hand with this id."""

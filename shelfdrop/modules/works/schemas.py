@@ -1,6 +1,6 @@
 """Response schemas of the works module."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from shelfdrop.works.types import Form, Kind, SourceName
 
@@ -13,6 +13,16 @@ class NameRead(BaseModel):
     language: str
     # Searched on Prowlarr unless unchecked.
     checked: bool
+
+
+class WorkPartRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    # Its name on the shelf when it was found alone.
+    title: str
+    authors: list[str]
+    sources: list[SourceName]
 
 
 class WorkRead(BaseModel):
@@ -35,6 +45,9 @@ class WorkRead(BaseModel):
     isbns: list[str]
     # The page of the work at each source, by source.
     links: dict[str, str]
+    # The merge by hand it comes from, and the works that merge joined (none otherwise).
+    merge_id: int | None
+    parts: list[WorkPartRead]
 
 
 class WorkSearchRead(BaseModel):
@@ -47,3 +60,23 @@ class WorkSearchRead(BaseModel):
     other_forms: list[WorkRead]
     # The sources that did not answer: the works come from the others.
     unavailable: list[SourceName]
+
+
+class WorkMergeCreate(BaseModel):
+    # The kind of the search the works were found by.
+    kind: Kind
+    # The ids of the works to join, a merge among them (its id) to add to it.
+    work_ids: list[str] = Field(min_length=2, max_length=20)
+    # The name on the shelf of the work they make.
+    shelf_name: str = Field(min_length=1, max_length=300)
+
+
+class WorkMergeRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    # `manga` or `book`: the searches it applies to.
+    family: str
+    # The keys of the members joined, `<source>:<id at that source>`.
+    keys: list[str]
+    shelf_name: str

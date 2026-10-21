@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
-import { wait } from "../mock/latency";
+import { mergeWorks } from "../api/works";
 import { texts } from "../texts";
 import type { AltTitle, Kind, Work } from "../types";
 import { Spinner } from "./Skeletons";
@@ -10,7 +10,7 @@ type Props = {
   readonly kind: Kind;
   readonly work: Work;
   readonly onClose: () => void;
-  readonly onMerged: (others: readonly Work[], shelfName: string) => void;
+  readonly onMerged: () => void;
 };
 
 /** Les noms de toutes les œuvres, chacun une fois. */
@@ -33,6 +33,7 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
   const [others, setOthers] = useState<readonly Work[]>([]);
   const [shelfName, setShelfName] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     ref.current?.showModal();
@@ -48,8 +49,15 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
       return;
     }
     setPending(true);
-    await wait(700);
-    onMerged(others, chosenName);
+    setFailed(false);
+    try {
+      await mergeWorks(kind, [work.id, ...others.map((other) => other.id)], chosenName);
+    } catch {
+      setPending(false);
+      setFailed(true);
+      return;
+    }
+    onMerged();
     ref.current?.close();
   }
 
@@ -122,7 +130,12 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
             </>
           )}
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+          {failed ? (
+            <p role="alert" className="mr-auto text-sm text-rose-700">
+              {texts.works.mergeFailed}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => {

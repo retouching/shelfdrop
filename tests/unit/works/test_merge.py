@@ -1,7 +1,7 @@
 """shelfdrop.works.merge."""
 
-from shelfdrop.works.merge import french_edition_names, merge
-from shelfdrop.works.types import Candidate, Name, SourceName
+from shelfdrop.works.merge import french_edition_names, join_merges, merge
+from shelfdrop.works.types import Candidate, Name, SourceName, WorkMerge
 
 
 def candidate_of(
@@ -204,3 +204,40 @@ def test_a_french_name_is_asked_first_and_a_work_the_bnf_found_is_not() -> None:
     assert "bnf" in found.sources
     assert french_edition_names([found, other], "Witch Hat") == ["L'Atelier des sorcières"]
     assert french_edition_names([other], "L'atelier des sorcières") == ["Witch Hat Atelier"]
+
+
+def test_a_merge_by_hand_joins_its_works_in_the_place_of_the_first() -> None:
+    found = merge(
+        [
+            candidate_of("kitsu", "1", "Tongari Boushi no Atelier", authors=("Kamome Shirahama",)),
+            candidate_of("mangaupdates", "9", "Berserk"),
+            candidate_of("bnf", "ark", "L'Atelier des sorciers"),
+        ]
+    )
+    joined = join_merges(
+        found,
+        [
+            WorkMerge(
+                id=4,
+                family="manga",
+                keys=("kitsu:1", "bnf:ark"),
+                shelf_name="L'Atelier des sorciers",
+            )
+        ],
+    )
+
+    assert [w.shelf_name for w, _ in joined] == ["L'Atelier des sorciers", "Berserk"]
+    work, members = joined[0]
+    assert (work.id, work.merge_id) == ("kitsu:1", 4)
+    assert [p.id for p in work.parts] == ["kitsu:1", "bnf:ark"]
+    assert work.parts[0].title == "Tongari Boushi no Atelier"
+    assert work.keys == ("kitsu:1", "bnf:ark")
+    assert {m.source for m in members} == {"kitsu", "bnf"}
+    assert work.authors == ("Kamome Shirahama",)
+
+
+def test_a_merge_whose_search_found_one_work_changes_nothing() -> None:
+    found = merge([candidate_of("kitsu", "1", "Berserk")])
+    merges = [WorkMerge(id=1, family="manga", keys=("kitsu:1", "kitsu:2"), shelf_name="Other")]
+
+    assert join_merges(found, merges) == found

@@ -8,6 +8,8 @@ import pytest
 
 from shelfdrop.works.clients.myanimelist import MyAnimeListClient
 from shelfdrop.works.exceptions import (
+    MergeNotFoundError,
+    MergeRefusedError,
     NoSourceAnsweredError,
     QueryTooShortError,
     SourceError,
@@ -354,3 +356,84 @@ async def test_myanimelist_is_asked_once_its_client_id_is_saved_without_a_restar
     [request] = seen
     assert request.url.host == "api.myanimelist.net"
     assert request.headers["X-MAL-CLIENT-ID"] == "client-id-2"
+
+
+class TwoWorks(CountingClient):
+    """A source that answers two works to every search."""
+
+    families: frozenset[Family] = frozenset({"manga", "book"})
+
+    @override
+    async def search(self, query: str, family: Family) -> list[Candidate]:
+        self.searches += 1
+        return [
+            Candidate(source=self.name, source_id="1", title=f"{query} One"),
+            Candidate(source=self.name, source_id="2", title=f"{query} Two"),
+        ]
+
+
+@pytest.mark.anyio
+async def test_works_merged_by_hand_stay_merged_in_the_next_searches_then_split() -> None:
+    repository = FakeWorkRepository()
+    service = new_service(WorkSources(clients=(TwoWorks("kitsu"),)), repository=repository)
+    found = await service.search("Berserk", "manga")
+    assert len(found.works) == 2
+
+    merged = await service.merge_works(
+        "manga", [found.works[0].id, found.works[1].id], " Berserk  Tout "
+    )
+    again = await service.search("Berserk", "manga")
+    read = await service.read_work(again.works[0].id)
+    books = await service.search("Berserk", "ebook")
+
+    [work] = again.works
+    assert (work.merge_id, work.shelf_name) == (merged.id, "Berserk Tout")
+    assert [p.id for p in work.parts] == ["kitsu:1", "kitsu:2"]
+    assert read.merge_id == merged.id
+    assert len(books.works) == 2
+    await service.split_works(merged.id)
+    assert len((await service.search("Berserk", "manga")).works) == 2
+    with pytest.raises(MergeNotFoundError):
+        await service.split_works(merged.id)
+
+
+@pytest.mark.anyio
+async def test_a_work_added_to_a_merge_replaces_it() -> None:
+    class ThreeWorks(TwoWorks):
+        @override
+        async def search(self, query: str, family: Family) -> list[Candidate]:
+            return [
+                *await super().search(query, family),
+                Candidate(source=self.name, source_id="3", title=f"{query} Three"),
+            ]
+
+    repository = FakeWorkRepository()
+    service = new_service(WorkSources(clients=(ThreeWorks("kitsu"),)), repository=repository)
+    found = await service.search("Berserk", "manga")
+    first = await service.merge_works("manga", [w.id for w in found.works[:2]], "Berserk")
+    pair = (await service.search("Berserk", "manga")).works
+    merged = next(w for w in pair if w.merge_id == first.id)
+    other = next(w for w in pair if w.merge_id is None)
+
+    second = await service.merge_works("manga", [merged.id, other.id], "Berserk")
+
+    assert list(repository.merges) == [second.id]
+    assert set(second.keys) == {"kitsu:1", "kitsu:2", "kitsu:3"}
+    [work] = (await service.search("Berserk", "manga")).works
+    assert len(work.parts) == 3
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("ids", "name"), [(["kitsu:1", "kitsu:1"], "Berserk"), (["a", "b"], " ")])
+async def test_a_merge_needs_two_works_and_a_name(ids: list[str], name: str) -> None:
+    service = new_service(WorkSources(clients=(TwoWorks("kitsu"),)))
+    with pytest.raises(MergeRefusedError):
+        await service.merge_works("manga", ids, name)
+
+
+@pytest.mark.anyio
+async def test_a_merge_of_a_work_never_found_is_refused() -> None:
+    service = new_service(WorkSources(clients=(TwoWorks("kitsu"),)))
+    await service.search("Berserk", "manga")
+    with pytest.raises(WorkNotFoundError):
+        await service.merge_works("manga", ["kitsu:1", "kitsu:404"], "Berserk")

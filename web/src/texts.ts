@@ -480,6 +480,7 @@ export const texts = {
     mergeTitle: "Fusion d'œuvres",
     mergeChosen: (count: number): string => plural(count, "œuvre choisie", "œuvres choisies"),
     mergedNames: "Noms après fusion",
+    mergeFailed: "Fusion impossible.",
     merging: "Fusion…",
   },
   results: {

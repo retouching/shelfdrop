@@ -18,7 +18,15 @@ from shelfdrop.container import new_work_sources
 from shelfdrop.works.flights import SearchFlights, SourceHealth
 from shelfdrop.works.repository import WorkRepository
 from shelfdrop.works.service import WorkService, WorkSources
-from shelfdrop.works.types import Candidate, Clock, SearchOptions, SourceName, Work
+from shelfdrop.works.types import (
+    Candidate,
+    Clock,
+    Family,
+    SearchOptions,
+    SourceName,
+    Work,
+    WorkMerge,
+)
 from tests.unit.settings.support import FakeSettingsReader
 from tests.unit.support import no_session
 
@@ -112,6 +120,7 @@ class FakeWorkRepository(WorkRepository):
         super().__init__(no_session())
         self.answers: dict[tuple[SourceName, str], tuple[tuple[Candidate, ...], int]] = {}
         self.works: dict[str, tuple[Work, int]] = {}
+        self.merges: dict[int, WorkMerge] = {}
         self.commits = 0
 
     @override
@@ -146,6 +155,23 @@ class FakeWorkRepository(WorkRepository):
     def remove_expired(self, now: int) -> None:
         self.answers = {key: value for key, value in self.answers.items() if value[1] > now}
         self.works = {key: value for key, value in self.works.items() if value[1] > now}
+
+    @override
+    def read_merges(self, family: Family) -> list[WorkMerge]:
+        return [m for _, m in sorted(self.merges.items()) if m.family == family]
+
+    @override
+    def add_merge(self, family: Family, keys: tuple[str, ...], shelf_name: str, now: int) -> int:
+        merge_id = max(self.merges, default=0) + 1
+        self.merges[merge_id] = WorkMerge(
+            id=merge_id, family=family, keys=keys, shelf_name=shelf_name
+        )
+        return merge_id
+
+    @override
+    def delete_merges(self, merge_ids: Iterable[int]) -> int:
+        gone = [i for i in merge_ids if self.merges.pop(i, None) is not None]
+        return len(gone)
 
     @override
     def commit(self) -> None:

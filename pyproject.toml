@@ -1,6 +1,6 @@
 [project]
 name = "shelfdrop"
-version = "0.5.0"
+version = "0.6.0"
 description = "Find, download and shelve manga, books and audiobooks into Jellyfin."
 requires-python = ">=3.13"
 dependencies = [
@@ -84,6 +84,7 @@ markers = [
     "releases_jobs: block of releases, the shared searches, the queue, the cache, the events (test_release_jobs.py)",
     "releases_trackers: block of releases, the trackers read from Prowlarr (test_release_trackers.py)",
     "releases_filters: block of releases, the filters and the score (test_release_filters.py)",
+    "works_merge: block of works, the works merged by hand, split (test_work_merge.py)",
     "works_names_language: block of works, the languages of the names, the checked ones (test_work_names.py)",
     "auth: integration part, the sign-in and the sessions through the fake Jellyfin",
     "auth_session: block of auth, the routes without a session, the origin, the sign-out (test_session.py)",

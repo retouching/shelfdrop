@@ -15,3 +15,11 @@ def query_too_short() -> ApiError:
 
 def sources_unavailable() -> ApiError:
     return unavailable(ErrorCode.SOURCES_UNAVAILABLE, "No metadata source answered")
+
+
+def merge_not_found() -> ApiError:
+    return not_found(ErrorCode.WORK_MERGE_NOT_FOUND, "Merge of works not found")
+
+
+def merge_refused() -> ApiError:
+    return unprocessable(ErrorCode.WORK_MERGE_REFUSED, "A merge needs two works and a name")

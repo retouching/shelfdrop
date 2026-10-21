@@ -12,13 +12,15 @@ import anyio.to_thread
 
 from shelfdrop.utils.text import normalize
 from shelfdrop.works.exceptions import (
+    MergeNotFoundError,
+    MergeRefusedError,
     NoSourceAnsweredError,
     QueryTooShortError,
     SourceError,
     WorkNotFoundError,
 )
 from shelfdrop.works.flights import SearchFlights, SourceHealth
-from shelfdrop.works.merge import french_edition_names, merge
+from shelfdrop.works.merge import french_edition_names, join_merges, merge
 from shelfdrop.works.ranking import rank
 from shelfdrop.works.repository import WorkRepository
 from shelfdrop.works.types import (
@@ -29,6 +31,7 @@ from shelfdrop.works.types import (
     SearchOptions,
     SourceName,
     Work,
+    WorkMerge,
     WorkSearch,
     family_of,
 )
@@ -36,6 +39,8 @@ from shelfdrop.works.types import (
 logger = logging.getLogger(__name__)
 
 MIN_QUERY_LENGTH = 2
+# The longest name on the shelf a merge by hand takes.
+MAX_SHELF_NAME = 300
 
 
 class MetadataClient(Protocol):
@@ -123,8 +128,11 @@ class WorkService:
         answers = await self.ask(clients, query, family, now, unavailable)
         if clients and len(unavailable) == len(clients):
             raise NoSourceAnsweredError
+        merges = await anyio.to_thread.run_sync(self.repository.read_merges, family)
         candidates = [c for answer in answers.values() for c in answer.candidates]
-        works, other_forms = rank(query, merge(candidates), manga=family == "manga")
+        works, other_forms = rank(
+            query, join_merges(merge(candidates), merges), manga=family == "manga"
+        )
         bnf = [c for c in clients if c.name == "bnf" and c.name not in unavailable]
         names = french_edition_names(works, query) if bnf else []
         if names:
@@ -132,7 +140,9 @@ class WorkService:
             for name in names:
                 answers.update(await self.ask(bnf, name, family, now, unavailable))
             candidates = [c for answer in answers.values() for c in answer.candidates]
-            works, other_forms = rank(query, merge(candidates), manga=family == "manga")
+            works, other_forms = rank(
+                query, join_merges(merge(candidates), merges), manga=family == "manga"
+            )
         order = [client.name for client in clients]
         result = WorkSearch(
             query=query,
@@ -210,3 +220,45 @@ class WorkService:
         if work is None:
             raise WorkNotFoundError
         return work
+
+    async def merge_works(self, kind: Kind, work_ids: Sequence[str], shelf_name: str) -> WorkMerge:
+        """The works `work_ids` (found by a search, merges included) joined into one under
+        `shelf_name`, for every search of the family of `kind` after; the merges they belonged
+        to give way to it. Raises WorkNotFoundError, MergeRefusedError."""
+        name = " ".join(shelf_name.split())
+        ids = list(dict.fromkeys(work_ids))
+        if len(ids) < 2 or not name or len(name) > MAX_SHELF_NAME:
+            raise MergeRefusedError
+        family = family_of(kind)
+        now = int(self.clock.now())
+
+        def run() -> WorkMerge:
+            works: list[Work] = []
+            for work_id in ids:
+                work = self.repository.read_work(work_id, now)
+                if work is None:
+                    raise WorkNotFoundError
+                works.append(work)
+            keys = tuple(dict.fromkeys(k for w in works for k in (w.keys or (w.id,))))
+            joined = set(keys)
+            older = [m.id for m in self.repository.read_merges(family) if joined & set(m.keys)]
+            self.repository.delete_merges(older)
+            merge_id = self.repository.add_merge(family, keys, name, now)
+            self.repository.commit()
+            return WorkMerge(id=merge_id, family=family, keys=keys, shelf_name=name)
+
+        found = await anyio.to_thread.run_sync(run)
+        logger.info("Works merged", extra={"merge": found.id, "works": len(ids)})
+        return found
+
+    async def split_works(self, merge_id: int) -> None:
+        """The merge `merge_id` undone: the next searches find its works apart again. Raises
+        MergeNotFoundError."""
+
+        def run() -> None:
+            if self.repository.delete_merges([merge_id]) == 0:
+                raise MergeNotFoundError
+            self.repository.commit()
+
+        await anyio.to_thread.run_sync(run)
+        logger.info("Works split", extra={"merge": merge_id})

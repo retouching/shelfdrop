@@ -70,6 +70,7 @@ The search of a work in every metadata source of its family at once.
 - `volumes`: the volumes of the original edition; `volumes_fr`: those published in France.
 - `form`: `manga`, `novel`, `anthology`, `doujinshi`, `oneshot` or `other`.
 - `unavailable`: the sources that did not answer; the works come from the others.
+- `merge_id`, `parts`: a work the page joined from several by hand (`POST /api/v1/works/merges`) has the id of its merge and the works it joined, as the search found them alone (`{"id", "title", "authors", "sources"}`); `null` and `[]` otherwise.
 
 Errors: `422 query_too_short`, `422 validation_failed`, `503 sources_unavailable` (no source of the family answered).
 
@@ -161,6 +162,9 @@ The indexers of Prowlarr, in their order: `{"trackers": [{"indexer_id": 1, "name
 
 ## GET /api/v1/works/{id}
 A work a search returned in the last 7 days, the same object as an item of `works`. `404 work_not_found` otherwise.
+
+## POST /api/v1/works/merges, DELETE /api/v1/works/merges/{id}
+Works joined by hand into one (plan section 3, point 9), for every search of their family after (`manga`, or `book` for the ebooks and the audiobooks): `{"kind": "manga", "work_ids": ["kitsu:1", "bnf:ark"], "shelf_name": "L'Atelier des sorciers"}`, the ids of works a search returned in the last 7 days, 2 to 20 of them; a merge among them (its `id`) takes the others, and the merges they belonged to give way. `201` `{"id": 3, "family": "manga", "keys": ["kitsu:1", "bnf:ark"], "shelf_name": "L'Atelier des sorciers"}`: the next searches give one work in the place of the first, built from every member, under that name. Errors: `404 work_not_found`, `422 work_merge_refused` (fewer than two distinct works, an empty name), `422 validation_failed`. `DELETE` splits it: `204`, or `404 work_merge_not_found`.
 
 ## GET /api/v1/settings, PUT /api/v1/settings
 The settings of the page ([the list](configuration.md#settings-of-the-page)):

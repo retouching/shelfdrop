@@ -14,6 +14,15 @@ type WorkRead = {
   readonly volumes_fr: number | null;
   readonly names: readonly NameRead[];
   readonly sources: readonly string[];
+  readonly merge_id: number | null;
+  readonly parts: readonly PartRead[];
+};
+
+type PartRead = {
+  readonly id: string;
+  readonly title: string;
+  readonly authors: readonly string[];
+  readonly sources: readonly string[];
 };
 
 type WorkSearchRead = {
@@ -42,10 +51,29 @@ export function languageLabel(language: string): string {
   return language === "latin" ? "" : language.toUpperCase();
 }
 
-function workOf(read: WorkRead): Work {
+function sourcesOf(sources: readonly string[]): string {
+  return sources.map((source) => SOURCE_NAMES[source] ?? source).join(", ");
+}
+
+/** Une œuvre réunie dans une fusion, telle que la recherche la trouvait seule. */
+function partOf(part: PartRead): Work {
   return {
+    id: part.id,
+    source: sourcesOf(part.sources),
+    title: part.title,
+    author: part.authors.join(", "),
+    year: null,
+    volumeCount: null,
+    titles: [],
+  };
+}
+
+function workOf(read: WorkRead): Work {
+  const merged = read.merge_id === null ? {} : { mergeId: read.merge_id, mergedFrom: read.parts.map(partOf) };
+  return {
+    ...merged,
     id: read.id,
-    source: read.sources.map((source) => SOURCE_NAMES[source] ?? source).join(", "),
+    source: sourcesOf(read.sources),
     title: read.shelf_name,
     author: read.authors.join(", "),
     year: read.year,
@@ -67,4 +95,13 @@ export async function searchWorks(query: string, kind: Kind): Promise<FoundWorks
     works: [...found.works, ...found.other_forms].map(workOf),
     unavailable: found.unavailable.map((source) => SOURCE_NAMES[source] ?? source),
   };
+}
+
+/** Les œuvres réunies en une sous le nom choisi ; une fusion parmi elles reçoit les autres. */
+export async function mergeWorks(kind: Kind, workIds: readonly string[], shelfName: string): Promise<void> {
+  await request<unknown>("POST", "/v1/works/merges", { kind, work_ids: workIds, shelf_name: shelfName });
+}
+
+export async function splitWorks(mergeId: number): Promise<void> {
+  await request<unknown>("DELETE", `/v1/works/merges/${String(mergeId)}`);
 }

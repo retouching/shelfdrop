@@ -22,6 +22,11 @@ class ErrorCode(StrEnum):
     # 404: no work with this id in the cache: unknown, or its search is older than 7 days;
     # data = null.
     WORK_NOT_FOUND = "work_not_found"
+    # 404: no merge of works by hand with this id: unknown, or split already; data = null.
+    WORK_MERGE_NOT_FOUND = "work_merge_not_found"
+    # 422: a merge of works of fewer than two distinct works, or under an empty name (or one of
+    # more than 300 characters); data = null.
+    WORK_MERGE_REFUSED = "work_merge_refused"
     # 404: no release search with this id: unknown, or finished more than 10 minutes ago;
     # data = null.
     SEARCH_NOT_FOUND = "search_not_found"

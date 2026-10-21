@@ -15,7 +15,7 @@ import { Sidebar, type Page } from "./components/Sidebar";
 import { StatStrip, type Stat } from "./components/StatStrip";
 import { Bone, LoadingLabel, ResultsSkeleton, WorkListSkeleton } from "./components/Skeletons";
 import { LibraryPage } from "./components/library/LibraryPage";
-import { MergeDialog, unionTitles } from "./components/MergeDialog";
+import { MergeDialog } from "./components/MergeDialog";
 import { WorkList } from "./components/WorkList";
 import { ReleasesLoading } from "./components/ReleasesLoading";
 import { RefreshBar } from "./components/RefreshBar";
@@ -29,34 +29,13 @@ import { readHealth } from "./api/settings";
 import { loadSettings, useSettings, valueOf } from "./state/settings";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
 import { retryDownload } from "./api/downloads";
+import { splitWorks } from "./api/works";
 import { useDownloads } from "./api/useDownloads";
 import { usePlace } from "./api/place";
 import { guessKind } from "./utils/files";
 import { texts } from "./texts";
 import type { Download, Kind, ShelfFile, Work } from "./types";
 import { bestPerVolume, coverageLabel, volumeNumbers } from "./utils/volumes";
-
-/** Les œuvres d'une liste, chaque paire fusionnée remplacée par sa fusion, à la place de la première. */
-function withMerges(list: readonly Work[], merges: readonly Work[]): readonly Work[] {
-  const absorbed = new Map<string, Work>();
-  for (const merged of merges) {
-    for (const part of merged.mergedFrom ?? []) {
-      absorbed.set(part.id, merged);
-    }
-  }
-  const shown = new Set<string>();
-  return list.flatMap((entry) => {
-    const merged = absorbed.get(entry.id);
-    if (merged === undefined) {
-      return [entry];
-    }
-    if (shown.has(merged.id)) {
-      return [];
-    }
-    shown.add(merged.id);
-    return [merged];
-  });
-}
 
 /** Noms envoyés à Prowlarr pour une œuvre avant la lecture des paramètres. */
 const DEFAULT_MAX_NAMES = 6;
@@ -91,7 +70,6 @@ export function App(): ReactElement | null {
   const [liveEvery, setLiveEvery] = useState(5);
   const [retrying, setRetrying] = useState<ReadonlySet<string>>(() => new Set());
   const [work, setWork] = useState<Work | null>(null);
-  const [merges, setMerges] = useState<readonly Work[]>([]);
   const [merging, setMerging] = useState<Work | null>(null);
   const [names, setNames] = useState<ReadonlySet<string>>(() => new Set());
   // Les envois de fichiers de la page Manuel, en cours dans cette page.
@@ -126,7 +104,7 @@ export function App(): ReactElement | null {
   const downloadsList = useDownloads(username !== null, page === "downloads", live, liveEvery);
   const downloads = downloadsList.downloads ?? [];
 
-  const works = withMerges(worksState.status === "done" ? worksState.works : [], merges);
+  const works = worksState.status === "done" ? worksState.works : [];
   const [showRejected, setShowRejected] = useState(false);
   const waitingList = useWaiting(username !== null)?.searches ?? [];
   const [waitOpen, setWaitOpen] = useState(false);
@@ -232,31 +210,17 @@ export function App(): ReactElement | null {
     chooseWork(null);
   }
 
-  function merge(base: Work, others: readonly Work[], shelfName: string): void {
-    const parts = [...(base.mergedFrom ?? [base]), ...others.flatMap((other) => other.mergedFrom ?? [other])];
-    const first = parts[0] ?? base;
-    const merged: Work = {
-      id: parts.map((part) => part.id).join("+"),
-      source: first.source,
-      title: shelfName,
-      author: first.author,
-      year: parts.reduce<number | null>(
-        (min, part) => (part.year === null ? min : Math.min(min ?? part.year, part.year)),
-        null,
-      ),
-      volumeCount: parts.find((part) => part.volumeCount !== null)?.volumeCount ?? null,
-      // Le nom gardé en tête, comme le titre de la carte.
-      titles: [...unionTitles(parts)].sort((x, y) => Number(y.title === shelfName) - Number(x.title === shelfName)),
-      mergedFrom: parts,
-    };
-    const replaced = new Set([base.id, ...others.map((other) => other.id)]);
-    setMerges((current) => [...current.filter((entry) => !replaced.has(entry.id)), merged]);
+  /** La liste relue après une fusion ou une séparation : le serveur l'applique à chaque recherche. */
+  function searchAgain(): void {
+    setSearchId((id) => id + 1);
     chooseWork(null);
   }
 
   function split(merged: Work): void {
-    setMerges((current) => current.filter((entry) => entry.id !== merged.id));
-    chooseWork(null);
+    if (merged.mergeId === undefined) {
+      return;
+    }
+    splitWorks(merged.mergeId).then(searchAgain, searchAgain);
   }
 
   function chooseWork(next: Work | null): void {
@@ -597,9 +561,7 @@ export function App(): ReactElement | null {
           onClose={() => {
             setMerging(null);
           }}
-          onMerged={(others, shelfName) => {
-            merge(merging, others, shelfName);
-          }}
+          onMerged={searchAgain}
         />
       )}
     </div>

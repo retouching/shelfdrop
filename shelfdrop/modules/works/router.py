@@ -3,13 +3,30 @@ every metadata source at once."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, status
 from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
-from shelfdrop.modules.works.errors import query_too_short, sources_unavailable, work_not_found
-from shelfdrop.modules.works.schemas import WorkRead, WorkSearchRead
-from shelfdrop.works.exceptions import NoSourceAnsweredError, QueryTooShortError, WorkNotFoundError
+from shelfdrop.modules.works.errors import (
+    merge_not_found,
+    merge_refused,
+    query_too_short,
+    sources_unavailable,
+    work_not_found,
+)
+from shelfdrop.modules.works.schemas import (
+    WorkMergeCreate,
+    WorkMergeRead,
+    WorkRead,
+    WorkSearchRead,
+)
+from shelfdrop.works.exceptions import (
+    MergeNotFoundError,
+    MergeRefusedError,
+    NoSourceAnsweredError,
+    QueryTooShortError,
+    WorkNotFoundError,
+)
 from shelfdrop.works.service import WorkService
 from shelfdrop.works.types import Kind
 
@@ -29,6 +46,25 @@ async def search_works(
     except NoSourceAnsweredError as exc:
         raise sources_unavailable() from exc
     return WorkSearchRead.model_validate(found)
+
+
+@router.post("/merges", status_code=status.HTTP_201_CREATED)
+async def merge_works(service: Injected[WorkService], body: WorkMergeCreate) -> WorkMergeRead:
+    try:
+        merged = await service.merge_works(body.kind, body.work_ids, body.shelf_name)
+    except WorkNotFoundError as exc:
+        raise work_not_found() from exc
+    except MergeRefusedError as exc:
+        raise merge_refused() from exc
+    return WorkMergeRead.model_validate(merged)
+
+
+@router.delete("/merges/{merge_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def split_works(service: Injected[WorkService], merge_id: int) -> None:
+    try:
+        await service.split_works(merge_id)
+    except MergeNotFoundError as exc:
+        raise merge_not_found() from exc
 
 
 @router.get("/{work_id}")

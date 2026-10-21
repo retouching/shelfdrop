@@ -8,10 +8,12 @@ from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
 from shelfdrop.db.models import CachedWork, SourceAnswer
-from shelfdrop.works.types import Candidate, SourceName, Work
+from shelfdrop.db.models import WorkMerge as WorkMergeRow
+from shelfdrop.works.types import Candidate, Family, SourceName, Work, WorkMerge
 
 CANDIDATES: Final = TypeAdapter(tuple[Candidate, ...])
 WORK: Final = TypeAdapter(Work)
+KEYS: Final = TypeAdapter(tuple[str, ...])
 
 
 class WorkRepository:
@@ -64,6 +66,40 @@ class WorkRepository:
     def remove_expired(self, now: int) -> None:
         self.session.execute(delete(SourceAnswer).where(SourceAnswer.expires_at <= now))
         self.session.execute(delete(CachedWork).where(CachedWork.expires_at <= now))
+
+    def read_merges(self, family: Family) -> list[WorkMerge]:
+        """The merges by hand of the searches of `family`, the oldest first."""
+        rows = self.session.scalars(
+            select(WorkMergeRow).where(WorkMergeRow.family == family).order_by(WorkMergeRow.id)
+        )
+        return [
+            WorkMerge(
+                id=row.id,
+                family=family,
+                keys=KEYS.validate_json(row.keys),
+                shelf_name=row.shelf_name,
+            )
+            for row in rows
+        ]
+
+    def add_merge(self, family: Family, keys: tuple[str, ...], shelf_name: str, now: int) -> int:
+        row = WorkMergeRow(
+            family=family,
+            keys=KEYS.dump_json(keys).decode(),
+            shelf_name=shelf_name,
+            created_at=now,
+        )
+        self.session.add(row)
+        self.session.flush()
+        return row.id
+
+    def delete_merges(self, merge_ids: Iterable[int]) -> int:
+        """Returns how many there were."""
+        ids = list(merge_ids)
+        rows = list(self.session.scalars(select(WorkMergeRow).where(WorkMergeRow.id.in_(ids))))
+        for row in rows:
+            self.session.delete(row)
+        return len(rows)
 
     def commit(self) -> None:
         self.session.commit()

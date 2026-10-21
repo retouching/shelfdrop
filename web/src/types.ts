@@ -24,8 +24,9 @@ export type Work = {
   readonly year: number | null;
   readonly volumeCount: number | null;
   readonly titles: readonly AltTitle[];
-  /** Les œuvres réunies à la main (deux ou plus), quand celle-ci en est la fusion. */
+  /** Les œuvres réunies à la main (deux ou plus), quand celle-ci en est la fusion, et sa fusion. */
   readonly mergedFrom?: readonly Work[];
+  readonly mergeId?: number;
 };
 
 export type Release = {
