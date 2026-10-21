@@ -35,8 +35,10 @@ from shelfdrop.http.middleware.origin import OriginMiddleware
 from shelfdrop.http.middleware.request_id import RequestIdMiddleware
 from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
 from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
+from shelfdrop.http.openapi import DocumentedApi
 from shelfdrop.journal.service import JournalSender
 from shelfdrop.logging.setup import configure_logging
+from shelfdrop.modules.docs.router import router as docs_router
 from shelfdrop.modules.downloads.router import router as downloads_router
 from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
@@ -105,11 +107,11 @@ def build_app(settings: Settings) -> FastAPI:
                     await loop
             await sender.close()
 
-    app = FastAPI(
+    app = DocumentedApi(
         lifespan=lifespan,
         title="shelfdrop",
         version=version("shelfdrop"),
-        # Neither a schema nor a documentation page: the routes are described in docs/api.md.
+        # The document and its page are routes of the API, for the session alone (ADR 0021).
         openapi_url=None,
         docs_url=None,
         swagger_ui_oauth2_redirect_url=None,
@@ -129,14 +131,14 @@ def build_app(settings: Settings) -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware, api_paths=(f"{prefix}/", "/health"))
     app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health"}))
     app.add_middleware(RequestIdMiddleware)
-    app.include_router(health_router)
+    app.include(health_router)
     # The session asks for itself; every other route of the API needs one (plan section 5), or
     # an access token where one may go (ADR 0020).
-    app.include_router(session_router, prefix=prefix)
-    for router in (settings_router, trackers_router, filters_router, tokens_router):
-        app.include_router(router, prefix=prefix, dependencies=[Depends(require_session)])
+    app.include(session_router, prefix=prefix)
+    for router in (settings_router, trackers_router, filters_router, tokens_router, docs_router):
+        app.include(router, prefix=prefix, guard=require_session)
     for router in (searches_router, releases_router):
-        app.include_router(router, prefix=prefix, dependencies=[Depends(require_reader)])
+        app.include(router, prefix=prefix, guard=require_reader)
     for router in (
         works_router,
         downloads_router,
@@ -145,7 +147,7 @@ def build_app(settings: Settings) -> FastAPI:
         place_router,
         uploads_router,
     ):
-        app.include_router(router, prefix=prefix, dependencies=[Depends(require_access)])
+        app.include(router, prefix=prefix, guard=require_access)
     # The front-end, last: its route answers every path the others leave.
     if (settings.static_dir / "index.html").is_file():
         for folder in ("assets", "fonts"):

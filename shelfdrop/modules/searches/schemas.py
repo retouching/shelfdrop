@@ -11,6 +11,26 @@ type Name = Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 
 class SearchCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "mode": "work",
+                    "kind": "manga",
+                    "title": "Chainsaw Man",
+                    "names": ["Chainsaw Man", "Chensō Man"],
+                    "refresh": False,
+                },
+                {
+                    "mode": "manual",
+                    "kind": "ebook",
+                    "title": "Ne cède jamais",
+                    "names": ["Ne cède jamais"],
+                },
+            ]
+        }
+    )
+
     # "work": the names of a work, the releases that miss a word of their name set aside;
     # "manual": one text, as typed.
     mode: SearchMode

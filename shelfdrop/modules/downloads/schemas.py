@@ -27,6 +27,25 @@ class ReleaseChoice(BaseModel):
 
 
 class DownloadsCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "search_id": "3f2a9c1e0b7d4a58",
+                    "work_id": "mangaupdates:57785063400",
+                    "author": "Tatsuki Fujimoto",
+                    "series": "Chainsaw Man",
+                    "releases": [
+                        {
+                            "id": "0123456789abcdef",
+                            "volumes": {"kind": "range", "first": 1, "last": 11},
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
     # The search the releases come from: a search of a work gives automatic downloads, a
     # manual search manual ones.
     search_id: str = Field(min_length=1, max_length=64)

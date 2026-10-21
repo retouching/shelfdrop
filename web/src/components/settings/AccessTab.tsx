@@ -314,7 +314,10 @@ export function AccessTab(): ReactElement {
 
       <Card title={texts.settings.api}>
         <p className="text-sm text-slate-600">
-          {texts.settings.apiLead} <span className="font-mono text-xs text-accent-text">{`${origin}/api/docs`}</span>
+          {texts.settings.apiLead}{" "}
+          <a href="/api/docs" className="font-mono text-xs text-accent-text hover:underline">
+            {`${origin}/api/docs`}
+          </a>
         </p>
       </Card>
 

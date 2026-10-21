@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from shelfdrop.waiting.types import Target, WaitingState
 from shelfdrop.works.types import Kind
@@ -31,6 +31,21 @@ class WantedBody(BaseModel):
 
 
 class WaitingCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "work_id": "mangaupdates:57785063400",
+                    "title": "Chainsaw Man",
+                    "author": "Tatsuki Fujimoto",
+                    "kind": "manga",
+                    "names": ["Chainsaw Man"],
+                    "wanted": [{"target": "volume", "volume": 23}],
+                }
+            ]
+        }
+    )
+
     work_id: ShortText | None = None
     title: ShortText = Field(min_length=1)
     author: ShortText = ""

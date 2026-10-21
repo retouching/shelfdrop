@@ -155,6 +155,8 @@ async def test_without_a_session_the_api_answers_401(
         ("POST", "/api/v1/tokens"),
         ("DELETE", "/api/v1/tokens/1"),
         ("GET", "/api/v1/session"),
+        ("GET", "/api/docs"),
+        ("GET", "/api/v1/openapi.json"),
     ],
 )
 async def test_a_token_never_reaches_the_routes_of_the_administrators(
@@ -181,6 +183,24 @@ async def test_a_write_with_a_token_needs_no_origin_and_never_reads_the_cookie(
 
     assert response.status_code == 401
     assert response.json()["code"] == "not_signed_in"
+
+
+@pytest.mark.anyio
+async def test_the_document_of_the_api_and_its_page_need_a_session(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    async with client_for(settings) as client:
+        document = await client.get("/api/v1/openapi.json")
+        page = await client.get("/api/docs")
+    async with client_for(settings, signed_in=False) as anonymous:
+        refused = await anonymous.get("/api/docs")
+
+    assert document.status_code == 200
+    assert document.json()["components"]["securitySchemes"]["token"]["scheme"] == "bearer"
+    assert page.status_code == 200
+    assert page.headers["content-type"].startswith("text/html")
+    assert "POST /api/v1/downloads" in page.text
+    assert page.headers["content-security-policy"].startswith("default-src 'none'")
+    assert refused.status_code == 401
 
 
 @pytest.mark.anyio

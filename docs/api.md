@@ -17,6 +17,9 @@ The session alone. `GET`: the tokens not revoked, the newest first, never a secr
 ### GET /api/v1/session, DELETE /api/v1/session
 `GET`: `200 {"username": "Sylvain"}`, the account of the session. `DELETE`: `204`, the session ends here and in Jellyfin, and the cookie is cleared.
 
+## OpenAPI
+The document of every route, with the access each needs (`x-access`: `public`, `session`, `read`, `write`), its bodies and examples, and the error body ([ADR 0021](adr/0021-openapi.md)): [docs/openapi.json](openapi.json) in the repository, `GET /api/v1/openapi.json` and the page `GET /api/docs` for the session of an administrator (a token gets `403 token_forbidden`).
+
 ## Responses
 Every response carries `X-Request-ID`: the value the request sent, when it is 1 to 128 characters among `A-Z a-z 0-9 . _ -`, otherwise a new one. The same id is in every log record of the request.
 
