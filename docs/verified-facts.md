@@ -8,9 +8,9 @@ Next fact ID: F13.
 
 ### MangaUpdates (api.mangaupdates.com/v1)
 
-- **F01** `POST /series/search` matches the associated names too, French ones included, and `GET /series/{id}` lists them in `associated` as `{"title"}` alone: no language. `shelfdrop.works.clients.mangaupdates` gives them the language `latin` or the one of their script.
+- **F01** `POST /series/search` matches the associated names too, French ones included, and `GET /series/{id}` lists them in `associated` as `{"title"}` alone: no language, some with it in brackets ("Atelier of Witch Hat (Indonesian)"). `shelfdrop.works.clients.mangaupdates` gives them the language `latin` or the one of their script; `shelfdrop.works.names.language_of` tells the language of some after the merge (Turkish, Polish, Indonesian names among them in `atelier-des-sorciers.json`).
   - Evidence: the fixtures `chainsaw-man.json` and `atelier-des-sorciers.json` (recorded 2026-10-21).
-  - Pinned by: `tests/unit/works/test_service.py::test_recorded_search`
+  - Pinned by: `tests/unit/works/test_service.py::test_recorded_search`, `tests/unit/works/test_names.py::test_language_of`
   - Re-verify: on recording.
 
 ### Kitsu (kitsu.io/api/edge)

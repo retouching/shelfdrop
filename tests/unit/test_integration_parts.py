@@ -18,6 +18,7 @@ PARTS: Final = {
     "test_pages.py": "pages",
     "test_work_search.py": "works",
     "test_work_sources.py": "works",
+    "test_work_names.py": "works",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -27,6 +28,7 @@ FILE_BLOCKS: Final = {
     "test_migrations.py": "security_migrations",
     "test_work_search.py": "works_search",
     "test_work_sources.py": "works_sources",
+    "test_work_names.py": "works_names_language",
 }
 
 

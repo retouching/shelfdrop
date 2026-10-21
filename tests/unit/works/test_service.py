@@ -54,6 +54,10 @@ async def test_recorded_search(case: Case) -> None:
     if case.volumes_fr:
         assert first.volumes_fr == case.volumes_fr
     assert first.shelf_name not in case.not_first
+    shown = {n.title for n in first.names}
+    for name in case.unchecked:
+        assert name in shown, f"{name!r} not shown"
+        assert name not in checked, f"{name!r} searched by default"
 
 
 @pytest.mark.anyio

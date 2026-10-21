@@ -45,7 +45,7 @@ Two tables, both caches: `source_answers` (the candidates a source gave for a fa
 |---|---|---|
 | `security` | `test_errors.py`, `test_health.py`, `test_http_headers.py`, `test_logging.py`, `test_migrations.py` | `shelfdrop/http/`, `shelfdrop/logging/`, `shelfdrop/main.py`, `shelfdrop/config.py`, `shelfdrop/container.py`, `shelfdrop/db/`, `shelfdrop/cli/`, `docker/` |
 | `pages` | `test_pages.py` | `shelfdrop/modules/web/`, `web/`, `docker/api.Dockerfile` |
-| `works` | `test_work_search.py`, `test_work_sources.py` | `shelfdrop/works/`, `shelfdrop/modules/works/`, `tests/unit/works/fixtures/` |
+| `works` | `test_work_search.py`, `test_work_sources.py`, `test_work_names.py` | `shelfdrop/works/`, `shelfdrop/modules/works/`, `tests/unit/works/fixtures/` |
 
 #### Blocks
 
@@ -59,3 +59,4 @@ Two tables, both caches: `source_answers` (the candidates a source gave for a fa
 | `pages` | `pages` | the pages, their files, the prefix of the API (`test_pages.py`) | `shelfdrop/modules/web/`, `web/` |
 | `works_search` | `works` | the recorded searches of `tests/unit/works/cases.py`, through the API (`test_work_search.py`) | `shelfdrop/works/`, `shelfdrop/modules/works/` |
 | `works_sources` | `works` | the failed sources, the cache, one run for two searches (`test_work_sources.py`) | `shelfdrop/works/service.py`, `shelfdrop/works/flights.py`, `shelfdrop/works/repository.py` |
+| `works_names_language` | `works` | the languages of the names, the ones checked by default (`test_work_names.py`) | `shelfdrop/works/names.py`, `shelfdrop/works/merge.py`, the names of a client |

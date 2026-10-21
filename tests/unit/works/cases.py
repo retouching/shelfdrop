@@ -23,6 +23,9 @@ class Case:
     volumes_fr: int | None = None
     not_first: tuple[str, ...] = field(default=())
     """Shelf names that must not come first."""
+    unchecked: tuple[str, ...] = ()
+    """Names of the first work in a language not searched by default, or in none known: they
+    are shown, unchecked."""
 
 
 CASES = (
@@ -31,9 +34,10 @@ CASES = (
         "Chainsaw Man",
         "manga",
         "Chainsaw Man",
-        names=("Chainsaw Man",),
+        names=("Chainsaw Man", "Chensoo Man"),
         author="Tatsuki Fujimoto",
         volumes=24,
+        unchecked=("Testere Adam", "Omul Drujbă", "Chainsaw Man: Public Safety Saga"),
     ),
     Case(
         "atelier-des-sorciers",
@@ -42,6 +46,14 @@ CASES = (
         "L'atelier des sorciers",
         names=("Tongari Boushi no Atelier", "Witch Hat Atelier"),
         author="Kamome Shirahama",
+        unchecked=(
+            "Asrama Topi Lancip",
+            "Pondok Penyihir Topi Lancip",
+            "Atelier of Witch Hat (Indonesian)",
+            "Ateliér špičatých klobouků",
+            "Atelier spiczastych kapeluszy",
+            "El Atelier del Sombrero Puntiagudo",
+        ),
     ),
     Case(
         "dusk-maiden",
@@ -52,6 +64,7 @@ CASES = (
         volumes=10,
         volumes_fr=10,
         not_first=("Amnesia",),
+        unchecked=("Niepamięć Panny Zmierzchu (Polish)", "Koukin Otome x Amnesia"),
     ),
     Case(
         "kaguya-sama",
@@ -60,6 +73,7 @@ CASES = (
         "Kaguya-sama: Love is War",
         names=("Kaguya-sama: Love is War",),
         volumes=28,
+        unchecked=("Kaguya Ingin Dicintai: Perang Cerdik dalam Cinta dan Akal",),
     ),
     Case(
         "berserk",

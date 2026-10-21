@@ -2,9 +2,10 @@
 
 from collections import defaultdict
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from shelfdrop.utils.text import compact, is_latin, normalize, words
-from shelfdrop.works.names import is_abbreviation, match_key
+from shelfdrop.works.names import is_abbreviation, language_of, match_key
 from shelfdrop.works.types import Candidate, Form, Name, NameChoice, SourceName, Work
 
 # Most trusted first, for the title, the authors, the form and the year.
@@ -25,7 +26,9 @@ COVER_PRIORITY: tuple[SourceName, ...] = (
     "myanimelist",
     "anilist",
 )
-LANGUAGE_ORDER = {"fr": 0, "en": 1, "ja-ro": 2, "latin": 3}
+# The languages of the names searched by default, in their order; "release" is a name as the
+# releases write it. A name in another language, or in none known ("latin"), stays unchecked.
+LANGUAGE_ORDER = {"fr": 0, "en": 1, "ja-ro": 2, "release": 3}
 MAX_CHECKED = 6
 
 
@@ -103,12 +106,24 @@ def group(candidates: list[Candidate]) -> list[list[Candidate]]:
     return [sorted(g, key=lambda c: rank_of(c.source)) for g in groups.values()]
 
 
-def names_of(members: list[Candidate]) -> list[tuple[str, str, bool]]:
+@dataclass(frozen=True)
+class MergedName:
+    """A name of a merged work: its best casing, its language, whether a French edition was
+    published under it (BnF), and whether its language was guessed rather than given."""
+
+    title: str
+    language: str
+    published: bool
+    guessed: bool
+
+
+def names_of(members: list[Candidate]) -> list[MergedName]:
     """Every name once, with the most precise language known, the best casing, and whether a
     French edition was published under it (BnF).
 
     The BnF writes titles in catalogue case ("Dusk maiden of amnesia"): when another source has
-    the same name, its casing wins, but the name stays French.
+    the same name, its casing wins, but the name stays French. A name no source gave a language
+    for gets the one its letters and its words tell (`language_of`), if any.
     """
     by_key: dict[str, tuple[str, str, int, bool]] = {}
     for member in members:
@@ -126,44 +141,65 @@ def names_of(members: list[Candidate]) -> list[tuple[str, str, bool]]:
             if language == "latin" or (name.language == "fr" and language != "fr"):
                 language = name.language if name.language != "latin" else language
             by_key[key] = (title, language, rank, was_published or published)
-    return [(title, language, published) for title, language, _, published in by_key.values()]
+    return [
+        MergedName(
+            title=title,
+            language=language_of(title) if language == "latin" else language,
+            published=published,
+            guessed=language == "latin",
+        )
+        for title, language, _, published in by_key.values()
+    ]
 
 
-def choices(names: list[tuple[str, str, bool]]) -> list[NameChoice]:
-    def searchable(title: str, language: str) -> bool:
-        return is_latin(title) and not is_abbreviation(title) and language in LANGUAGE_ORDER
+def choices(names: list[MergedName], title: str) -> list[NameChoice]:
+    """The names searched by default: French, English, romaji, the languages a source gave
+    before the guessed ones, at most MAX_CHECKED; and the title of the work itself whatever its
+    language, so that a work always has one. A name in another language, or in none known,
+    stays unchecked."""
+    title_key = match_key(title)
 
-    ordered = sorted(names, key=lambda n: (LANGUAGE_ORDER.get(n[1], 9), not n[2], len(n[0])))
+    def searchable(name: MergedName) -> bool:
+        known = name.language in LANGUAGE_ORDER or match_key(name.title) == title_key
+        return is_latin(name.title) and not is_abbreviation(name.title) and known
+
+    def order(name: MergedName) -> tuple[int, bool, bool, int]:
+        rank = LANGUAGE_ORDER.get(name.language, 9 if match_key(name.title) != title_key else 8)
+        return (rank, name.guessed, not name.published, len(name.title))
+
     checked_keys: list[str] = []
     checked_compact: set[str] = set()
-    choices = []
-    for title, language, _ in ordered:
-        key = normalize(title)
+    found = []
+    for name in sorted(names, key=order):
+        key = normalize(name.title)
         # "Chainsaw Man: Public Safety Saga" is a part of "Chainsaw Man", and "Chainsawman" the
         # same search as "Chainsaw Man": neither is searched by default.
         is_part = any(key.startswith(k + " ") for k in checked_keys)
         checked = (
-            searchable(title, language)
+            searchable(name)
             and not is_part
-            and compact(title) not in checked_compact
+            and compact(name.title) not in checked_compact
             and len(checked_keys) < MAX_CHECKED
         )
         if checked:
             checked_keys.append(key)
-            checked_compact.add(compact(title))
-        choices.append(NameChoice(title=title, language=language, checked=checked))
-    return sorted(choices, key=lambda c: not c.checked)
+            checked_compact.add(compact(name.title))
+        found.append(NameChoice(title=name.title, language=name.language, checked=checked))
+    return sorted(found, key=lambda c: not c.checked)
 
 
-def shelf_name(names: list[tuple[str, str, bool]], fallback: str) -> str:
-    """The title of the French edition (BnF) first, then any French name, English, romaji."""
-    for title, language, published in names:
-        if published and language == "fr" and not is_abbreviation(title):
-            return title
-    for wanted in ("fr", "en", "ja-ro", "latin"):
-        for title, language, _ in names:
-            if language == wanted and not is_abbreviation(title):
-                return title
+def shelf_name(names: list[MergedName], fallback: str) -> str:
+    """The title of the French edition (BnF) first, then any French name, English, romaji, as
+    the sources gave them; a name whose language was guessed comes after."""
+    for name in names:
+        if name.published and name.language == "fr" and not is_abbreviation(name.title):
+            return name.title
+    for guessed in (False, True):
+        for wanted in ("fr", "en", "ja-ro", "latin"):
+            for name in names:
+                wanted_name = name.guessed == guessed and name.language == wanted
+                if wanted_name and not is_abbreviation(name.title):
+                    return name.title
     return fallback
 
 
@@ -196,7 +232,9 @@ def build_work(members: list[Candidate]) -> Work:
     )
     title = best.title
     if is_abbreviation(title) or not is_latin(title):
-        title = next((t for t, lang, _ in names if lang == "en" and not is_abbreviation(t)), title)
+        title = next(
+            (n.title for n in names if n.language == "en" and not is_abbreviation(n.title)), title
+        )
     return Work(
         id=f"{best.source}:{best.source_id}",
         title=title,
@@ -206,7 +244,7 @@ def build_work(members: list[Candidate]) -> Work:
         volumes=volumes,
         volumes_fr=max((m.volumes_fr for m in members if m.volumes_fr), default=None),
         form=form_of(members),
-        names=tuple(choices(names)),
+        names=tuple(choices(names, title)),
         sources=tuple(sorted({m.source for m in members}, key=rank_of)),
         cover_url=cover,
         isbns=tuple(sorted({i for m in members for i in m.isbns})),

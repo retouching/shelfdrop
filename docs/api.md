@@ -57,7 +57,7 @@ The search of a work in every metadata source of its family at once.
 
 - `works`: at most 12, the best first. `other_forms`: for a manga search, the novels, anthologies and dōjinshi found, apart.
 - `shelf_name`: the name of the work in the library, the title of its French edition when there is one.
-- `names`: every name of the work; `checked` names are the ones searched in the indexers by default. `language` is `fr`, `en`, `ja-ro` (romaji), `ja`... or `latin` when the source does not say.
+- `names`: every name of the work; `checked` names are the ones searched in the indexers by default: French, English and romaji names, and the title of the work. `language` is `fr`, `en`, `ja-ro` (romaji), `ja`, `pl`, `tr`... given by a source or told by the name itself, or `latin` when neither says: such a name is shown, unchecked.
 - `volumes`: the volumes of the original edition; `volumes_fr`: those published in France.
 - `form`: `manga`, `novel`, `anthology`, `doujinshi`, `oneshot` or `other`.
 - `unavailable`: the sources that did not answer; the works come from the others.
