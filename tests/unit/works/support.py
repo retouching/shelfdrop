@@ -14,12 +14,12 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 import httpx
 
-from shelfdrop.config import Settings
 from shelfdrop.container import new_work_sources
 from shelfdrop.works.flights import SearchFlights, SourceHealth
 from shelfdrop.works.repository import WorkRepository
 from shelfdrop.works.service import WorkService, WorkSources
 from shelfdrop.works.types import Candidate, Clock, SearchOptions, SourceName, Work
+from tests.unit.settings.support import FakeSettingsReader
 from tests.unit.support import no_session
 
 FIXTURES: Final = Path(__file__).parent / "fixtures"
@@ -168,6 +168,7 @@ def new_service(
     flights: SearchFlights | None = None,
     health: SourceHealth | None = None,
     clock: Clock | None = None,
+    settings: FakeSettingsReader | None = None,
 ) -> WorkService:
     return WorkService(
         repository or FakeWorkRepository(),
@@ -176,12 +177,10 @@ def new_service(
         health or SourceHealth(),
         SearchOptions(),
         clock or FixedClock(),
+        settings or FakeSettingsReader(),
     )
-
-
-TEST_SETTINGS: Final = Settings(_env_file=None, contact="tests@shelfdrop.invalid")
 
 
 def replayed_service(http: httpx.AsyncClient) -> WorkService:
     """The sources of a deployment without a MyAnimeList Client ID, the one of the fixtures."""
-    return new_service(new_work_sources(http, TEST_SETTINGS))
+    return new_service(new_work_sources(http, FakeSettingsReader()))

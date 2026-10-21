@@ -142,7 +142,7 @@ async def test_an_answer_is_kept_ten_minutes_unless_asked_again() -> None:
 
     await finished(start(board, "Berserk", refresh=True))
     assert len(source.asked) == 2
-    clock.at += ReleaseOptions().answer_seconds
+    clock.at += 600  # the release cache of the settings: 10 minutes
     await finished(start(board, "Berserk"))
     assert len(source.asked) == 3
 

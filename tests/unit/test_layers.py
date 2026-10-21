@@ -18,6 +18,7 @@ WIREUP_IMPORTERS: Final = frozenset(
 DOMAIN: Final = (
     "shelfdrop/works/",
     "shelfdrop/releases/",
+    "shelfdrop/settings/",
     "shelfdrop/utils/",
     "shelfdrop/db/",
     "shelfdrop/logging/",
@@ -130,6 +131,16 @@ def test_only_the_releases_and_the_composition_import_the_prowlarr_client() -> N
                 path != "shelfdrop/container.py" and not path.startswith("shelfdrop/releases/")
             ),
             lambda module: module.startswith("shelfdrop.releases.clients"),
+        )
+        == []
+    )
+
+
+def test_the_works_and_the_releases_never_import_the_settings() -> None:
+    assert (
+        offenders(
+            lambda path: path.startswith(("shelfdrop/works/", "shelfdrop/releases/")),
+            lambda module: module.startswith("shelfdrop.settings"),
         )
         == []
     )

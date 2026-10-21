@@ -6,6 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.20",
     "anyio>=4.15",
+    "cryptography>=50.0",
     "defusedxml>=0.7.1",
     "fastapi>=0.142",
     "httpx>=0.28.1",

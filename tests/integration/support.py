@@ -24,7 +24,10 @@ COMMAND_TIMEOUT_SECONDS: Final = 120
 LOG_READ_ATTEMPTS: Final = 20
 # Every variable docker/compose.yaml requires, given to every Compose call: the stack never
 # reads the .env of the developer.
-STACK_ENVIRONMENT: Final = {"SHELFDROP_CONTACT": "tests@shelfdrop.invalid"}
+STACK_ENVIRONMENT: Final = {
+    "SHELFDROP_CONTACT": "tests@shelfdrop.invalid",
+    "SHELFDROP_SECRET_KEY": "test-secret-key-of-the-test-stack-0123456789",
+}
 ORIGINAL_ORIGIN: Final = "X-Original-Origin"
 
 
@@ -178,6 +181,14 @@ def prowlarr_stubs() -> list[dict[str, Any]]:
     data: dict[str, Any] = json.loads(PROWLARR_FIXTURE.read_text("utf-8"))
     key = {"X-Api-Key": {"equalTo": PROWLARR_KEY}}
     stubs: list[dict[str, Any]] = [
+        {
+            "request": {"method": "GET", "urlPath": "/api/v1/system/status", "headers": key},
+            "response": {
+                "status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "jsonBody": data["status"],
+            },
+        },
         {
             "request": {"method": "GET", "urlPath": "/api/v1/indexer", "headers": key},
             "response": {

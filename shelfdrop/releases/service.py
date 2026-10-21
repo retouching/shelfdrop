@@ -2,7 +2,7 @@
 and the trackers and the filters it uses."""
 
 from collections.abc import AsyncIterator, Sequence
-from typing import Final
+from typing import Final, Protocol
 
 import anyio
 import anyio.to_thread
@@ -32,6 +32,12 @@ MINIMUM_KEY: Final = "filters.minimum"
 DEFAULT_MINIMUM: Final = -100
 
 
+class NameLimit(Protocol):
+    """How many names a work search may send, read at each search (the settings page)."""
+
+    async def max_names(self) -> int: ...
+
+
 class ReleaseService:
     """Async throughout: a search runs on the event loop, and the Prowlarr client is an async
     singleton; the repository runs in the threadpool."""
@@ -43,12 +49,14 @@ class ReleaseService:
         prowlarr: ProwlarrClient,
         options: ReleaseOptions,
         clock: Clock,
+        name_limit: NameLimit,
     ) -> None:
         self.repository = repository
         self.board = board
         self.prowlarr = prowlarr
         self.options = options
         self.clock = clock
+        self.name_limit = name_limit
 
     async def start(
         self, *, mode: SearchMode, kind: Kind, title: str, names: Sequence[str], refresh: bool
@@ -59,7 +67,7 @@ class ReleaseService:
         names = list(dict.fromkeys(" ".join(n.split()) for n in names if n.strip()))
         if not names or any(len(normalize(n).replace(" ", "")) < 2 for n in names):
             raise QueryTooShortError
-        if len(names) > (self.options.max_names if mode == "work" else 1):
+        if len(names) > (await self.name_limit.max_names() if mode == "work" else 1):
             raise TooManyNamesError
         trackers = await anyio.to_thread.run_sync(self.repository.read_trackers)
         if not trackers:

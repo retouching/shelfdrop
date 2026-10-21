@@ -14,11 +14,12 @@ from typing import Any, Final, override
 
 import httpx
 
-from shelfdrop.releases.clients.prowlarr import ProwlarrClient
+from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
 from shelfdrop.releases.jobs import ReleaseSource, SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository
 from shelfdrop.releases.types import FilterRule, FoundRelease, ReleaseOptions, Tracker
 from shelfdrop.works.types import Clock
+from tests.unit.settings.support import FakeSettingsReader
 from tests.unit.support import no_session
 from tests.unit.works.support import FixedClock
 
@@ -44,6 +45,8 @@ class ProwlarrReplay:
         self.requests.append(request)
         if request.headers.get("X-Api-Key") != API_KEY:
             return httpx.Response(401, request=request)
+        if request.url.path == "/api/v1/system/status":
+            return httpx.Response(200, json=self.data["status"], request=request)
         if request.url.path == "/api/v1/indexer":
             return httpx.Response(200, json=self.data["indexers"], request=request)
         if request.url.path == "/api/v1/search":
@@ -123,7 +126,7 @@ class FakeReleaseRepository(ReleaseRepository):
 def new_prowlarr(handler: ProwlarrReplay | None = None) -> tuple[ProwlarrClient, ProwlarrReplay]:
     replay = handler or ProwlarrReplay()
     http = httpx.AsyncClient(transport=httpx.MockTransport(replay))
-    return ProwlarrClient(http, URL, API_KEY), replay
+    return ProwlarrClient(http, fixed(URL, API_KEY)), replay
 
 
 def new_board(
@@ -134,5 +137,9 @@ def new_board(
     clock: Clock | None = None,
 ) -> SearchBoard:
     return SearchBoard(
-        source, lambda: repository, options or ReleaseOptions(), clock or FixedClock()
+        source,
+        lambda: repository,
+        options or ReleaseOptions(),
+        clock or FixedClock(),
+        FakeSettingsReader(),
     )

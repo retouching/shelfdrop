@@ -1,10 +1,11 @@
-"""Prowlarr (its API v1): the search of releases and the list of its indexers.
+"""Prowlarr (its API v1): the search of releases, the list of its indexers and its status.
 
-The key goes in the header `X-Api-Key`, never in the address. The `downloadUrl` and `magnetUrl`
-of a release are not kept: a download link of Prowlarr carries its key.
+Its address and its key are read at each call (`Connection`): the settings page may change them
+at any time. The key goes in the header `X-Api-Key`, never in the address. The `downloadUrl` and
+`magnetUrl` of a release are not kept: a download link of Prowlarr carries its key.
 """
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 import httpx
@@ -15,12 +16,23 @@ from shelfdrop.releases.types import FoundRelease, Indexer
 # Releases asked for each name: more than a page shows, fewer than a slow tracker sends.
 LIMIT = 100
 
+# The address and the API key of Prowlarr, None when unset.
+type Connection = Callable[[], Awaitable[tuple[str | None, str | None]]]
+
+
+def fixed(url: str | None, api_key: str | None) -> Connection:
+    """A connection that does not change: the values typed before they are saved."""
+
+    async def connection() -> tuple[str | None, str | None]:
+        return url, api_key
+
+    return connection
+
 
 class ProwlarrClient:
-    def __init__(self, http: httpx.AsyncClient, url: str | None, api_key: str | None) -> None:
+    def __init__(self, http: httpx.AsyncClient, connection: Connection) -> None:
         self.http = http
-        self.url = (url or "").rstrip("/")
-        self.api_key = api_key or ""
+        self.connection = connection
 
     async def search(
         self, query: str, categories: Sequence[int], indexer_ids: Sequence[int]
@@ -53,19 +65,27 @@ class ProwlarrClient:
             if isinstance(item, dict) and "id" in item
         ]
 
+    async def version(self) -> str:
+        """The version of Prowlarr (`GET /api/v1/system/status`)."""
+        body = await self.get("/api/v1/system/status", [])
+        if not isinstance(body, dict) or not isinstance(body.get("version"), str):
+            raise ProwlarrError("unexpected body")
+        return str(body["version"])
+
     async def get(
         self, path: str, params: list[tuple[str, str | int | float | bool | None]]
     ) -> Any:
-        if not self.url or not self.api_key:
+        url, api_key = await self.connection()
+        if not url or not api_key:
             raise ProwlarrNotConfiguredError("not configured")
         try:
             response = await self.http.get(
-                f"{self.url}{path}", params=params, headers={"X-Api-Key": self.api_key}
+                f"{url.rstrip('/')}{path}", params=params, headers={"X-Api-Key": api_key}
             )
         except httpx.HTTPError as exc:
             raise ProwlarrError(type(exc).__name__) from exc
         if response.status_code != 200:
-            raise ProwlarrError(f"HTTP {response.status_code}")
+            raise ProwlarrError(f"HTTP {response.status_code}", status=response.status_code)
         try:
             return response.json()
         except ValueError as exc:

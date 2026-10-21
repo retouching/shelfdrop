@@ -15,6 +15,7 @@ from shelfdrop.works.exceptions import (
 from shelfdrop.works.flights import SearchFlights
 from shelfdrop.works.service import WorkSources
 from shelfdrop.works.types import Candidate, Family, Name, SearchOptions, SourceName, WorkSearch
+from tests.unit.settings.support import FakeSettingsReader
 from tests.unit.works.cases import CASES, Case
 from tests.unit.works.support import (
     FakeWorkRepository,
@@ -279,3 +280,36 @@ async def test_a_down_bnf_is_not_asked_again() -> None:
     assert bnf.searches == 1
     assert result.unavailable == ("bnf",)
     assert result.works[0].shelf_name == "Battle Angel Alita"
+
+
+@pytest.mark.anyio
+async def test_a_source_switched_off_is_not_asked() -> None:
+    off = CountingClient("mangadex")
+    service = new_service(
+        WorkSources(clients=(CountingClient("kitsu"), off)),
+        settings=FakeSettingsReader({"sources.mangadex.enabled": False}),
+    )
+
+    result = await service.search("Berserk", "manga")
+
+    assert off.searches == 0
+    assert result.unavailable == ()
+
+
+@pytest.mark.anyio
+async def test_the_answers_are_kept_as_long_as_the_settings_say() -> None:
+    client = CountingClient("kitsu")
+    clock = FixedClock()
+    service = new_service(
+        WorkSources(clients=(client,)),
+        clock=clock,
+        settings=FakeSettingsReader({"search.work_cache_hours": 1}),
+    )
+
+    await service.search("Berserk", "manga")
+    clock.at += 3599
+    await service.search("Berserk", "manga")
+    clock.at += 1
+    await service.search("Berserk", "manga")
+
+    assert client.searches == 2

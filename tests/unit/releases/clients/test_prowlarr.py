@@ -3,9 +3,9 @@
 import httpx
 import pytest
 
-from shelfdrop.releases.clients.prowlarr import ProwlarrClient
+from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
 from shelfdrop.releases.exceptions import ProwlarrError, ProwlarrNotConfiguredError
-from tests.unit.releases.support import API_KEY, URL, new_prowlarr
+from tests.unit.releases.support import API_KEY, URL, ProwlarrReplay, new_prowlarr
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ async def test_the_indexers() -> None:
 )
 async def test_a_failed_answer_is_a_prowlarr_error(answer: httpx.Response, message: str) -> None:
     http = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: answer))
-    client = ProwlarrClient(http, URL, API_KEY)
+    client = ProwlarrClient(http, fixed(URL, API_KEY))
 
     with pytest.raises(ProwlarrError, match=message):
         await client.search("Berserk", [7030], [1])
@@ -68,7 +68,9 @@ async def test_no_answer_is_a_prowlarr_error() -> None:
     def refuse(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("refused", request=request)
 
-    client = ProwlarrClient(httpx.AsyncClient(transport=httpx.MockTransport(refuse)), URL, API_KEY)
+    client = ProwlarrClient(
+        httpx.AsyncClient(transport=httpx.MockTransport(refuse)), fixed(URL, API_KEY)
+    )
 
     with pytest.raises(ProwlarrError, match="ConnectError"):
         await client.indexers()
@@ -76,8 +78,10 @@ async def test_no_answer_is_a_prowlarr_error() -> None:
 
 @pytest.mark.anyio
 async def test_without_address_or_key_nothing_is_asked() -> None:
-    client, replay = new_prowlarr()
-    client.api_key = ""
+    replay = ProwlarrReplay()
+    client = ProwlarrClient(
+        httpx.AsyncClient(transport=httpx.MockTransport(replay)), fixed(URL, None)
+    )
 
     with pytest.raises(ProwlarrNotConfiguredError):
         await client.indexers()
@@ -95,6 +99,28 @@ async def test_a_release_that_is_not_a_torrent_or_misses_a_field_is_skipped() ->
         transport=httpx.MockTransport(lambda _: httpx.Response(200, json=answer))
     )
 
-    releases = await ProwlarrClient(http, URL, API_KEY).search("x", [7030], [1])
+    releases = await ProwlarrClient(http, fixed(URL, API_KEY)).search("x", [7030], [1])
 
     assert [r.guid for r in releases] == ["b"]
+
+
+@pytest.mark.anyio
+async def test_the_address_and_the_key_are_read_at_each_call() -> None:
+    replay = ProwlarrReplay()
+    values = [(URL, "old-key"), (URL, API_KEY)]
+
+    async def connection() -> tuple[str | None, str | None]:
+        return values.pop(0)
+
+    client = ProwlarrClient(httpx.AsyncClient(transport=httpx.MockTransport(replay)), connection)
+
+    with pytest.raises(ProwlarrError, match="HTTP 401"):
+        await client.indexers()
+    assert await client.indexers()
+
+
+@pytest.mark.anyio
+async def test_the_status_gives_the_version() -> None:
+    client, _ = new_prowlarr()
+
+    assert await client.version() == "2.1.5.5216"

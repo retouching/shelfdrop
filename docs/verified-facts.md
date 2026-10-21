@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F16.
+Next fact ID: F18.
 
 ## Metadata sources
 
@@ -60,6 +60,10 @@ Next fact ID: F16.
   - Evidence: the plan of the user (section 2.4), from the use of Prowlarr; not observed by a test.
   - Pinned by: none
   - Re-verify: at the first search against the Prowlarr of the user.
+- **F16** `GET /api/v1/system/status` (`SystemResource`) gives `appName` and `version`, with the key in `X-Api-Key`; `ProwlarrClient.version` reads `version`.
+  - Evidence: the OpenAPI document of Prowlarr (`src/Prowlarr.Api.V1/openapi.json`, branch develop, read on 2026-10-21). No answer of a real Prowlarr; `prowlarr.json` holds one in this shape.
+  - Pinned by: `tests/unit/releases/clients/test_prowlarr.py::test_the_status_gives_the_version`
+  - Re-verify: when Prowlarr changes its major version.
 
 ## Pinned components
 
@@ -68,6 +72,13 @@ Next fact ID: F16.
 - **F07** SQLite cannot alter most of a table in place; Alembic's batch mode (`render_as_batch=True` in `shelfdrop/db/migrations/env.py`) copies the table instead.
   - Evidence: Alembic documentation, "Running “Batch” Migrations for SQLite and Other Databases".
   - Pinned by: none
+  - Re-verify: on version change.
+
+### cryptography 50.0.2
+
+- **F17** `AESGCM.encrypt(nonce, data, associated_data)` returns the ciphertext followed by its 16-byte tag; `decrypt` raises `InvalidTag` when the key, the nonce, the associated data or a byte differ. A nonce must never be used twice under one key: `SecretBox` draws 12 random bytes per seal. `HKDF(SHA256, length=32)` derives the same key from the same text.
+  - Evidence: the documentation of cryptography, "Authenticated encryption" (AESGCM) and "Key derivation functions" (HKDF).
+  - Pinned by: `tests/unit/settings/test_cipher.py::test_another_key_another_name_or_a_change_cannot_open`
   - Re-verify: on version change.
 
 ### wireup 2.13.0

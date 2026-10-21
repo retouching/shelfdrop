@@ -1,22 +1,37 @@
-"""shelfdrop.container: the sources a deployment asks."""
+"""shelfdrop.container: the values of the environment imported into the settings, the key of the
+secrets."""
 
-import httpx
 import pytest
+from pydantic import SecretStr
 
 from shelfdrop.config import Settings
-from shelfdrop.container import new_work_sources
+from shelfdrop.container import environment_values, new_secret_box
 
 
-@pytest.mark.parametrize(("client_id", "asked"), [(None, False), ("", False), ("abc", True)])
-def test_myanimelist_is_asked_with_a_client_id_alone(
-    monkeypatch: pytest.MonkeyPatch, client_id: str | None, asked: bool
-) -> None:
-    if client_id is None:
-        monkeypatch.delenv("SHELFDROP_MYANIMELIST_CLIENT_ID", raising=False)
-    else:
-        monkeypatch.setenv("SHELFDROP_MYANIMELIST_CLIENT_ID", client_id)
+def test_the_environment_gives_the_settings_it_sets_alone() -> None:
+    settings = Settings(
+        _env_file=None,
+        contact="test@example.org",
+        prowlarr_url="http://prowlarr:9696",
+        prowlarr_api_key=SecretStr("prowlarr-key"),
+        jellyfin_url="",
+        myanimelist_client_id=None,
+    )
+
+    assert environment_values(settings) == {
+        "prowlarr.url": "http://prowlarr:9696",
+        "prowlarr.api_key": "prowlarr-key",
+    }
+
+
+def test_the_secrets_need_their_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SHELFDROP_SECRET_KEY", raising=False)
     settings = Settings(_env_file=None, contact="test@example.org")
 
-    sources = new_work_sources(httpx.AsyncClient(), settings)
+    with pytest.raises(RuntimeError, match="SHELFDROP_SECRET_KEY"):
+        new_secret_box(settings)
 
-    assert ("myanimelist" in [client.name for client in sources.clients]) is asked
+
+def test_a_short_secret_key_is_refused() -> None:
+    with pytest.raises(ValueError, match="secret_key"):
+        Settings(_env_file=None, contact="test@example.org", secret_key=SecretStr("short"))

@@ -16,8 +16,12 @@ from shelfdrop.db.engine import open_engine, open_session
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository, repository_factory
-from shelfdrop.releases.service import ReleaseService
+from shelfdrop.releases.service import NameLimit, ReleaseService
 from shelfdrop.releases.types import ReleaseOptions
+from shelfdrop.settings.cipher import SecretBox
+from shelfdrop.settings.reader import SettingsReader
+from shelfdrop.settings.repository import SettingsRepository, settings_repository_factory
+from shelfdrop.settings.service import SettingsService
 from shelfdrop.works.clients.anilist import AniListClient
 from shelfdrop.works.clients.bnf import BnfClient
 from shelfdrop.works.clients.kitsu import KitsuClient
@@ -29,7 +33,7 @@ from shelfdrop.works.clients.redirect import RedirectTransport
 from shelfdrop.works.clients.wikidata import WikidataClient
 from shelfdrop.works.flights import SearchFlights, SourceHealth
 from shelfdrop.works.repository import WorkRepository
-from shelfdrop.works.service import WorkService, WorkSources
+from shelfdrop.works.service import WorkService, WorkSettings, WorkSources
 from shelfdrop.works.types import Clock, SearchOptions
 
 # Each request to a source gives up after this; the search gives up on the source after
@@ -56,42 +60,74 @@ async def open_http(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
         yield client
 
 
+def new_secret_box(settings: Settings) -> SecretBox:
+    """The key of the secrets (a singleton); the API does not start without it."""
+    if settings.secret_key is None:
+        msg = "SHELFDROP_SECRET_KEY is not set"
+        raise RuntimeError(msg)
+    return SecretBox(settings.secret_key.get_secret_value())
+
+
+def new_settings_reader(engine: Engine, box: SecretBox) -> SettingsReader:
+    """The settings read at each call of a service (a singleton), on sessions of its own."""
+    return SettingsReader(settings_repository_factory(engine), box)
+
+
+def as_work_settings(reader: SettingsReader) -> WorkSettings:
+    return reader
+
+
+def as_name_limit(reader: SettingsReader) -> NameLimit:
+    return reader
+
+
+def environment_values(settings: Settings) -> dict[str, str]:
+    """The settings of the environment imported once into the database, by key of the catalog
+    of the settings (ADR 0012)."""
+    secrets = {
+        "prowlarr.api_key": settings.prowlarr_api_key,
+        "sources.myanimelist.client_id": settings.myanimelist_client_id,
+    }
+    values = {"prowlarr.url": settings.prowlarr_url, "jellyfin.url": settings.jellyfin_url}
+    found = {key: value for key, value in values.items() if value is not None}
+    found |= {key: value.get_secret_value() for key, value in secrets.items() if value is not None}
+    return found
+
+
 async def open_prowlarr(
-    settings: Settings, options: ReleaseOptions
+    settings: Settings, options: ReleaseOptions, reader: SettingsReader
 ) -> AsyncIterator[ProwlarrClient]:
     """The client of Prowlarr (a singleton), on its own HTTP client: a search of Prowlarr waits
     on every tracker, far longer than a metadata source. Its own deadline comes a little after
-    the one of the search (ReleaseOptions.timeout_seconds)."""
-    key = settings.prowlarr_api_key
+    the one of the search (ReleaseOptions.timeout_seconds). Its address and its key are read
+    from the settings at each call."""
     async with httpx.AsyncClient(
         headers={"User-Agent": user_agent(settings)},
         timeout=httpx.Timeout(options.timeout_seconds + 5),
     ) as http:
-        yield ProwlarrClient(
-            http, settings.prowlarr_url, None if key is None else key.get_secret_value()
-        )
+        yield ProwlarrClient(http, reader.prowlarr)
 
 
 def new_search_board(
-    prowlarr: ProwlarrClient, engine: Engine, options: ReleaseOptions, clock: Clock
+    prowlarr: ProwlarrClient,
+    engine: Engine,
+    options: ReleaseOptions,
+    clock: Clock,
+    reader: SettingsReader,
 ) -> SearchBoard:
     """The searches of Prowlarr of every request (a singleton); its cache on sessions of its
     own, since a search outlives its request."""
-    return SearchBoard(prowlarr, repository_factory(engine), options, clock)
+    return SearchBoard(prowlarr, repository_factory(engine), options, clock, reader)
 
 
-def new_work_sources(http: httpx.AsyncClient, settings: Settings) -> WorkSources:
+def new_work_sources(http: httpx.AsyncClient, reader: SettingsReader) -> WorkSources:
     """Every metadata client, in the order of the list of the sources that did not answer;
-    MyAnimeList only with its Client ID."""
-    client_id = settings.myanimelist_client_id
-    myanimelist = (
-        () if client_id is None else (MyAnimeListClient(http, client_id.get_secret_value()),)
-    )
+    MyAnimeList reads its Client ID at each search, and is asked only with it."""
     return WorkSources(
         clients=(
             MangaUpdatesClient(http),
             KitsuClient(http),
-            *myanimelist,
+            MyAnimeListClient(http, reader.myanimelist_client_id),
             AniListClient(http),
             MangaDexClient(http),
             BnfClient(http),
@@ -113,6 +149,10 @@ def injectables(settings: Settings) -> list[object]:
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.injectable(open_http),
+        wireup.injectable(new_secret_box),
+        wireup.injectable(new_settings_reader),
+        wireup.injectable(as_work_settings),
+        wireup.injectable(as_name_limit),
         wireup.injectable(new_work_sources),
         wireup.injectable(open_prowlarr),
         wireup.injectable(new_search_board),
@@ -122,4 +162,6 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(WorkService, lifetime="scoped"),
         wireup.injectable(ReleaseRepository, lifetime="scoped"),
         wireup.injectable(ReleaseService, lifetime="scoped"),
+        wireup.injectable(SettingsRepository, lifetime="scoped"),
+        wireup.injectable(SettingsService, lifetime="scoped"),
     ]

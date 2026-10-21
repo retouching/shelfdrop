@@ -71,8 +71,8 @@ Starts a search of releases in Prowlarr, or joins the same one running.
 {"mode": "work", "kind": "manga", "title": "Jujutsu Kaisen", "names": ["Jujutsu Kaisen", "Sorcery Fight"], "refresh": false}
 ```
 
-- `mode`: `work` (the names of a work: 6 at most, a release that misses a word of its name is set aside) or `manual` (one text, as typed).
-- `refresh`: ask Prowlarr again instead of the answers kept 10 minutes.
+- `mode`: `work` (the names of a work: 6 at most, the setting `search.max_names`; a release that misses a word of its name is set aside) or `manual` (one text, as typed).
+- `refresh`: ask Prowlarr again instead of the answers kept (10 minutes by default).
 
 `200`, the progress:
 

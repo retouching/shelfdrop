@@ -39,6 +39,12 @@ class ReleaseSource(Protocol):
     ) -> list[FoundRelease]: ...
 
 
+class AnswerTime(Protocol):
+    """How long an answer of Prowlarr is reused, read at each answer (the settings page)."""
+
+    async def release_answer_seconds(self) -> int: ...
+
+
 @dataclass(eq=False, kw_only=True)
 class NameQuery:
     """One Prowlarr request: a name, the categories of a kind, the indexers asked."""
@@ -87,11 +93,13 @@ class SearchBoard:
         repositories: RepositoryFactory,
         options: ReleaseOptions,
         clock: Clock,
+        answer_time: AnswerTime,
     ) -> None:
         self.source = source
         self.repositories = repositories
         self.options = options
         self.clock = clock
+        self.answer_time = answer_time
         self.jobs: dict[str, SearchJob] = {}
         self.running: dict[str, SearchJob] = {}
         self.queries: dict[str, NameQuery] = {}
@@ -187,7 +195,8 @@ class SearchBoard:
             name_query.releases = tuple(found)
             name_query.fetched_at = self.clock.now()
             name_query.state = "done"
-            await anyio.to_thread.run_sync(self.save, name_query)
+            keep = await self.answer_time.release_answer_seconds()
+            await anyio.to_thread.run_sync(self.save, name_query, keep)
         except (ProwlarrError, TimeoutError) as exc:
             logger.info("Prowlarr search failed", extra={"error": type(exc).__name__})
             name_query.state = "failed"
@@ -233,7 +242,8 @@ class SearchBoard:
         finally:
             repository.close()
 
-    def save(self, name_query: NameQuery) -> None:
+    def save(self, name_query: NameQuery, keep: int) -> None:
+        """The answer to a name, kept `keep` seconds."""
         now = self.clock.now()
         repository = self.repositories()
         try:
@@ -242,7 +252,7 @@ class SearchBoard:
                 name_query.key,
                 name_query.releases,
                 name_query.fetched_at or now,
-                int(now) + self.options.answer_seconds,
+                int(now) + keep,
             )
             repository.commit()
         finally:

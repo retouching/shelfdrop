@@ -16,8 +16,10 @@ docker compose --env-file .env -f docker/compose.yaml down
 
 `down --volumes` also deletes the database.
 
+The `.env` file sets `SHELFDROP_CONTACT` and `SHELFDROP_SECRET_KEY` (mode 600: it holds the key of the secrets); the other settings are changed on the settings page ([configuration](configuration.md)).
+
 ## Database and upgrades
-The database is one SQLite file, `shelfdrop.db`, in `SHELFDROP_DATA_DIR` (`/data/shelfdrop` in the image), in WAL mode. Today it holds caches alone: the answers of the metadata sources (a day) and the works found (a week). Deleting it loses nothing but those caches.
+The database is one SQLite file, `shelfdrop.db`, in `SHELFDROP_DATA_DIR` (`/data/shelfdrop` in the image), in WAL mode. It holds the caches (the answers of the metadata sources and of Prowlarr, the works found), the trackers and the filters, and the settings with their sealed secrets and their audit. Deleting it loses the settings too; the secrets cannot be read without `SHELFDROP_SECRET_KEY`.
 
 `docker compose --env-file .env -f docker/compose.yaml exec api shelfdrop db check` compares the database with the models of the image.
 

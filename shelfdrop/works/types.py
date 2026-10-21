@@ -98,8 +98,6 @@ class SearchOptions:
     source_timeout_seconds: float = 5.0
     # A source that failed is skipped for this many seconds.
     source_rest_seconds: int = 300
-    # The answer of a source is reused for this many seconds.
-    answer_seconds: int = 24 * 3600
     # A work returned by a search can be read by its id for this many seconds.
     work_seconds: int = 7 * 24 * 3600
 

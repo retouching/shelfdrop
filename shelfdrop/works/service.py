@@ -45,6 +45,14 @@ class MetadataClient(Protocol):
     async def search(self, query: str, family: Family) -> list[Candidate]: ...
 
 
+class WorkSettings(Protocol):
+    """The settings of the work search, read at each search (the settings page)."""
+
+    async def enabled_sources(self) -> frozenset[str]: ...
+
+    async def work_answer_seconds(self) -> int: ...
+
+
 @dataclass(frozen=True)
 class Answer:
     """What one source answered to one text, and whether it comes from the source itself (to
@@ -70,6 +78,7 @@ class WorkService:
         health: SourceHealth,
         options: SearchOptions,
         clock: Clock,
+        settings: WorkSettings,
     ) -> None:
         self.repository = repository
         self.sources = sources
@@ -77,6 +86,7 @@ class WorkService:
         self.health = health
         self.options = options
         self.clock = clock
+        self.settings = settings
 
     async def search(self, query: str, kind: Kind) -> WorkSearch:
         """Every source of the family of `kind` at once. Raises QueryTooShortError, and
@@ -102,7 +112,12 @@ class WorkService:
 
     async def run_search(self, query: str, kind: Kind) -> WorkSearch:
         family = family_of(kind)
-        clients = [client for client in self.sources.clients if family in client.families]
+        enabled = await self.settings.enabled_sources()
+        clients = [
+            client
+            for client in self.sources.clients
+            if family in client.families and client.name in enabled
+        ]
         now = self.clock.now()
         unavailable: list[SourceName] = []
         answers = await self.ask(clients, query, family, now, unavailable)
@@ -127,7 +142,8 @@ class WorkService:
             unavailable=tuple(sorted(set(unavailable), key=order.index)),
         )
         fresh = {key: answer.candidates for key, answer in answers.items() if answer.fresh}
-        await anyio.to_thread.run_sync(self.save, fresh, [*works, *other_forms], int(now))
+        keep = await self.settings.work_answer_seconds()
+        await anyio.to_thread.run_sync(self.save, fresh, [*works, *other_forms], int(now), keep)
         return result
 
     async def ask(
@@ -177,11 +193,12 @@ class WorkService:
         answers: Mapping[tuple[SourceName, str], tuple[Candidate, ...]],
         works: Sequence[Work],
         now: int,
+        keep: int,
     ) -> None:
-        """The answers and the works of a search, written in one transaction; the expired rows
-        go at the same time."""
+        """The answers (kept `keep` seconds) and the works of a search, written in one
+        transaction; the expired rows go at the same time."""
         self.repository.remove_expired(now)
-        self.repository.save_answers(answers, now + self.options.answer_seconds)
+        self.repository.save_answers(answers, now + keep)
         self.repository.save_works(works, now + self.options.work_seconds)
         self.repository.commit()
 

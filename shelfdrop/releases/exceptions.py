@@ -2,7 +2,12 @@
 
 
 class ProwlarrError(Exception):
-    """Prowlarr did not answer, or answered an error; the message names a status or a class."""
+    """Prowlarr did not answer, or answered an error; the message names a status or a class,
+    `status` is the HTTP status of an answer."""
+
+    def __init__(self, message: str, *, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 class ProwlarrNotConfiguredError(ProwlarrError):

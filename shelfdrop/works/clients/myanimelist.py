@@ -4,6 +4,7 @@ It gives the English and Japanese titles, the synonyms, the authors, the volume 
 type. The MyAnimeList id is the pivot of the merge: Kitsu, AniList and MangaDex all give it.
 """
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
@@ -38,15 +39,21 @@ class MyAnimeListClient:
     name: SourceName = "myanimelist"
     families: frozenset[Family] = frozenset({"manga"})
 
-    def __init__(self, http: httpx.AsyncClient, client_id: str) -> None:
+    def __init__(
+        self, http: httpx.AsyncClient, client_id: Callable[[], Awaitable[str | None]]
+    ) -> None:
         self.http = http
-        # Sent in a header, never in the address: an address may be logged.
+        # Read at each search, from the settings; sent in a header, never in the address: an
+        # address may be logged.
         self.client_id = client_id
 
     async def search(self, query: str, family: Family) -> list[Candidate]:
         return await self.from_api(query)
 
     async def from_api(self, query: str) -> list[Candidate]:
+        client_id = await self.client_id()
+        if not client_id:
+            raise SourceError("no client id")
         body = await get_json(
             self.http,
             f"{OFFICIAL}/manga",
@@ -56,7 +63,7 @@ class MyAnimeListClient:
                 "fields": "alternative_titles,num_volumes,authors{first_name,last_name},"
                 "media_type,start_date,num_list_users,main_picture",
             },
-            headers={"X-MAL-CLIENT-ID": self.client_id},
+            headers={"X-MAL-CLIENT-ID": client_id},
         )
         if not isinstance(body, dict) or not isinstance(body.get("data"), list):
             raise SourceError("unexpected body")

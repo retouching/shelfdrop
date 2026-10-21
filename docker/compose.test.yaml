@@ -14,7 +14,8 @@ services:
       SHELFDROP_SOURCES_ORIGIN: http://fake-sources:8080
       SHELFDROP_SOURCE_REST_SECONDS: "0"
       # Prowlarr is played by the fake sources too, with the answers of
-      # tests/unit/releases/fixtures/prowlarr.json and the key of the tests.
+      # tests/unit/releases/fixtures/prowlarr.json and the key of the tests, imported into the
+      # settings at start.
       SHELFDROP_PROWLARR_URL: http://fake-sources:8080
       SHELFDROP_PROWLARR_API_KEY: test-prowlarr-key
     ports: !override

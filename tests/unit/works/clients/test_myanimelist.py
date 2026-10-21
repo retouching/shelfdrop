@@ -1,5 +1,7 @@
 """shelfdrop.works.clients.myanimelist: the official API alone."""
 
+from collections.abc import Awaitable, Callable
+
 import httpx
 import pytest
 
@@ -34,6 +36,13 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+def client_id(value: str | None) -> Callable[[], Awaitable[str | None]]:
+    async def read() -> str | None:
+        return value
+
+    return read
+
+
 @pytest.mark.anyio
 async def test_a_search_asks_the_official_api_with_the_client_id() -> None:
     seen: list[httpx.Request] = []
@@ -43,7 +52,9 @@ async def test_a_search_asks_the_official_api_with_the_client_id() -> None:
         return httpx.Response(200, json=ANSWER)
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as http:
-        [found] = await MyAnimeListClient(http, "client-id-1").search("Chainsaw Man", "manga")
+        [found] = await MyAnimeListClient(http, client_id("client-id-1")).search(
+            "Chainsaw Man", "manga"
+        )
 
     [request] = seen
     assert request.url.host == "api.myanimelist.net"
@@ -69,4 +80,18 @@ async def test_a_refused_client_id_is_a_source_error() -> None:
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(refuse)) as http:
         with pytest.raises(SourceError):
-            await MyAnimeListClient(http, "wrong").search("Berserk", "manga")
+            await MyAnimeListClient(http, client_id("wrong")).search("Berserk", "manga")
+
+
+@pytest.mark.anyio
+async def test_without_a_client_id_nothing_is_asked() -> None:
+    seen: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=ANSWER)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as http:
+        with pytest.raises(SourceError):
+            await MyAnimeListClient(http, client_id(None)).search("Berserk", "manga")
+    assert seen == []

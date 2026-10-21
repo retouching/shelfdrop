@@ -159,9 +159,5 @@ class ReleaseOptions:
     parallel: int = 2
     # A Prowlarr search that has not answered after this many seconds failed.
     timeout_seconds: float = 60.0
-    # The answer of Prowlarr to a name is reused for this many seconds.
-    answer_seconds: int = 600
     # A finished search can be read by its id for this many seconds.
     keep_seconds: int = 600
-    # At most this many names are searched for a work.
-    max_names: int = 6

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from pydantic import SecretStr
 
 from shelfdrop.config import Settings
 from shelfdrop.main import build_app
@@ -18,7 +19,12 @@ def settings_for(tmp_path: Path, *, pages: bool = True) -> Settings:
         (static / "assets" / "app.js").write_text("void 0")
         (static / "fonts").mkdir()
         (static / "fonts" / "outfit.woff2").write_bytes(b"wOF2")
-    return Settings(data_dir=tmp_path / "data", static_dir=static, contact="test@example.org")
+    return Settings(
+        data_dir=tmp_path / "data",
+        static_dir=static,
+        contact="test@example.org",
+        secret_key=SecretStr("k" * 32),
+    )
 
 
 def client_for(settings: Settings) -> httpx.AsyncClient:

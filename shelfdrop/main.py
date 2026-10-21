@@ -2,6 +2,9 @@
 build_app() registers the routers, the middlewares and the error handlers and wires the
 container (ADR 0004)."""
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from importlib.metadata import version
 
 import wireup
@@ -9,10 +12,10 @@ from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
-from wireup.integration.fastapi import setup
+from wireup.integration.fastapi import get_app_container, setup
 
 from shelfdrop.config import Settings
-from shelfdrop.container import injectables
+from shelfdrop.container import environment_values, injectables
 from shelfdrop.http.dependencies import release_session
 from shelfdrop.http.errors.handlers import (
     handle_http_exception,
@@ -30,6 +33,9 @@ from shelfdrop.modules.searches.router import router as searches_router
 from shelfdrop.modules.trackers.router import router as trackers_router
 from shelfdrop.modules.web.router import web_router
 from shelfdrop.modules.works.router import router as works_router
+from shelfdrop.settings.service import SettingsService
+
+logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -45,7 +51,20 @@ def build_app(settings: Settings) -> FastAPI:
     """The application for these settings: routers, middlewares, error handlers and the
     container. It configures no logging: create_app() does."""
     prefix = settings.api_prefix
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        """At start: the settings of the environment imported once into the database
+        (ADR 0012)."""
+        async with get_app_container(app).enter_scope() as scope:
+            service = await scope.get(SettingsService)
+            imported = await service.import_environment(environment_values(settings))
+        if imported:
+            logger.info("Settings imported from the environment", extra={"keys": imported})
+        yield
+
     app = FastAPI(
+        lifespan=lifespan,
         title="shelfdrop",
         version=version("shelfdrop"),
         # Neither a schema nor a documentation page: the routes are described in docs/api.md.

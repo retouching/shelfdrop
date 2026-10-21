@@ -13,7 +13,7 @@ Decided by the user on 2026-10-21. A release is found only under the name it was
 - The score and the rejection by score are computed at each read, with the filters of now; the filters are rules of words or regular expressions with points, by kind, and a minimum score. A rule whose expression is invalid is refused at save.
 - The trackers are read from `GET /api/v1/indexer`: torrent indexers alone; the first import orders Nyaa, The Old School, ABN, the others, C411 last, and leaves C411 out of the automatic downloads. A read again keeps the choices.
 - Its routes are `async`, like those of the work search: the service holds the async client of Prowlarr, and runs the repository in the threadpool.
-- Until the settings page (stored settings and secrets), the address and the key of Prowlarr come from the environment.
+- The address and the key of Prowlarr, the number of names of a work search (6 by default) and the time an answer is kept (10 minutes by default) are settings, read at each use ([ADR 0012](0012-settings-and-secrets.md)).
 
 ## Rejected alternatives
 - One request with every name: Prowlarr ORs nothing; a search per name is what the trackers understand.

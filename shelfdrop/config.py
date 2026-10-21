@@ -14,6 +14,8 @@ DEFAULT_STATIC_DIR: Final = Path(__file__).resolve().parent / "static"
 # The settings reserved for the test stack: `docker/compose.test.yaml` alone sets them, through
 # the environment of the process, and a `.env` file never does (ADR 0010).
 TEST_STACK_SETTINGS: Final = frozenset({"sources_origin", "source_rest_seconds"})
+# The address of a service: http(s), a host, a port, a path.
+ADDRESS_PATTERN: Final = r"^https?://[A-Za-z0-9.-]+(:\d+)?(/.*)?$"
 
 
 class EnvFileWithoutTestSettings(PydanticBaseSettingsSource):
@@ -74,14 +76,18 @@ class Settings(BaseSettings):
     contact: str = Field(min_length=3)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "text"] = "json"
-    # The Client ID of the MyAnimeList API; without it, MyAnimeList is not asked.
+    # The key the secrets of the database are sealed with (ADR 0012): 32 random bytes or more,
+    # written as text (`openssl rand -base64 32`). The API does not start without it.
+    secret_key: SecretStr | None = Field(default=None, min_length=32, repr=False)
+    # The four settings below are imported once into the database, at the first start where
+    # they are set; then the settings page holds them (ADR 0012).
+    # The Client ID of the MyAnimeList API.
     myanimelist_client_id: SecretStr | None = Field(default=None, repr=False)
-    # The address of Prowlarr (http://host:9696) and its API key; without them, no release is
-    # searched.
-    prowlarr_url: str | None = Field(
-        default=None, pattern=r"^https?://[A-Za-z0-9.-]+(:\d+)?(/.*)?$"
-    )
+    # The address of Prowlarr (http://host:9696) and its API key.
+    prowlarr_url: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
     prowlarr_api_key: SecretStr | None = Field(default=None, repr=False)
+    # The address of Jellyfin (http://host:8096): the accounts sign in there.
+    jellyfin_url: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
     # The two settings below are reserved for the test stack (TEST_STACK_SETTINGS).
     # Every request to a metadata source goes to this origin instead, its own origin in the
     # header X-Original-Origin: the fake sources of the test stack answer it.
@@ -89,7 +95,14 @@ class Settings(BaseSettings):
     # Seconds a source that failed is skipped.
     source_rest_seconds: int = Field(default=300, ge=0, le=86400)
 
-    @field_validator("myanimelist_client_id", "prowlarr_url", "prowlarr_api_key", mode="before")
+    @field_validator(
+        "secret_key",
+        "myanimelist_client_id",
+        "prowlarr_url",
+        "prowlarr_api_key",
+        "jellyfin_url",
+        mode="before",
+    )
     @classmethod
     def empty_is_none(cls, value: object) -> object:
         """Compose gives an unset variable as an empty string."""

@@ -15,6 +15,7 @@ from tests.unit.releases.support import (
     new_board,
     new_prowlarr,
 )
+from tests.unit.settings.support import FakeSettingsReader
 from tests.unit.works.support import FixedClock
 
 ENGLISH = FilterRule(name="Anglais", pattern="ENGLISH, 1r0n", regex=False, score=-50)
@@ -27,12 +28,16 @@ def anyio_backend() -> str:
 
 def new_service(
     repository: FakeReleaseRepository | None = None,
+    settings: FakeSettingsReader | None = None,
 ) -> tuple[ReleaseService, FakeReleaseRepository, ProwlarrReplay]:
     repository = repository or FakeReleaseRepository()
     client, replay = new_prowlarr()
     clock = FixedClock()
     board = new_board(client, repository, clock=clock)
-    return ReleaseService(repository, board, client, board.options, clock), repository, replay
+    service = ReleaseService(
+        repository, board, client, board.options, clock, settings or FakeSettingsReader()
+    )
+    return service, repository, replay
 
 
 async def search(
@@ -129,6 +134,16 @@ async def test_the_names_are_checked() -> None:
         )
     with pytest.raises(QueryTooShortError):
         await service.start(mode="manual", kind="manga", title="x", names=["!"], refresh=False)
+
+
+@pytest.mark.anyio
+async def test_the_number_of_names_comes_from_the_settings() -> None:
+    service, _, _ = new_service(settings=FakeSettingsReader({"search.max_names": 2}))
+
+    with pytest.raises(TooManyNamesError):
+        await service.start(
+            mode="work", kind="manga", title="x", names=["Aa a", "Bb b", "Cc c"], refresh=False
+        )
 
 
 @pytest.mark.anyio

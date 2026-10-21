@@ -1,4 +1,9 @@
 {
+ "status": {
+  "appName": "Prowlarr",
+  "instanceName": "Prowlarr",
+  "version": "2.1.5.5216"
+ },
  "indexers": [
   {
    "id": 4,
