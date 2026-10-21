@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F18.
+Next fact ID: F21.
 
 ## Metadata sources
 
@@ -64,6 +64,21 @@ Next fact ID: F18.
   - Evidence: the OpenAPI document of Prowlarr (`src/Prowlarr.Api.V1/openapi.json`, branch develop, read on 2026-10-21). No answer of a real Prowlarr; `prowlarr.json` holds one in this shape.
   - Pinned by: `tests/unit/releases/clients/test_prowlarr.py::test_the_status_gives_the_version`
   - Re-verify: when Prowlarr changes its major version.
+
+### Jellyfin (REST API, OpenAPI 12.2.0)
+
+- **F18** `POST /Users/AuthenticateByName` takes `{"Username", "Pw"}` and gives `AuthenticationResult`: `User` (`UserDto`: `Id`, `Name`, `Policy` with `IsAdministrator` and `IsDisabled`), `AccessToken`, `ServerId`. It needs no key; the header `Authorization: MediaBrowser Client="...", Device="...", DeviceId="...", Version="..."` names the device, and `Token="..."` added to it authenticates the next requests.
+  - Evidence: the OpenAPI document of Jellyfin (`api.jellyfin.org/openapi/jellyfin-openapi-stable.json`, version 12.2.0, read on 2026-10-21: `AuthenticateUserByName`, `AuthenticationResult`, `UserDto`, `UserPolicy`, the security scheme `CustomAuthentication` on the header `Authorization`). No answer of a real Jellyfin: the one of the user is not to be called by the tests; `tests.unit.clients.support.FakeJellyfin` and `tests.integration.support.jellyfin_stubs` answer in this shape.
+  - Pinned by: `tests/unit/clients/test_jellyfin.py::test_a_sign_in_sends_the_credentials_in_the_body_alone`
+  - Re-verify: before the first sign-in against the Jellyfin of the user, then when Jellyfin changes its major version.
+- **F19** `GET /Users/Me` gives the `UserDto` of the access token of the request (`401` once the token is gone); `POST /Sessions/Logout` ends the session of the token (`204`). The status of a wrong password at `AuthenticateByName` is not in the document (only `200` and `503`): shelfdrop takes `401` and `403` as a refusal, anything else as Jellyfin unavailable.
+  - Evidence: the same OpenAPI document (`GetCurrentUser`, `ReportSessionEnded`).
+  - Pinned by: `tests/unit/clients/test_jellyfin.py::test_the_session_is_read_and_ended_with_its_token`, `tests/unit/auth/test_service.py::test_a_session_jellyfin_revoked_ends`
+  - Re-verify: before the first sign-in against the Jellyfin of the user (the status of a wrong password above all).
+- **F20** `GET /System/Info` (with a key) gives `Version`; `GET /Library/VirtualFolders` (an administrator or a key) gives the libraries, `Name`, `Locations`, `CollectionType` (`books` for books, comics and audiobooks alike).
+  - Evidence: the same OpenAPI document (`GetSystemInfo`, `GetVirtualFolders`, `VirtualFolderInfo`, `CollectionTypeOptions`).
+  - Pinned by: `tests/unit/clients/test_jellyfin.py::test_the_server_and_its_libraries_are_read_with_the_api_key`
+  - Re-verify: when Jellyfin changes its major version.
 
 ## Pinned components
 

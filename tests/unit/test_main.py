@@ -1,12 +1,15 @@
 """The HTTP application: the liveness probe, the error bodies, the headers and the pages."""
 
 from pathlib import Path
+from typing import Final
 
 import httpx
 import pytest
 from pydantic import SecretStr
 
+from shelfdrop.auth.types import Account
 from shelfdrop.config import Settings
+from shelfdrop.http.dependencies import require_session
 from shelfdrop.main import build_app
 
 
@@ -27,8 +30,16 @@ def settings_for(tmp_path: Path, *, pages: bool = True) -> Settings:
     )
 
 
-def client_for(settings: Settings) -> httpx.AsyncClient:
-    transport = httpx.ASGITransport(app=build_app(settings))
+ACCOUNT: Final = Account(user_id="u1", username="sylvain")
+
+
+def client_for(settings: Settings, *, signed_in: bool = True) -> httpx.AsyncClient:
+    """A client of the application; `signed_in`: the session is taken as granted, the sign-in
+    has its own tests (tests/unit/auth, tests/integration/test_sign_in.py)."""
+    app = build_app(settings)
+    if signed_in:
+        app.dependency_overrides[require_session] = lambda: ACCOUNT
+    transport = httpx.ASGITransport(app=app)
     return httpx.AsyncClient(transport=transport, base_url="http://test")
 
 
@@ -102,3 +113,70 @@ async def test_without_a_build_no_page_is_served(tmp_path: Path) -> None:
 
     assert response.status_code == 404
     assert response.json()["code"] == "not_found"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", "/api/v1/works?q=Berserk"),
+        ("GET", "/api/v1/searches/x"),
+        ("GET", "/api/v1/searches/x/events"),
+        ("GET", "/api/v1/trackers"),
+        ("PUT", "/api/v1/filters"),
+        ("GET", "/api/v1/session"),
+        ("DELETE", "/api/v1/session"),
+    ],
+)
+async def test_without_a_session_the_api_answers_401(
+    tmp_path: Path, method: str, path: str
+) -> None:
+    async with client_for(settings_for(tmp_path), signed_in=False) as client:
+        response = await client.request(method, path, headers={"Origin": "http://test"})
+
+    assert response.status_code == 401
+    assert response.json() == {"code": "not_signed_in", "detail": "Not signed in", "data": None}
+
+
+@pytest.mark.anyio
+async def test_the_probe_and_the_pages_need_no_session(tmp_path: Path) -> None:
+    async with client_for(settings_for(tmp_path), signed_in=False) as client:
+        health = await client.get("/health")
+        page = await client.get("/reglages")
+
+    assert health.status_code == 200
+    assert page.status_code == 200
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "origin", [None, "null", "http://evil.example", "https://test.evil", "ftp://test"]
+)
+async def test_a_write_from_another_origin_is_refused(tmp_path: Path, origin: str | None) -> None:
+    headers = {} if origin is None else {"Origin": origin}
+    async with client_for(settings_for(tmp_path)) as client:
+        response = await client.post(
+            "/api/v1/session", json={"username": "a", "password": "b"}, headers=headers
+        )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "origin_refused"
+    assert response.headers["cache-control"] == "no-store"
+    assert "x-request-id" in response.headers
+
+
+@pytest.mark.anyio
+async def test_a_read_needs_no_origin_and_a_sign_in_never_echoes_its_input(
+    tmp_path: Path,
+) -> None:
+    async with client_for(settings_for(tmp_path)) as client:
+        read = await client.get("/api/v1/session")
+        refused = await client.post(
+            "/api/v1/session",
+            json={"username": "secret-name", "password": ""},
+            headers={"Origin": "http://test"},
+        )
+
+    assert read.json() == {"username": "sylvain"}
+    assert refused.status_code == 422
+    assert "secret-name" not in refused.text

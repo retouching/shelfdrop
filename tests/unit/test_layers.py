@@ -16,6 +16,8 @@ WIREUP_IMPORTERS: Final = frozenset(
 )
 # The packages of the domain: no framework, no HTTP layer.
 DOMAIN: Final = (
+    "shelfdrop/auth/",
+    "shelfdrop/clients/",
     "shelfdrop/works/",
     "shelfdrop/releases/",
     "shelfdrop/settings/",
@@ -141,6 +143,19 @@ def test_the_works_and_the_releases_never_import_the_settings() -> None:
         offenders(
             lambda path: path.startswith(("shelfdrop/works/", "shelfdrop/releases/")),
             lambda module: module.startswith("shelfdrop.settings"),
+        )
+        == []
+    )
+
+
+def test_only_the_sign_in_and_the_composition_import_the_service_clients() -> None:
+    assert (
+        offenders(
+            lambda path: (
+                path != "shelfdrop/container.py"
+                and not path.startswith(("shelfdrop/auth/", "shelfdrop/clients/"))
+            ),
+            lambda module: module.startswith("shelfdrop.clients"),
         )
         == []
     )

@@ -85,6 +85,9 @@ markers = [
     "releases_trackers: block of releases, the trackers read from Prowlarr (test_release_trackers.py)",
     "releases_filters: block of releases, the filters and the score (test_release_filters.py)",
     "works_names_language: block of works, the languages of the names, the checked ones (test_work_names.py)",
+    "auth: integration part, the sign-in and the sessions through the fake Jellyfin",
+    "auth_session: block of auth, the routes without a session, the origin, the sign-out (test_session.py)",
+    "auth_sign_in: block of auth, the sign-in, the refusals, the attempts counted (test_sign_in.py)",
 ]
 
 [dependency-groups]

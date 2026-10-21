@@ -4,7 +4,7 @@ restart. Last of the part `security`: it restarts the API."""
 import httpx
 import pytest
 
-from tests.integration.support import Stack, compose
+from tests.integration.support import Stack, compose, signed_in_headers
 
 pytestmark = [pytest.mark.security, pytest.mark.security_migrations]
 
@@ -22,7 +22,9 @@ def test_an_upgrade_at_head_changes_nothing(stack: Stack) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_a_work_found_survives_a_restart(stack: Stack, client: httpx.Client) -> None:
+def test_a_work_found_and_the_session_survive_a_restart(
+    stack: Stack, client: httpx.Client, session_token: str
+) -> None:
     found = client.get("/api/v1/works", params={"q": "Berserk", "kind": "manga"})
     work_id = found.json()["works"][0]["id"]
 
@@ -33,7 +35,8 @@ def test_a_work_found_survives_a_restart(stack: Stack, client: httpx.Client) -> 
 
     assert restart.returncode == 0, restart.stderr
     assert wait.returncode == 0, wait.stderr
-    with httpx.Client(base_url=stack.base_url, timeout=30.0) as again:
+    headers = signed_in_headers(stack.base_url, session_token)
+    with httpx.Client(base_url=stack.base_url, timeout=30.0, headers=headers) as again:
         read = again.get(f"/api/v1/works/{work_id}")
     assert read.status_code == 200
     assert read.json()["id"] == work_id

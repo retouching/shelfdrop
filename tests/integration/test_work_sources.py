@@ -63,7 +63,7 @@ def test_a_second_search_reads_the_answers_kept(
 
 
 def test_two_identical_searches_at_once_share_one_run(
-    stack: Stack, fake_sources: FakeSources
+    stack: Stack, fake_sources: FakeSources, signed_in: dict[str, str]
 ) -> None:
     """A text of this test alone, whose MangaUpdates answer takes a second: the second request
     comes while the first one runs, and waits for its answer."""
@@ -72,7 +72,10 @@ def test_two_identical_searches_at_once_share_one_run(
 
     def search(_: int) -> httpx.Response:
         return httpx.get(
-            f"{stack.base_url}/api/v1/works", params={"q": text, "kind": "manga"}, timeout=30.0
+            f"{stack.base_url}/api/v1/works",
+            params={"q": text, "kind": "manga"},
+            headers=signed_in,
+            timeout=30.0,
         )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:

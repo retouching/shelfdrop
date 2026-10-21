@@ -24,9 +24,12 @@ def release(guid: str, title: str) -> dict[str, Any]:
     }
 
 
-def search(stack: Stack, names: list[str], *, refresh: bool = False) -> dict[str, Any]:
+def search(
+    stack: Stack, headers: dict[str, str], names: list[str], *, refresh: bool = False
+) -> dict[str, Any]:
     response = httpx.post(
         f"{stack.base_url}/api/v1/searches",
+        headers=headers,
         json={
             "mode": "work",
             "kind": "manga",
@@ -42,7 +45,7 @@ def search(stack: Stack, names: list[str], *, refresh: bool = False) -> dict[str
 
 
 def test_two_identical_searches_at_once_follow_one_search(
-    stack: Stack, client: httpx.Client, fake_sources: FakeSources
+    stack: Stack, client: httpx.Client, fake_sources: FakeSources, signed_in: dict[str, str]
 ) -> None:
     name = "shared release 7d2e"
     fake_sources.load(
@@ -50,7 +53,7 @@ def test_two_identical_searches_at_once_follow_one_search(
     )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        first, second = pool.map(lambda _: search(stack, [name]), range(2))
+        first, second = pool.map(lambda _: search(stack, signed_in, [name]), range(2))
     events(client, first["id"])
 
     assert first["id"] == second["id"]
@@ -80,15 +83,15 @@ def test_an_answer_is_kept_and_asked_again_on_refresh(
 
 
 def test_two_prowlarr_searches_at_most_and_the_next_waits(
-    stack: Stack, client: httpx.Client, fake_sources: FakeSources
+    stack: Stack, client: httpx.Client, fake_sources: FakeSources, signed_in: dict[str, str]
 ) -> None:
     names = ["queued one 3b7c", "queued two 3b7c", "queued three 3b7c"]
     fake_sources.load(
         [prowlarr_search_stub(n, [7030], [release(n, f"{n} T01")], delay_ms=1500) for n in names]
     )
 
-    busy = search(stack, names[:2])
-    waiting = search(stack, names[2:])
+    busy = search(stack, signed_in, names[:2])
+    waiting = search(stack, signed_in, names[2:])
 
     assert waiting["state"] == "queued"
     assert waiting["queued_ahead"] == 1
@@ -102,7 +105,7 @@ def test_two_prowlarr_searches_at_most_and_the_next_waits(
 
 
 def test_the_events_give_the_progress_name_by_name(
-    client: httpx.Client, fake_sources: FakeSources, stack: Stack
+    client: httpx.Client, fake_sources: FakeSources, stack: Stack, signed_in: dict[str, str]
 ) -> None:
     names = ["progress a 66de", "progress b 66de"]
     fake_sources.load(
@@ -114,7 +117,7 @@ def test_the_events_give_the_progress_name_by_name(
         ]
     )
 
-    started = search(stack, names)
+    started = search(stack, signed_in, names)
     seen = [data for name, data in events(client, started["id"]) if name == "progress"]
 
     last = seen[-1]

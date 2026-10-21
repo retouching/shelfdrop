@@ -16,13 +16,14 @@ from wireup.integration.fastapi import get_app_container, setup
 
 from shelfdrop.config import Settings
 from shelfdrop.container import environment_values, injectables
-from shelfdrop.http.dependencies import release_session
+from shelfdrop.http.dependencies import release_session, require_session
 from shelfdrop.http.errors.handlers import (
     handle_http_exception,
     handle_request_validation_error,
     handle_unhandled_exception,
 )
 from shelfdrop.http.middleware.access_log import AccessLogMiddleware
+from shelfdrop.http.middleware.origin import OriginMiddleware
 from shelfdrop.http.middleware.request_id import RequestIdMiddleware
 from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
 from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
@@ -30,6 +31,7 @@ from shelfdrop.logging.setup import configure_logging
 from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
 from shelfdrop.modules.searches.router import router as searches_router
+from shelfdrop.modules.session.router import router as session_router
 from shelfdrop.modules.trackers.router import router as trackers_router
 from shelfdrop.modules.web.router import web_router
 from shelfdrop.modules.works.router import router as works_router
@@ -82,15 +84,17 @@ def build_app(settings: Settings) -> FastAPI:
         },
     )
     # The last middleware added is the outermost one.
+    app.add_middleware(OriginMiddleware, api_paths=(f"{prefix}/",))
     app.add_middleware(UnhandledErrorsMiddleware)
     app.add_middleware(SecurityHeadersMiddleware, api_paths=(f"{prefix}/", "/health"))
     app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health"}))
     app.add_middleware(RequestIdMiddleware)
     app.include_router(health_router)
-    app.include_router(works_router, prefix=prefix)
-    app.include_router(searches_router, prefix=prefix)
-    app.include_router(trackers_router, prefix=prefix)
-    app.include_router(filters_router, prefix=prefix)
+    # The session asks for itself; every other route of the API needs one (plan section 5).
+    app.include_router(session_router, prefix=prefix)
+    signed_in = [Depends(require_session)]
+    for router in (works_router, searches_router, trackers_router, filters_router):
+        app.include_router(router, prefix=prefix, dependencies=signed_in)
     # The front-end, last: its route answers every path the others leave.
     if (settings.static_dir / "index.html").is_file():
         for folder in ("assets", "fonts"):

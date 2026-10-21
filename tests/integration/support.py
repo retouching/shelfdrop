@@ -19,6 +19,11 @@ PROWLARR_FIXTURE: Final = (
     PROJECT_ROOT / "tests" / "unit" / "releases" / "fixtures" / "prowlarr.json"
 )
 PROWLARR_KEY: Final = "test-prowlarr-key"
+# The accounts of the fake Jellyfin: an administrator, and an account that is not one.
+ADMIN: Final = ("admin", "admin-password-0d1f")
+READER: Final = ("reader", "reader-password-5e2a")
+JELLYFIN_ADMIN_TOKEN: Final = "jellyfin-admin-token"
+SESSION_COOKIE: Final = "__Host-shelfdrop"
 UP_TIMEOUT_SECONDS: Final = 900
 COMMAND_TIMEOUT_SECONDS: Final = 120
 LOG_READ_ATTEMPTS: Final = 20
@@ -212,6 +217,91 @@ def prowlarr_stubs() -> list[dict[str, Any]]:
         for search in data["searches"]
     ]
     return stubs
+
+
+def jellyfin_user(user_id: str, name: str, *, admin: bool) -> dict[str, Any]:
+    """A `UserDto` of Jellyfin (its OpenAPI document)."""
+    return {
+        "Name": name,
+        "Id": user_id,
+        "HasPassword": True,
+        "Policy": {"IsAdministrator": admin, "IsDisabled": False},
+    }
+
+
+def json_response(body: object, status: int = 200) -> dict[str, Any]:
+    return {"status": status, "headers": {"Content-Type": "application/json"}, "jsonBody": body}
+
+
+def jellyfin_stubs() -> list[dict[str, Any]]:
+    """Jellyfin as the fake sources play it: the sign-in of the two accounts (any other is
+    refused), the account of the access token of the administrator, the sign-out."""
+    accounts = [
+        (ADMIN, jellyfin_user("a1f0c3", "admin", admin=True), JELLYFIN_ADMIN_TOKEN),
+        (READER, jellyfin_user("b2e1d4", "reader", admin=False), "jellyfin-reader-token"),
+    ]
+    stubs: list[dict[str, Any]] = [
+        {
+            "priority": 1,
+            "request": {
+                "method": "POST",
+                "urlPath": "/Users/AuthenticateByName",
+                "bodyPatterns": [{"equalToJson": {"Username": name, "Pw": password}}],
+            },
+            "response": json_response({"User": user, "AccessToken": token, "ServerId": "f0"}),
+        }
+        for (name, password), user, token in accounts
+    ]
+    stubs += [
+        {
+            "priority": 10,
+            "request": {"method": "POST", "urlPath": "/Users/AuthenticateByName"},
+            "response": {"status": 401},
+        },
+        {
+            "priority": 1,
+            "request": {
+                "method": "GET",
+                "urlPath": "/Users/Me",
+                "headers": {"Authorization": {"contains": f'Token="{JELLYFIN_ADMIN_TOKEN}"'}},
+            },
+            "response": json_response(accounts[0][1]),
+        },
+        {
+            "priority": 10,
+            "request": {"method": "GET", "urlPath": "/Users/Me"},
+            "response": {"status": 401},
+        },
+        {
+            "request": {"method": "POST", "urlPath": "/Sessions/Logout"},
+            "response": {"status": 204},
+        },
+    ]
+    return stubs
+
+
+def sign_in(base_url: str, account: tuple[str, str] = ADMIN) -> httpx.Response:
+    """`POST /api/v1/session` from the pages of the API (its own Origin)."""
+    username, password = account
+    return httpx.post(
+        f"{base_url}/api/v1/session",
+        json={"username": username, "password": password},
+        headers={"Origin": base_url},
+        timeout=30.0,
+    )
+
+
+def cookie_of(response: httpx.Response) -> str:
+    """The token of the session cookie a sign-in set. httpx sends no Secure cookie over plain
+    HTTP: the tests send it themselves (`signed_in_headers`)."""
+    token = response.cookies.get(SESSION_COOKIE)
+    assert token, "no session cookie"
+    return token
+
+
+def signed_in_headers(base_url: str, token: str) -> dict[str, str]:
+    """The headers of a request of the pages, signed in: the session cookie and the Origin."""
+    return {"Cookie": f"{SESSION_COOKIE}={token}", "Origin": base_url}
 
 
 @dataclass(frozen=True)

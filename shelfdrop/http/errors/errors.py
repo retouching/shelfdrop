@@ -13,6 +13,24 @@ from shelfdrop.http.errors.exceptions import ApiError
 from shelfdrop.http.errors.types import ErrorCode, FieldError
 
 
+def unauthorized(code: ErrorCode, detail: str) -> ApiError:
+    """401: no session, or credentials refused."""
+    return ApiError(status.HTTP_401_UNAUTHORIZED, code=code, detail=detail)
+
+
+def forbidden(code: ErrorCode, detail: str) -> ApiError:
+    return ApiError(status.HTTP_403_FORBIDDEN, code=code, detail=detail)
+
+
+def too_many_requests(code: ErrorCode, detail: str) -> ApiError:
+    return ApiError(status.HTTP_429_TOO_MANY_REQUESTS, code=code, detail=detail)
+
+
+def not_signed_in() -> ApiError:
+    """Every route but the sign-in, /health and the pages, without a session."""
+    return unauthorized(ErrorCode.NOT_SIGNED_IN, "Not signed in")
+
+
 def not_found(code: ErrorCode, detail: str) -> ApiError:
     return ApiError(status.HTTP_404_NOT_FOUND, code=code, detail=detail)
 

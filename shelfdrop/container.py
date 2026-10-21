@@ -11,6 +11,10 @@ import httpx
 import wireup
 from sqlalchemy import Engine
 
+from shelfdrop.auth.repository import SessionRepository
+from shelfdrop.auth.service import AuthService, JellyfinAddress
+from shelfdrop.auth.throttle import LoginThrottle
+from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.config import Settings
 from shelfdrop.db.engine import open_engine, open_session
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
@@ -39,6 +43,8 @@ from shelfdrop.works.types import Clock, SearchOptions
 # Each request to a source gives up after this; the search gives up on the source after
 # SearchOptions.source_timeout_seconds.
 REQUEST_TIMEOUT_SECONDS: Final = 4.0
+# Each request to Jellyfin, qBittorrent gives up after this.
+SERVICE_TIMEOUT_SECONDS: Final = 10.0
 
 
 def user_agent(settings: Settings) -> str:
@@ -71,6 +77,20 @@ def new_secret_box(settings: Settings) -> SecretBox:
 def new_settings_reader(engine: Engine, box: SecretBox) -> SettingsReader:
     """The settings read at each call of a service (a singleton), on sessions of its own."""
     return SettingsReader(settings_repository_factory(engine), box)
+
+
+async def open_jellyfin(settings: Settings) -> AsyncIterator[JellyfinClient]:
+    """The client of Jellyfin (a singleton), on its own HTTP client: its address comes from the
+    settings at each call, never through the fake origin of the metadata sources."""
+    async with httpx.AsyncClient(
+        headers={"User-Agent": user_agent(settings)},
+        timeout=httpx.Timeout(SERVICE_TIMEOUT_SECONDS),
+    ) as http:
+        yield JellyfinClient(http, version("shelfdrop"))
+
+
+def as_jellyfin_address(reader: SettingsReader) -> JellyfinAddress:
+    return reader
 
 
 def as_work_settings(reader: SettingsReader) -> WorkSettings:
@@ -148,10 +168,13 @@ def injectables(settings: Settings) -> list[object]:
         wireup.instance(ReleaseOptions(), as_type=ReleaseOptions),
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
+        wireup.instance(LoginThrottle(), as_type=LoginThrottle),
         wireup.injectable(open_http),
         wireup.injectable(new_secret_box),
         wireup.injectable(new_settings_reader),
         wireup.injectable(as_work_settings),
+        wireup.injectable(as_jellyfin_address),
+        wireup.injectable(open_jellyfin),
         wireup.injectable(as_name_limit),
         wireup.injectable(new_work_sources),
         wireup.injectable(open_prowlarr),
@@ -164,4 +187,6 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(ReleaseService, lifetime="scoped"),
         wireup.injectable(SettingsRepository, lifetime="scoped"),
         wireup.injectable(SettingsService, lifetime="scoped"),
+        wireup.injectable(SessionRepository, lifetime="scoped"),
+        wireup.injectable(AuthService, lifetime="scoped"),
     ]

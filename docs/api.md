@@ -2,6 +2,15 @@
 
 Every route but `/health` and the pages is served under the prefix `/api` (`SHELFDROP_API_PREFIX`). The API serves neither its schema nor a documentation page: this page describes it.
 
+## Session
+Every route of the API but `POST /api/v1/session` needs the session cookie `__Host-shelfdrop`, otherwise `401 not_signed_in` ([ADR 0013](adr/0013-sign-in-and-sessions.md)). A write (`POST`, `PUT`, `PATCH`, `DELETE`) needs an `Origin` header naming the host of the request, otherwise `403 origin_refused`, before any other check.
+
+### POST /api/v1/session
+`{"username": "...", "password": "..."}`: an account of Jellyfin, an administrator. `200 {"username": "Sylvain"}`, the name Jellyfin gives, and the cookie `__Host-shelfdrop` (`Secure; HttpOnly; SameSite=Strict; Path=/`, 30 days). Errors: `401 login_refused` (wrong credentials, or an account that is not an administrator or is disabled: the same answer), `429 too_many_attempts` (5 a minute from one address, 30 an hour in all), `503 jellyfin_unavailable` (Jellyfin does not answer, or `jellyfin.url` is not set), `422 validation_failed`.
+
+### GET /api/v1/session, DELETE /api/v1/session
+`GET`: `200 {"username": "Sylvain"}`, the account of the session. `DELETE`: `204`, the session ends here and in Jellyfin, and the cookie is cleared.
+
 ## Responses
 Every response carries `X-Request-ID`: the value the request sent, when it is 1 to 128 characters among `A-Z a-z 0-9 . _ -`, otherwise a new one. The same id is in every log record of the request.
 

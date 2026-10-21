@@ -18,6 +18,8 @@ services:
       # settings at start.
       SHELFDROP_PROWLARR_URL: http://fake-sources:8080
       SHELFDROP_PROWLARR_API_KEY: test-prowlarr-key
+      # Jellyfin too: the accounts of tests.integration.support.jellyfin_stubs sign in there.
+      SHELFDROP_JELLYFIN_URL: http://fake-sources:8080
     ports: !override
       - "127.0.0.1::8000"
     networks:
@@ -27,7 +29,7 @@ services:
       fake-sources:
         condition: service_healthy
 
-  # The fake metadata sources and Prowlarr: WireMock by digest, as its image ships it, in clear HTTP on 8080,
+  # The fake metadata sources, Prowlarr and Jellyfin: WireMock by digest, as its image ships it, in clear HTTP on 8080,
   # with no privilege, no capability and no volume. The tests load the recorded exchanges of
   # tests/unit/works/fixtures through its administration, which it publishes on the loopback.
   fake-sources:

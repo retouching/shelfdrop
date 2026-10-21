@@ -8,6 +8,15 @@ from enum import StrEnum
 class ErrorCode(StrEnum):
     """Stable values clients may branch on: adding one is additive, changing one is breaking."""
 
+    # 401: no session, an expired one, or one Jellyfin no longer confirms (every route but the
+    # sign-in, /health and the pages); data = null.
+    NOT_SIGNED_IN = "not_signed_in"
+    # 401: the sign-in is refused: wrong credentials, or an account that is not an
+    # administrator of Jellyfin, or disabled; it never says which; data = null.
+    LOGIN_REFUSED = "login_refused"
+    # 403: a write (POST, PUT, PATCH, DELETE) whose Origin header is missing or names another
+    # host than the request; data = null.
+    ORIGIN_REFUSED = "origin_refused"
     # 404: no route for the path.
     NOT_FOUND = "not_found"
     # 404: no work with this id in the cache: unknown, or its search is older than 7 days;
@@ -30,6 +39,12 @@ class ErrorCode(StrEnum):
     # 422: a filter rule whose words or regular expression are empty or invalid;
     # data = {"positions": [index of each such rule in the list sent]}.
     INVALID_FILTER_RULE = "invalid_filter_rule"
+    # 429: too many sign-in attempts: 5 a minute from one address, 30 an hour in all;
+    # data = null.
+    TOO_MANY_ATTEMPTS = "too_many_attempts"
+    # 503: Jellyfin does not answer, or its address is not set: nobody can sign in;
+    # data = null.
+    JELLYFIN_UNAVAILABLE = "jellyfin_unavailable"
     # 503: Prowlarr does not answer, answers an error, or its address or key is not set;
     # data = null.
     PROWLARR_UNAVAILABLE = "prowlarr_unavailable"

@@ -7,7 +7,16 @@ A request goes through, from the outside in:
 3. `AccessLogMiddleware`: one record per request, method, path, status and duration, never the query string nor a header;
 4. `SecurityHeadersMiddleware`: the headers of [the API](api.md#responses);
 5. `UnhandledErrorsMiddleware`: an unexpected exception becomes a logged `500 internal_error`;
-6. the route. After the response, `release_session` closes the session in the threadpool.
+6. `OriginMiddleware`: a write of the API without the `Origin` of its host gets `403 origin_refused`;
+7. the route, after `require_session` (every route of the API but the sign-in: [the session](#sign-in-and-sessions)). After the response, `release_session` closes the session in the threadpool.
+
+## Sign-in and sessions
+`POST /api/v1/session` runs `shelfdrop.auth.service.AuthService.sign_in` ([ADR 0013](adr/0013-sign-in-and-sessions.md)):
+
+1. **The attempts.** 5 a minute from one address, 30 an hour in all (`LoginThrottle`, in memory); past them, Jellyfin is not asked.
+2. **Jellyfin.** The name and the password go to `POST /Users/AuthenticateByName`, at the address of the setting `jellyfin.url`, and nowhere else: never kept, never logged. Wrong credentials, an account that is not an administrator or is disabled: the same refusal, and the session Jellyfin opened is closed.
+3. **The session.** A random token of 256 bits goes to the cookie; the database keeps its SHA-256, the account, and the access token of Jellyfin, sealed. 30 days.
+4. **Each request.** The fingerprint of the cookie finds the session; when Jellyfin confirmed it 5 minutes ago or more, `GET /Users/Me` with its access token must give the same account, still an administrator, or the session ends. Jellyfin down: the request is refused, the session kept.
 
 ## Release search
 `POST /api/v1/searches` runs `shelfdrop.releases.service.ReleaseService.start` ([ADR 0011](adr/0011-release-search.md)):
