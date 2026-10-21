@@ -7,20 +7,21 @@ export type Volumes =
   | { readonly kind: "complete" }
   | { readonly kind: "unknown" };
 
-export type MetadataSource = "AniList" | "Open Library" | "Wikidata" | "BnF" | "Hardcover";
-
 export type AltTitle = {
   readonly title: string;
   readonly language: string;
+  /** Cherché dans Prowlarr par défaut. */
+  readonly checked?: boolean;
 };
 
 /** Une œuvre trouvée dans les API de métadonnées, avec tous ses noms connus. */
 export type Work = {
   readonly id: string;
-  readonly source: MetadataSource;
+  /** Les sources qui la connaissent, séparées par des virgules. */
+  readonly source: string;
   readonly title: string;
   readonly author: string;
-  readonly year: number;
+  readonly year: number | null;
   readonly volumeCount: number | null;
   readonly titles: readonly AltTitle[];
   /** Les œuvres réunies à la main (deux ou plus), quand celle-ci en est la fusion. */
@@ -42,6 +43,8 @@ export type Release = {
   /** Score des filtres, et les règles qui l'ont donné. */
   readonly score: number;
   readonly scoreRules: readonly { readonly name: string; readonly score: number }[];
+  /** Écartée : un mot de son nom manque à son titre, ou son score est sous le minimum. */
+  readonly rejected?: "relevance" | "score" | null;
 };
 
 export type DownloadState =

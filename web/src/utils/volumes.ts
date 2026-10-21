@@ -35,11 +35,19 @@ export function compareReleases(a: Release, b: Release): number {
   return b.score - a.score || a.indexerRank - b.indexerRank || b.seeders - a.seeders;
 }
 
-/** Une release par tome, la mieux classée, en laissant de côté les packs. */
-export function bestPerVolume(releases: readonly Release[]): readonly string[] {
+/**
+ * Une release par tome, la mieux classée, sans doublon avec un pack déjà coché : les packs de
+ * `selected` restent, les tomes qu'ils couvrent ne reçoivent rien de plus.
+ */
+export function bestPerVolume(
+  releases: readonly Release[],
+  selected: ReadonlySet<string> = new Set(),
+): readonly string[] {
+  const packs = releases.filter((release) => selected.has(release.id) && release.volumes.kind !== "single");
+  const covered = new Set(packs.flatMap((release) => volumeNumbers(release.volumes)));
   const best = new Map<number, Release>();
   for (const release of releases) {
-    if (release.volumes.kind !== "single") {
+    if (release.volumes.kind !== "single" || covered.has(release.volumes.number)) {
       continue;
     }
     const current = best.get(release.volumes.number);
@@ -47,7 +55,7 @@ export function bestPerVolume(releases: readonly Release[]): readonly string[] {
       best.set(release.volumes.number, release);
     }
   }
-  return [...best.values()].map((release) => release.id);
+  return [...packs, ...best.values()].map((release) => release.id);
 }
 
 /** « T01 à T22 », « T01, T03 et T05 à T07 » : les tomes couverts par une sélection. */

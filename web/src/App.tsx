@@ -19,18 +19,17 @@ import { MergeDialog, unionTitles } from "./components/MergeDialog";
 import { WorkList } from "./components/WorkList";
 import { ReleasesLoading } from "./components/ReleasesLoading";
 import { RefreshBar } from "./components/RefreshBar";
-import { useFilters } from "./mock/filters";
 import { useWaiting } from "./mock/waiting";
 import { WaitingPage } from "./components/WaitingPage";
 import { WaitDialog } from "./components/WaitDialog";
-import { useTrackers } from "./mock/trackers";
-import { scoreTitle } from "./utils/score";
-import { mockDownloads, nextDownloads, mockQueries, mockReleasesForWork, mockResults, mockWorks } from "./mock/data";
+import type { SearchProgress } from "./api/searches";
+import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
+import { mockDownloads, nextDownloads } from "./mock/data";
 import { guessKind, mockFiles } from "./mock/files";
 import { useLatency, wait } from "./mock/latency";
 import { texts } from "./texts";
 import type { Download, Kind, ShelfFile, Work } from "./types";
-import { bestPerVolume, compareForDisplay, coverageLabel, volumeNumbers } from "./utils/volumes";
+import { bestPerVolume, coverageLabel, volumeNumbers } from "./utils/volumes";
 
 /** Les œuvres d'une liste, chaque paire fusionnée remplacée par sa fusion, à la place de la première. */
 function withMerges(list: readonly Work[], merges: readonly Work[]): readonly Work[] {
@@ -54,8 +53,8 @@ function withMerges(list: readonly Work[], merges: readonly Work[]): readonly Wo
   });
 }
 
-/** Maquette : temps simulé de la recherche Prowlarr pour un nom. */
-const NAME_STEP_MS = 450;
+/** Au plus 6 noms partent à Prowlarr pour une œuvre. */
+const MAX_NAMES = 6;
 
 function stats(downloads: readonly Download[]): readonly Stat[] {
   const count = (kinds: readonly string[]): string =>
@@ -71,7 +70,7 @@ export function App(): ReactElement {
   const [username, setUsername] = useState<string | null>(null);
   const [page, setPage] = useState<Page>("auto");
   const [kind, setKind] = useState<Kind>("manga");
-  const [query, setQuery] = useState(mockQueries.manga);
+  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -88,49 +87,50 @@ export function App(): ReactElement {
   const [files, setFiles] = useState<readonly ShelfFile[]>(mockFiles);
 
   const [searchId, setSearchId] = useState(0);
-  const worksLoading = useLatency(`works|${username ?? ""}|${String(searchId)}|${kind}|${query}`, 900);
+  const [refreshRound, setRefreshRound] = useState(0);
   const manual = page === "manual";
+  const worksState = useWorks(query, kind, searchId, username !== null && page === "auto");
+  const worksLoading = worksState.status === "loading";
   const searchedNames = manual
-    ? [query]
+    ? query === ""
+      ? []
+      : [query]
     : work === null
       ? []
       : work.titles.map((t) => t.title).filter((title) => names.has(title));
-  const releasesKey = `releases|${page}|${String(searchId)}|${kind}|${manual ? query : (work?.id ?? "")}|${searchedNames.join("|")}`;
-  const releasesLoading = useLatency(releasesKey, NAME_STEP_MS * (searchedNames.length + 1));
+  const releasesQuery: ReleasesQuery | null =
+    (manual || work !== null) && searchedNames.length > 0 && (page === "auto" || page === "manual")
+      ? {
+          mode: manual ? "manual" : "work",
+          kind,
+          title: manual ? query : (work?.title ?? query),
+          names: searchedNames,
+          author: manual ? "" : (work?.author ?? ""),
+          series: manual ? "" : (work?.title ?? ""),
+        }
+      : null;
+  const releasesState = useReleases(releasesQuery, refreshRound);
+  const releasesLoading = releasesState.status === "running";
   const downloadsLoading = useLatency(`downloads|${page}`, 700);
 
-  const works = withMerges(mockWorks[kind], merges);
-  const filters = useFilters();
-  const trackers = useTrackers();
+  const works = withMerges(worksState.status === "done" ? worksState.works : [], merges);
   const [showRejected, setShowRejected] = useState(false);
   const waitingList = useWaiting();
   const [waitOpen, setWaitOpen] = useState(false);
   const [waitAdding, setWaitAdding] = useState(false);
-  const found = useMemo(() => {
-    const raw = manual
-      ? mockResults[kind]
-      : work === null
-        ? []
-        : mockReleasesForWork(kind, work.id).filter(
-            (release) => names.has(release.matchedName) || !work.titles.some((t) => t.title === release.matchedName),
-          );
-    // Trackers choisis et ordonnés dans Paramètres, puis score des filtres.
-    const used = trackers.filter((tracker) => tracker.used && tracker.prowlarrEnabled).map((tracker) => tracker.name);
-    return raw
-      .filter((release) => used.includes(release.indexer))
-      .map((release) => {
-        const score = scoreTitle(release.title, kind, filters.rules);
-        return {
-          ...release,
-          indexerRank: used.indexOf(release.indexer),
-          score: score.total,
-          scoreRules: score.matches.map((match) => ({ name: match.rule.name, score: match.score })),
-        };
-      })
-      .sort(compareForDisplay);
-  }, [manual, kind, work, names, trackers, filters]);
-  const rejected = found.filter((release) => release.score < filters.minimum);
-  const releases = showRejected ? found : found.filter((release) => release.score >= filters.minimum);
+  // Releases dans l'ordre du serveur ; celles écartées pour un mot manquant ne sont pas montrées.
+  const found = useMemo(
+    () =>
+      releasesState.status === "done"
+        ? releasesState.result.releases.filter((release) => release.rejected !== "relevance")
+        : [],
+    [releasesState],
+  );
+  const minimum = releasesState.status === "done" ? releasesState.result.minimum : 0;
+  const cachedMinutes = releasesState.status === "done" ? releasesState.ageMinutes : null;
+  const progress = releasesState.status === "running" ? releasesState.progress : null;
+  const rejected = found.filter((release) => release.rejected === "score");
+  const releases = showRejected ? found : found.filter((release) => release.rejected !== "score");
   const selectedReleases = releases.filter((release) => selected.has(release.id));
   const running = downloads.filter((download) =>
     ["downloading", "waiting", "placing"].includes(download.state.kind),
@@ -185,7 +185,8 @@ export function App(): ReactElement {
 
   function search(nextQuery: string, nextKind: Kind): void {
     setKind(nextKind);
-    setQuery(nextQuery === "" || nextKind !== kind ? mockQueries[nextKind] : nextQuery);
+    setQuery(nextQuery);
+    setRefreshRound(0);
     setSelected(new Set());
     setNotice(null);
     setSearchId((id) => id + 1);
@@ -200,7 +201,10 @@ export function App(): ReactElement {
       source: first.source,
       title: shelfName,
       author: first.author,
-      year: Math.min(...parts.map((part) => part.year)),
+      year: parts.reduce<number | null>(
+        (min, part) => (part.year === null ? min : Math.min(min ?? part.year, part.year)),
+        null,
+      ),
       volumeCount: parts.find((part) => part.volumeCount !== null)?.volumeCount ?? null,
       // Le nom gardé en tête, comme le titre de la carte.
       titles: [...unionTitles(parts)].sort((x, y) => Number(y.title === shelfName) - Number(x.title === shelfName)),
@@ -218,7 +222,15 @@ export function App(): ReactElement {
 
   function chooseWork(next: Work | null): void {
     setWork(next);
-    setNames(new Set(next?.titles.map((t) => t.title)));
+    setNames(
+      new Set(
+        next?.titles
+          .filter((t) => t.checked !== false)
+          .map((t) => t.title)
+          .slice(0, MAX_NAMES),
+      ),
+    );
+    setRefreshRound(0);
     setSelected(new Set());
   }
 
@@ -226,9 +238,10 @@ export function App(): ReactElement {
     const next = new Set(names);
     if (next.has(title)) {
       next.delete(title);
-    } else {
+    } else if (next.size < MAX_NAMES) {
       next.add(title);
     }
+    setRefreshRound(0);
     setNames(next);
     setSelected(new Set());
   }
@@ -337,24 +350,28 @@ export function App(): ReactElement {
                 </p>
               )}
               {manual ? (
-                releasesLoading ? (
-                  <ReleasesLoading key={releasesKey} workTitle={query} names={searchedNames} stepMs={NAME_STEP_MS} />
-                ) : (
-                  <ResultsCard
+                query === "" ? null : (
+                  <Releases
+                    state={releasesState}
                     workTitle={query}
+                    progressNames={progress}
                     manual
                     releases={releases}
                     rejectedCount={rejected.length}
                     showRejected={showRejected}
                     onShowRejected={setShowRejected}
-                    minimum={filters.minimum}
+                    minimum={minimum}
+                    cachedMinutes={cachedMinutes}
+                    onRefresh={() => {
+                      setRefreshRound((n) => n + 1);
+                    }}
                     selected={selected}
                     onToggle={toggle}
                     onToggleAll={(select) => {
                       setSelected(select ? new Set(releases.map((release) => release.id)) : new Set());
                     }}
                     onBestPerVolume={() => {
-                      setSelected(new Set(bestPerVolume(releases)));
+                      setSelected(new Set(bestPerVolume(releases, selected)));
                     }}
                   />
                 )
@@ -382,35 +399,32 @@ export function App(): ReactElement {
                       {work === null ? null : (
                         <>
                           <NameChips titles={work.titles} enabled={names} onToggle={toggleName} />
-                          {releasesLoading ? (
-                            <ReleasesLoading
-                              key={releasesKey}
-                              workTitle={work.title}
-                              names={searchedNames}
-                              stepMs={NAME_STEP_MS}
-                            />
-                          ) : (
-                            <ResultsCard
-                              workTitle={work.title}
-                              manual={false}
-                              releases={releases}
-                              rejectedCount={rejected.length}
-                              showRejected={showRejected}
-                              onShowRejected={setShowRejected}
-                              minimum={filters.minimum}
-                              onWait={() => {
-                                setWaitOpen(true);
-                              }}
-                              selected={selected}
-                              onToggle={toggle}
-                              onToggleAll={(select) => {
-                                setSelected(select ? new Set(releases.map((release) => release.id)) : new Set());
-                              }}
-                              onBestPerVolume={() => {
-                                setSelected(new Set(bestPerVolume(releases)));
-                              }}
-                            />
-                          )}
+                          <Releases
+                            state={releasesState}
+                            workTitle={work.title}
+                            progressNames={progress}
+                            manual={false}
+                            releases={releases}
+                            rejectedCount={rejected.length}
+                            showRejected={showRejected}
+                            onShowRejected={setShowRejected}
+                            minimum={minimum}
+                            cachedMinutes={cachedMinutes}
+                            onRefresh={() => {
+                              setRefreshRound((n) => n + 1);
+                            }}
+                            onWait={() => {
+                              setWaitOpen(true);
+                            }}
+                            selected={selected}
+                            onToggle={toggle}
+                            onToggleAll={(select) => {
+                              setSelected(select ? new Set(releases.map((release) => release.id)) : new Set());
+                            }}
+                            onBestPerVolume={() => {
+                              setSelected(new Set(bestPerVolume(releases, selected)));
+                            }}
+                          />
                         </>
                       )}
                     </>
@@ -587,4 +601,35 @@ export function App(): ReactElement {
       )}
     </div>
   );
+}
+
+type ReleasesProps = Omit<Parameters<typeof ResultsCard>[0], "workTitle"> & {
+  readonly state: ReturnType<typeof useReleases>;
+  readonly workTitle: string;
+  readonly progressNames: SearchProgress | null;
+};
+
+/** La recherche de releases : avancement nom par nom, Prowlarr injoignable, ou les résultats. */
+function Releases({ state, workTitle, progressNames, ...card }: ReleasesProps): ReactElement | null {
+  if (state.status === "idle") {
+    return null;
+  }
+  if (state.status === "unavailable") {
+    return (
+      <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800">
+        {texts.search.unavailable}
+      </p>
+    );
+  }
+  if (state.status === "running") {
+    return (
+      <ReleasesLoading
+        workTitle={workTitle}
+        names={progressNames?.names ?? []}
+        queuedAhead={progressNames?.queued_ahead ?? 0}
+        shared={(progressNames?.followers ?? 1) > 1}
+      />
+    );
+  }
+  return <ResultsCard workTitle={workTitle} {...card} />;
 }

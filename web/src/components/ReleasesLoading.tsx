@@ -1,30 +1,23 @@
-import { useEffect, useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 
+import type { NameProgress } from "../api/searches";
 import { texts } from "../texts";
 import { CheckIcon } from "./icons";
 import { Spinner } from "./Skeletons";
 
 type Props = {
   readonly workTitle: string;
-  readonly names: readonly string[];
-  /** Maquette : délai simulé par nom. Le vrai serveur enverra l'avancement nom par nom. */
-  readonly stepMs: number;
+  /** Les noms cherchés et leur état, tels que le serveur les envoie. */
+  readonly names: readonly NameProgress[];
+  /** Recherches devant celle-ci dans la file de Prowlarr. */
+  readonly queuedAhead: number;
+  /** Lancée aussi par quelqu'un d'autre : suivie ensemble. */
+  readonly shared: boolean;
 };
 
 /** Chargement des releases : un état par nom cherché dans Prowlarr. */
-export function ReleasesLoading({ workTitle, names, stepMs }: Props): ReactElement {
-  const [done, setDone] = useState(0);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setDone((n) => n + 1);
-    }, stepMs);
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [stepMs]);
-
-  const finished = Math.min(done, names.length);
+export function ReleasesLoading({ workTitle, names, queuedAhead, shared }: Props): ReactElement {
+  const finished = names.filter((name) => name.state === "done" || name.state === "failed").length;
 
   return (
     <section
@@ -38,8 +31,9 @@ export function ReleasesLoading({ workTitle, names, stepMs }: Props): ReactEleme
           {texts.loading.releasesFor(workTitle)}
         </h2>
         <p role="status" className="mt-1 text-sm text-slate-500">
-          {texts.loading.namesProgress(finished, names.length)}
+          {queuedAhead > 0 ? texts.loading.queued(queuedAhead) : texts.loading.namesProgress(finished, names.length)}
         </p>
+        {shared ? <p className="mt-1 text-xs text-slate-500">{texts.loading.shared}</p> : null}
         <div aria-hidden="true" className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
             className="h-full rounded-full bg-accent transition-[width] duration-300"
@@ -47,11 +41,11 @@ export function ReleasesLoading({ workTitle, names, stepMs }: Props): ReactEleme
           />
         </div>
         <ul className="mt-5 w-full space-y-2 text-left text-sm">
-          {names.map((name, index) => {
-            const isDone = index < finished;
-            const isRunning = index === finished;
+          {names.map((name) => {
+            const isDone = name.state === "done" || name.state === "failed";
+            const isRunning = name.state === "running";
             return (
-              <li key={name} className="flex items-center gap-2.5">
+              <li key={name.name} className="flex items-center gap-2.5">
                 {isDone ? (
                   <CheckIcon className="size-4 text-emerald-600" />
                 ) : isRunning ? (
@@ -59,7 +53,7 @@ export function ReleasesLoading({ workTitle, names, stepMs }: Props): ReactEleme
                 ) : (
                   <span aria-hidden="true" className="size-4 rounded-full border border-slate-300" />
                 )}
-                <span className={isDone || isRunning ? "text-ink" : "text-slate-400"}>{name}</span>
+                <span className={isDone || isRunning ? "text-ink" : "text-slate-400"}>{name.name}</span>
               </li>
             );
           })}

@@ -21,6 +21,9 @@ type Props = {
   readonly minimum: number;
   /** Quand rien n'est trouvé : garder la recherche en attente. */
   readonly onWait?: () => void;
+  /** Âge des résultats en minutes (réponses de Prowlarr gardées en cache), et de quoi relancer. */
+  readonly cachedMinutes: number | null;
+  readonly onRefresh: () => void;
 };
 
 export function ResultsCard({
@@ -36,6 +39,8 @@ export function ResultsCard({
   onShowRejected,
   minimum,
   onWait,
+  cachedMinutes,
+  onRefresh,
 }: Props): ReactElement {
   const allSelected = releases.length > 0 && releases.every((release) => selected.has(release.id));
 
@@ -48,6 +53,15 @@ export function ResultsCard({
           </h2>
         </div>
         <div className="flex items-center gap-4">
+          {cachedMinutes === null ? null : (
+            <span className="text-xs text-slate-500">
+              {texts.results.cachedAgo(cachedMinutes)}
+              {" · "}
+              <button type="button" onClick={onRefresh} className="font-medium text-accent-text hover:underline">
+                {texts.results.refresh}
+              </button>
+            </span>
+          )}
           <span className="text-sm text-slate-500">{texts.results.count(releases.length)}</span>
           {onWait === undefined || releases.length === 0 ? null : (
             <button type="button" onClick={onWait} className="text-sm font-medium text-accent-text hover:underline">
@@ -199,16 +213,18 @@ export function ResultsCard({
                   </td>
                   <td className="px-5 py-3">
                     <span className="flex justify-end gap-1">
-                      <a
-                        href={release.infoUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        title={texts.results.trackerPage(release.indexer)}
-                        aria-label={texts.results.trackerPage(release.indexer)}
-                        className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-ink"
-                      >
-                        <ExternalIcon />
-                      </a>
+                      {release.infoUrl === "" ? null : (
+                        <a
+                          href={release.infoUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          title={texts.results.trackerPage(release.indexer)}
+                          aria-label={texts.results.trackerPage(release.indexer)}
+                          className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-ink"
+                        >
+                          <ExternalIcon />
+                        </a>
+                      )}
                       <a
                         href={`/api/releases/${release.id}/torrent`}
                         download
