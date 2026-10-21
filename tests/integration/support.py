@@ -403,13 +403,17 @@ class FakeSources:
         count: int = response.json()["count"]
         return count
 
-    def unmatched(self) -> list[str]:
-        """The requests no stub answered: method, original origin and URL."""
+    def unmatched(self, *, sources_only: bool = False) -> list[str]:
+        """The requests no stub answered: method, original origin and URL. `sources_only`: those
+        of the metadata clients alone (with their original origin); the services are asked by
+        the tests of the background at start, before the stubs are loaded."""
         response = httpx.get(f"{self.url}/__admin/requests/unmatched", timeout=10.0)
         response.raise_for_status()
         found: list[str] = []
         for request in response.json()["requests"]:
             headers = request.get("headers", {})
+            if sources_only and ORIGINAL_ORIGIN not in headers:
+                continue
             found.append(f"{request['method']} {headers.get(ORIGINAL_ORIGIN)}{request['url']}")
         return found
 

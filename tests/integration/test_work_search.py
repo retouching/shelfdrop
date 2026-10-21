@@ -34,7 +34,7 @@ def test_a_recorded_search(client: httpx.Client, fake_sources: FakeSources, case
 
 def test_every_request_of_the_searches_was_recorded(fake_sources: FakeSources) -> None:
     """After the searches above: none asked the fake something it was not recorded with."""
-    assert fake_sources.unmatched() == []
+    assert fake_sources.unmatched(sources_only=True) == []
 
 
 def test_a_manga_search_puts_the_other_forms_apart(client: httpx.Client) -> None:
