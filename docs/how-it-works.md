@@ -14,7 +14,7 @@ A request goes through, from the outside in:
 
 1. **The text.** Spaces are collapsed; below 2 letters or digits the search stops (`query_too_short`).
 2. **One run per search.** Two identical searches at the same time (same kind, same normalized text) share one run: the second waits for the first and gets its answer (`SearchFlights`).
-3. **The sources.** A manga search asks MangaUpdates, Kitsu, MyAnimeList (through Jikan), AniList and MangaDex; a book search asks Open Library and Wikidata; the BnF answers both. They are asked at once:
+3. **The sources.** A manga search asks MangaUpdates, Kitsu, MyAnimeList (its official API, only when `SHELFDROP_MYANIMELIST_CLIENT_ID` is set), AniList and MangaDex; a book search asks Open Library and Wikidata; the BnF answers both. They are asked at once:
    - an answer of the last 24 hours is read from the cache instead;
    - a source that failed in the last 5 minutes is skipped;
    - a source that has not answered after 5 seconds, or answers an error, is left out, named in `unavailable` and rests 5 minutes.

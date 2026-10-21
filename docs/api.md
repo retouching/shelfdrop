@@ -51,7 +51,7 @@ The search of a work in every metadata source of its family at once.
     }
   ],
   "other_forms": [],
-  "unavailable": ["myanimelist", "anilist"]
+  "unavailable": ["anilist"]
 }
 ```
 

@@ -10,6 +10,7 @@ services:
     environment:
       SHELFDROP_CONTACT: ${SHELFDROP_CONTACT:?set SHELFDROP_CONTACT in .env}
       SHELFDROP_LOG_LEVEL: ${SHELFDROP_LOG_LEVEL:-INFO}
+      SHELFDROP_MYANIMELIST_CLIENT_ID: ${SHELFDROP_MYANIMELIST_CLIENT_ID:-}
       # The address of the reverse proxy, whose X-Forwarded-For uvicorn trusts.
       FORWARDED_ALLOW_IPS: ${SHELFDROP_PROXY_ADDRESS:-127.0.0.1}
     volumes:

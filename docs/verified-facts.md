@@ -38,9 +38,9 @@ Next fact ID: F13.
   - Pinned by: `tests/unit/works/test_service.py::test_recorded_search`
   - Re-verify: on recording.
 
-### MyAnimeList, Jikan, AniList, MangaDex
+### AniList, MangaDex
 
-- **F06** On 2026-10-21 AniList answered `403` "The AniList API has been temporarily disabled", Jikan (api.jikan.moe/v4) timed out, and myanimelist.net answered `503`; MangaDex answered. The fixtures replay those failures.
+- **F06** On 2026-10-21 AniList answered `403` "The AniList API has been temporarily disabled"; MangaDex answered. The fixtures replay that failure.
   - Evidence: the fixtures of every manga case.
   - Pinned by: `tests/unit/works/test_service.py::test_down_sources_are_named`
   - Re-verify: on recording.

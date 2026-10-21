@@ -6,7 +6,7 @@ Only what the process needs before its database is open lives here.
 from pathlib import Path
 from typing import Any, Final, Literal, override
 
-from pydantic import Field
+from pydantic import Field, SecretStr, field_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
@@ -74,12 +74,20 @@ class Settings(BaseSettings):
     contact: str = Field(min_length=3)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "text"] = "json"
+    # The Client ID of the MyAnimeList API; without it, MyAnimeList is not asked.
+    myanimelist_client_id: SecretStr | None = Field(default=None, repr=False)
     # The two settings below are reserved for the test stack (TEST_STACK_SETTINGS).
     # Every request to a metadata source goes to this origin instead, its own origin in the
     # header X-Original-Origin: the fake sources of the test stack answer it.
     sources_origin: str | None = Field(default=None, pattern=r"^https?://[A-Za-z0-9.-]+(:\d+)?$")
     # Seconds a source that failed is skipped.
     source_rest_seconds: int = Field(default=300, ge=0, le=86400)
+
+    @field_validator("myanimelist_client_id", mode="before")
+    @classmethod
+    def empty_is_none(cls, value: object) -> object:
+        """Compose gives an unset variable as an empty string."""
+        return None if value == "" else value
 
     @property
     def database_url(self) -> str:

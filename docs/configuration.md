@@ -5,6 +5,7 @@
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `SHELFDROP_CONTACT` | required | An address where the operator can be reached, written in the User-Agent of every request to a metadata source, as their usage policies ask. |
+| `SHELFDROP_MYANIMELIST_CLIENT_ID` | none | The Client ID of the MyAnimeList API (myanimelist.net/apiconfig), sent in a header. Without it, MyAnimeList is not asked. Never logged nor shown. |
 | `SHELFDROP_DATA_DIR` | `.data` (`/data/shelfdrop` in the image) | The directory of the database, created at start. |
 | `SHELFDROP_STATIC_DIR` | `shelfdrop/static` (`/app/static` in the image) | The built front-end. Without an `index.html` there, no page is served. |
 | `SHELFDROP_API_PREFIX` | `/api` | The prefix of every route but `/health` and the pages: one or more `/segment`. |

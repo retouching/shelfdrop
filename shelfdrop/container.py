@@ -50,13 +50,18 @@ async def open_http(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
         yield client
 
 
-def new_work_sources(http: httpx.AsyncClient) -> WorkSources:
-    """Every metadata client, in the order of the list of the sources that did not answer."""
+def new_work_sources(http: httpx.AsyncClient, settings: Settings) -> WorkSources:
+    """Every metadata client, in the order of the list of the sources that did not answer;
+    MyAnimeList only with its Client ID."""
+    client_id = settings.myanimelist_client_id
+    myanimelist = (
+        () if client_id is None else (MyAnimeListClient(http, client_id.get_secret_value()),)
+    )
     return WorkSources(
         clients=(
             MangaUpdatesClient(http),
             KitsuClient(http),
-            MyAnimeListClient(http, None),
+            *myanimelist,
             AniListClient(http),
             MangaDexClient(http),
             BnfClient(http),

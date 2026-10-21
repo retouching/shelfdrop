@@ -16,10 +16,11 @@ SEARCH_PATH = "/v1/series/search"
 
 
 def test_the_sources_that_fail_are_named(client: httpx.Client) -> None:
-    """MyAnimeList (Jikan) timed out and AniList refused when the fixtures were recorded."""
+    """AniList refused when the fixtures were recorded; MyAnimeList, without a Client ID in the
+    test stack, is not asked."""
     body = client.get("/api/v1/works", params={"q": "Chainsaw Man", "kind": "manga"}).json()
 
-    assert body["unavailable"] == ["myanimelist", "anilist"]
+    assert body["unavailable"] == ["anilist"]
     assert body["works"]
 
 

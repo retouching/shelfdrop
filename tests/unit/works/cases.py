@@ -1,7 +1,7 @@
 """The work searches every fixture is recorded from, with what each must find.
 
-Recorded on 2026-10-21, when MyAnimeList (and Jikan) and AniList were down: their exchanges are
-replayed as failures, which also covers the case of a source that does not answer.
+Recorded on 2026-10-21, without a MyAnimeList Client ID, when AniList was down: its exchanges
+are replayed as failures, which also covers the case of a source that does not answer.
 """
 
 from dataclasses import dataclass, field

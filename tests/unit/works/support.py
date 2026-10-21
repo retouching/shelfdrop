@@ -14,6 +14,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 import httpx
 
+from shelfdrop.config import Settings
 from shelfdrop.container import new_work_sources
 from shelfdrop.works.flights import SearchFlights, SourceHealth
 from shelfdrop.works.repository import WorkRepository
@@ -170,5 +171,9 @@ def new_service(
     )
 
 
+TEST_SETTINGS: Final = Settings(_env_file=None, contact="tests@shelfdrop.invalid")
+
+
 def replayed_service(http: httpx.AsyncClient) -> WorkService:
-    return new_service(new_work_sources(http))
+    """The sources of a deployment without a MyAnimeList Client ID, the one of the fixtures."""
+    return new_service(new_work_sources(http, TEST_SETTINGS))

@@ -39,8 +39,8 @@ def test_the_query_string_is_never_logged(stack: Stack, client: httpx.Client) ->
 
 
 def test_a_failed_source_logs_its_name_and_a_class(stack: Stack, client: httpx.Client) -> None:
-    """MyAnimeList (Jikan) failed when Chainsaw Man was recorded: its record names the source
-    and the class of the failure, never the address nor the answer."""
+    """AniList refused when Chainsaw Man was recorded: its record names the source and the class
+    of the failure, never the address nor the answer."""
     request_id = new_request_id()
     client.get(
         "/api/v1/works",
@@ -50,12 +50,12 @@ def test_a_failed_source_logs_its_name_and_a_class(stack: Stack, client: httpx.C
 
     records = [
         r
-        for r in stack.log_records(request_id, expected=3)
+        for r in stack.log_records(request_id, expected=2)
         if r["message"] == "Metadata source unavailable"
     ]
 
-    assert {r["source"] for r in records} >= {"myanimelist", "anilist"}
+    assert {r["source"] for r in records} == {"anilist"}
     assert {r["error"] for r in records} == {"SourceError"}
     logs = stack.api_logs()
-    assert "jikan" not in logs
+    assert "graphql.anilist.co" not in logs
     assert "fake-sources" not in logs

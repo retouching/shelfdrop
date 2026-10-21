@@ -2,7 +2,7 @@
 
 shelfdrop finds manga, books and audiobooks, downloads them and shelves them into the Jellyfin library under the name of their French edition. It runs on the media server, behind a reverse proxy, and only the administrators of the Jellyfin server use it.
 
-- **Work search**: a title, in any language, gives the work and every name it is published under, merged from eight metadata sources: MangaUpdates, Kitsu, MyAnimeList, AniList and MangaDex for manga, the BnF, Open Library and Wikidata for books ([how it works](docs/how-it-works.md#work-search)).
+- **Work search**: a title, in any language, gives the work and every name it is published under, merged from eight metadata sources: MangaUpdates, Kitsu, MyAnimeList (with a Client ID), AniList and MangaDex for manga, the BnF, Open Library and Wikidata for books ([how it works](docs/how-it-works.md#work-search)).
 - **Front-end**: the pages of shelfdrop (`web/`), served by the API.
 
 ## Quick start

@@ -64,3 +64,13 @@ def test_a_test_stack_setting_is_only_in_the_test_stack(name: str) -> None:
     assert variable not in (root / ".env.example").read_text()
     assert variable not in (root / "docker" / "compose.yaml").read_text()
     assert variable in (root / "docker" / "compose.test.yaml").read_text()
+
+
+def test_the_myanimelist_client_id_is_never_shown(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SHELFDROP_MYANIMELIST_CLIENT_ID", "secret-client-id-5b")
+
+    settings = Settings(_env_file=None, contact="test@example.org")
+
+    assert settings.myanimelist_client_id is not None
+    assert settings.myanimelist_client_id.get_secret_value() == "secret-client-id-5b"
+    assert "secret-client-id-5b" not in repr(settings)

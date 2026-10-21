@@ -72,7 +72,7 @@ async def test_dusk_maiden_is_not_amnesia() -> None:
 async def test_down_sources_are_named() -> None:
     case = next(c for c in CASES if c.slug == "chainsaw-man")
     result, _ = await run_search(case)
-    assert "myanimelist" in result.unavailable
+    assert result.unavailable == ("anilist",)
     assert "mangaupdates" not in result.unavailable
 
 
