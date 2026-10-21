@@ -25,7 +25,7 @@ The rules of the code are in `CLAUDE.md`; this page describes the code as it is.
 - `shelfdrop/http/`: `errors/` (`ErrorCode`, `ApiError`, the factories, the handlers, `ErrorResponse`), `middleware/` (one file per middleware), `dependencies.py` (`release_session`).
 - `shelfdrop/logging/`: `configure_logging`, `JsonFormatter`, `RequestIdFilter`, `request_id_var`.
 - `shelfdrop/modules/`: `health/`, `works/` (`router.py`, `schemas.py`, `errors.py`), `searches/`, `trackers/`, `filters/`, `web/` (`web_router`: a file at the top of the build, or `index.html`).
-- `web/src/api/`: the calls of the page to the API (`http.ts`: `request`, `ApiError`), `works.ts` (`searchWorks`), `searches.ts` (`startSearch`, `readSearch`, `followSearch` on the events), `settings.ts` (the trackers, the filters), `useSearches.ts` (`useWorks`, `useReleases`: the states of the Search pages). The other pages still read `web/src/mock/` until their step.
+- `web/src/api/`: the calls of the page to the API (`http.ts`: `request`, `ApiError`), `works.ts` (`searchWorks`), `searches.ts` (`startSearch`, `readSearch`, `followSearch` on the events), `settings.ts` (the trackers, the filters), `useSearches.ts` (`useWorks`, `useReleases`: the states of the Search pages). `web/src/state/searchSettings.ts` holds the trackers and the filters as Settings edits them, saved by its button. The other pages still read `web/src/mock/` until their step.
 - `shelfdrop/utils/`: `text.py` (`normalize`, `words`, `compact`, `script_of`, `is_latin`), `isbn.py` (`parse_isbn`, `isbn13_of`).
 
 ## Layers

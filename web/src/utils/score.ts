@@ -1,5 +1,5 @@
 // Score d'une release selon les filtres : la somme des points des règles qui la reconnaissent.
-import type { FilterRule } from "../mock/filters";
+import type { EditableRule as FilterRule } from "../state/searchSettings";
 import type { Kind } from "../types";
 
 export type RuleMatch = { readonly rule: FilterRule; readonly score: number };

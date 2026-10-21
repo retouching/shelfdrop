@@ -1,8 +1,8 @@
 // Rubriques Services, Sources, Recherche, Rangement et Journal Discord. Valeurs fictives de la maquette.
-import { useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 
-import { wait } from "../../mock/latency";
-import { setTrackers, useTrackers, type Tracker } from "../../mock/trackers";
+import type { Tracker } from "../../api/settings";
+import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } from "../../state/searchSettings";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import {
@@ -230,19 +230,29 @@ export function SourcesTab(): ReactElement {
   );
 }
 
+/** « fr-FR » → « FR » ; rien quand Prowlarr ne donne pas la langue. */
+function languageOf(tracker: Tracker): string {
+  return (tracker.language ?? "").split("-")[0]?.toUpperCase() ?? "";
+}
+
 export function SearchTab(): ReactElement {
-  const trackers = useTrackers();
+  const trackers = useSearchSettings().trackers ?? [];
   const [hideNoSeed, setHideNoSeed] = useState(true);
   const [relevance, setRelevance] = useState(true);
   const [reading, setReading] = useState(false);
-  const shown = trackers.filter((tracker) => tracker.prowlarrEnabled);
-  const off = trackers.filter((tracker) => !tracker.prowlarrEnabled);
+  const shown = trackers.filter((tracker) => tracker.prowlarr_enabled);
+  const off = trackers.filter((tracker) => !tracker.prowlarr_enabled);
 
-  function move(name: string, delta: number): void {
+  useEffect(() => {
+    // Une erreur de lecture laisse la liste vide ; « Relire Prowlarr » la remplit.
+    loadSearchSettings().catch(() => undefined);
+  }, []);
+
+  function move(id: number, delta: number): void {
     const next = [...trackers];
-    const index = next.findIndex((tracker) => tracker.name === name);
+    const index = next.findIndex((tracker) => tracker.indexer_id === id);
     let target = index + delta;
-    while (next[target]?.prowlarrEnabled === false) {
+    while (next[target]?.prowlarr_enabled === false) {
       target += delta;
     }
     const a = next[index];
@@ -255,14 +265,19 @@ export function SearchTab(): ReactElement {
     setTrackers(next);
   }
 
-  function update(name: string, change: Partial<Tracker>): void {
-    setTrackers(trackers.map((tracker) => (tracker.name === name ? { ...tracker, ...change } : tracker)));
+  function update(id: number, change: Partial<Tracker>): void {
+    setTrackers(trackers.map((tracker) => (tracker.indexer_id === id ? { ...tracker, ...change } : tracker)));
   }
 
   async function reread(): Promise<void> {
     setReading(true);
-    await wait(800);
-    setReading(false);
+    try {
+      await rereadTrackers();
+    } catch {
+      // Prowlarr ne répond pas : la liste reste celle enregistrée.
+    } finally {
+      setReading(false);
+    }
   }
 
   return (
@@ -309,17 +324,20 @@ export function SearchTab(): ReactElement {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {shown.map((tracker, index) => (
-              <tr key={tracker.name} className={tracker.used ? "" : "text-slate-400"}>
+              <tr key={tracker.indexer_id} className={tracker.used ? "" : "text-slate-400"}>
                 <td className="px-3 py-2 tabular-nums">{tracker.used ? index + 1 : "–"}</td>
                 <td className="px-3 py-2 font-medium">{tracker.name}</td>
-                <td className="px-3 py-2 text-slate-500">{tracker.language}</td>
+                <td className="px-3 py-2 text-slate-500">{languageOf(tracker)}</td>
                 <td className="px-3 py-2">
                   <input
                     type="checkbox"
                     checked={tracker.used}
                     aria-label={`${texts.settings.trackerUsed} : ${tracker.name}`}
                     onChange={(event) => {
-                      update(tracker.name, { used: event.target.checked, auto: event.target.checked && tracker.auto });
+                      update(tracker.indexer_id, {
+                        used: event.target.checked,
+                        auto: event.target.checked && tracker.auto,
+                      });
                     }}
                     className="size-4 accent-accent"
                   />
@@ -331,7 +349,7 @@ export function SearchTab(): ReactElement {
                     disabled={!tracker.used}
                     aria-label={`${texts.settings.trackerAuto} : ${tracker.name}`}
                     onChange={(event) => {
-                      update(tracker.name, { auto: event.target.checked });
+                      update(tracker.indexer_id, { auto: event.target.checked });
                     }}
                     className="size-4 accent-accent disabled:opacity-40"
                   />
@@ -341,7 +359,7 @@ export function SearchTab(): ReactElement {
                     type="button"
                     disabled={index === 0}
                     onClick={() => {
-                      move(tracker.name, -1);
+                      move(tracker.indexer_id, -1);
                     }}
                     aria-label={texts.settings.moveUp(tracker.name)}
                     className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
@@ -352,7 +370,7 @@ export function SearchTab(): ReactElement {
                     type="button"
                     disabled={index === shown.length - 1}
                     onClick={() => {
-                      move(tracker.name, 1);
+                      move(tracker.indexer_id, 1);
                     }}
                     aria-label={texts.settings.moveDown(tracker.name)}
                     className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"

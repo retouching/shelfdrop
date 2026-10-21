@@ -1,6 +1,7 @@
 import { useState, type ReactElement } from "react";
 
 import { wait } from "../../mock/latency";
+import { saveSearchSettings } from "../../state/searchSettings";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import { AccessTab } from "./AccessTab";
@@ -38,9 +39,15 @@ export function SettingsPage(): ReactElement {
   async function save(): Promise<void> {
     setSaving(true);
     setSaved(false);
-    await wait(700);
-    setSaving(false);
-    setSaved(true);
+    try {
+      // Recherche et Filtres sont enregistrés par l'API ; les autres rubriques viendront avec elle.
+      await Promise.all([saveSearchSettings(), wait(300)]);
+      setSaved(true);
+    } catch {
+      setSaved(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

@@ -1,21 +1,34 @@
-import { useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 
-import { setFilters, useFilters, type FilterRule } from "../../mock/filters";
+import {
+  loadSearchSettings,
+  newRuleId,
+  setFilters,
+  useSearchSettings,
+  type EditableFilters,
+  type EditableRule as FilterRule,
+} from "../../state/searchSettings";
 import { texts } from "../../texts";
 import type { Kind } from "../../types";
 import { formatScore, ruleRegex, scoreTitle } from "../../utils/score";
 import { Card, Field, input } from "./parts";
 
 const kinds: readonly Kind[] = ["manga", "ebook", "audiobook"];
+const NONE: EditableFilters = { rules: [], minimum: 0 };
 
 export function FiltersTab(): ReactElement {
-  const filters = useFilters();
+  const filters = useSearchSettings().filters ?? NONE;
   const [sample, setSample] = useState("Chainsaw.Man.T23.FRENCH.CBZ.eBook-Paprika+");
   const [sampleKind, setSampleKind] = useState<Kind>("manga");
 
   function update(id: string, change: Partial<FilterRule>): void {
     setFilters({ ...filters, rules: filters.rules.map((rule) => (rule.id === id ? { ...rule, ...change } : rule)) });
   }
+
+  useEffect(() => {
+    // Une erreur de lecture laisse la rubrique vide ; « Enregistrer » ne l'écrase pas.
+    loadSearchSettings().catch(() => undefined);
+  }, []);
 
   const tested = scoreTitle(sample, sampleKind, filters.rules);
 
@@ -160,7 +173,7 @@ export function FiltersTab(): ReactElement {
               rules: [
                 ...filters.rules,
                 {
-                  id: `r${String(Date.now())}`,
+                  id: newRuleId(),
                   name: "",
                   pattern: "",
                   regex: false,
