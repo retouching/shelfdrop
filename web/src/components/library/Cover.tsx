@@ -1,20 +1,22 @@
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 type Props = {
-  readonly hue: number | null;
+  /** L'adresse de l'image ; null sans image. */
+  readonly src: string | null;
   readonly label: string;
   readonly className?: string;
-  /** Sans le titre, pour les petites vignettes. */
+  /** Sans le titre sur l'emplacement vide, pour les petites vignettes. */
   readonly bare?: boolean;
 };
 
-/** Vignette de couverture. La maquette n'a pas les vraies images : un dégradé et l'initiale en tiennent lieu. */
-export function Cover({ hue, label, className, bare = false }: Props): ReactElement {
+/** Vignette de couverture : l'image, ou un emplacement vide quand il n'y en a pas ou qu'elle ne se charge pas. */
+export function Cover({ src, label, className, bare = false }: Props): ReactElement {
   const size = className ?? "h-36 w-24";
-  if (hue === null) {
+  const [broken, setBroken] = useState<string | null>(null);
+  if (src === null || broken === src) {
     return (
       <span
-        className={`${size} flex shrink-0 items-center justify-center rounded-md border border-dashed border-slate-300 bg-band text-slate-400`}
+        className={`${size} flex shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-slate-300 bg-band p-2 text-center text-slate-400`}
       >
         <svg
           viewBox="0 0 24 24"
@@ -28,18 +30,19 @@ export function Cover({ hue, label, className, bare = false }: Props): ReactElem
           <path d="m3 16 5-5 4 4 3-3 6 6" />
           <circle cx="15.5" cy="8.5" r="1.5" />
         </svg>
+        {bare ? null : <span className="line-clamp-2 text-xs">{label}</span>}
       </span>
     );
   }
   return (
-    <span
-      aria-hidden="true"
-      className={`${size} flex shrink-0 items-end overflow-hidden rounded-md p-2 text-left text-xs leading-tight font-semibold text-white shadow-sm`}
-      style={{
-        backgroundImage: `linear-gradient(160deg, hsl(${String(hue)} 55% 52%), hsl(${String((hue + 30) % 360)} 50% 22%))`,
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={() => {
+        setBroken(src);
       }}
-    >
-      {bare ? null : <span className="line-clamp-3 drop-shadow">{label}</span>}
-    </span>
+      className={`${size} shrink-0 rounded-md bg-band object-cover shadow-sm`}
+    />
   );
 }

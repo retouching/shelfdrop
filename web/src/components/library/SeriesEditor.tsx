@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
-import { wait } from "../../mock/latency";
-import type { Series } from "../../mock/library";
+import { ApiError } from "../../api/http";
+import {
+  base64Of,
+  changeSeries,
+  itemImage,
+  readProposals,
+  readScan,
+  startScan,
+  type ImageChoice,
+  type Proposals,
+  type Series,
+} from "../../api/library";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import { field } from "../WorkPicker";
@@ -15,35 +25,66 @@ type Props = {
   readonly onRescanned: (name: string) => void;
 };
 
-type Fields = Pick<Series, "name" | "originalTitle" | "authors" | "genres" | "summary"> & { readonly year: string };
+type Fields = {
+  readonly name: string;
+  readonly originalTitle: string;
+  readonly authors: string;
+  readonly year: string;
+  readonly genres: string;
+  readonly summary: string;
+};
+
+// Une image envoyée de plus de 5 Mo est refusée par l'API.
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 function fieldsOf(series: Series): Fields {
   return {
     name: series.name,
     originalTitle: series.originalTitle,
-    authors: series.authors,
+    authors: series.authors.join(", "),
     year: series.year === null ? "" : String(series.year),
-    genres: series.genres,
+    genres: series.genres.join(", "),
     summary: series.summary,
   };
 }
 
-/** Image choisie : la vignette d'une source, un lien ou un fichier envoyé. */
-type ImageChoice =
-  | { readonly kind: "current" }
-  | { readonly kind: "proposal"; readonly id: string; readonly hue: number }
-  | { readonly kind: "url"; readonly url: string }
-  | { readonly kind: "file"; readonly name: string };
+function listOf(text: string): readonly string[] {
+  return text
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part !== "");
+}
 
-function choiceHue(series: Series, choice: ImageChoice): number | null {
+/** Image choisie : l'actuelle, celle d'un tome, d'une source, d'un lien ou d'un fichier envoyé. */
+type Choice =
+  | { readonly kind: "current" }
+  | { readonly kind: "item"; readonly itemId: string }
+  | { readonly kind: "url"; readonly url: string }
+  | { readonly kind: "file"; readonly name: string; readonly data: string; readonly preview: string };
+
+function previewOf(series: Series, choice: Choice): string | null {
   switch (choice.kind) {
     case "current":
-      return series.hasImage ? series.hue : null;
-    case "proposal":
-      return choice.hue;
+      return series.hasImage ? itemImage(series.id, 600) : null;
+    case "item":
+      return itemImage(choice.itemId, 600);
     case "url":
+      return choice.url;
     case "file":
-      return (series.hue + 180) % 360;
+      return choice.preview;
+  }
+}
+
+function imageOf(choice: Choice): ImageChoice | null {
+  switch (choice.kind) {
+    case "current":
+      return null;
+    case "item":
+      return { kind: "item", itemId: choice.itemId };
+    case "url":
+      return { kind: "url", url: choice.url };
+    case "file":
+      return { kind: "data", data: choice.data };
   }
 }
 
@@ -51,7 +92,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
   const ref = useRef<HTMLDialogElement>(null);
   const initial = fieldsOf(series);
   const [fields, setFields] = useState<Fields>(initial);
-  const [image, setImage] = useState<ImageChoice>({ kind: "current" });
+  const [image, setImage] = useState<Choice>({ kind: "current" });
   const [url, setUrl] = useState("");
   const [toSeries, setToSeries] = useState(true);
   const [toVolumes, setToVolumes] = useState(true);
@@ -59,22 +100,54 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
   const [lock, setLock] = useState(true);
   const [saveCover, setSaveCover] = useState(true);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [scanMode, setScanMode] = useState<ScanMode>("missing");
-
-  async function rescan(): Promise<void> {
-    setRescanning(true);
-    await wait(1500);
-    setRescanning(false);
-    setFields(initial);
-    setImage({ kind: "current" });
-    onRescanned(series.name);
-  }
+  const [proposals, setProposals] = useState<Proposals | null>(null);
 
   useEffect(() => {
     ref.current?.showModal();
-  }, []);
+    let stopped = false;
+    readProposals(series.id)
+      .then((read) => {
+        if (!stopped) {
+          setProposals(read);
+        }
+      })
+      .catch(() => {
+        if (!stopped) {
+          setProposals({ volumes: [], covers: [], summaries: [] });
+        }
+      });
+    return () => {
+      stopped = true;
+    };
+  }, [series.id]);
 
+  async function rescan(): Promise<void> {
+    setRescanning(true);
+    setError(null);
+    try {
+      await startScan(scanMode, { seriesId: series.id });
+      // Jellyfin ne suit pas le scan d'une série : celui de sa bibliothèque en tient lieu.
+      for (let reads = 0; reads < 30; reads += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const progress = await readScan();
+        if (progress[series.kind] === null || progress[series.kind] === undefined) {
+          break;
+        }
+      }
+      setFields(initial);
+      setImage({ kind: "current" });
+      onRescanned(series.name);
+    } catch {
+      setError(texts.library.unavailable);
+    } finally {
+      setRescanning(false);
+    }
+  }
+
+  const proposedSummary = proposals?.summaries[0] ?? null;
   const changed =
     (Object.keys(initial) as (keyof Fields)[]).filter((key) => fields[key] !== initial[key]).length +
     (image.kind === "current" ? 0 : 1);
@@ -85,18 +158,44 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
 
   async function apply(): Promise<void> {
     setPending(true);
-    await wait(900);
-    const hue = choiceHue(series, image);
-    onApplied({
-      ...series,
-      ...fields,
-      year: fields.year === "" ? null : Number(fields.year),
-      hasImage: image.kind === "current" ? series.hasImage : toSeries || series.hasImage,
-      hue: image.kind === "current" || !toSeries ? series.hue : (hue ?? series.hue),
-      volumesWithoutSummary: fields.summary !== "" && summaryToVolumes ? 0 : series.volumesWithoutSummary,
-      proposedSummary: fields.summary === "" ? series.proposedSummary : null,
-    });
-    ref.current?.close();
+    setError(null);
+    const year = Number.parseInt(fields.year, 10);
+    try {
+      const next = await changeSeries(series.id, {
+        name: fields.name.trim() === "" ? series.name : fields.name.trim(),
+        originalTitle: fields.originalTitle,
+        authors: listOf(fields.authors),
+        year: Number.isNaN(year) ? null : year,
+        genres: listOf(fields.genres),
+        summary: fields.summary,
+        lock,
+        summaryToVolumes: fields.summary !== "" && summaryToVolumes,
+        image: imageOf(image),
+        imageToSeries: toSeries,
+        imageToVolumes: toVolumes,
+        saveCover,
+      });
+      onApplied(next);
+      ref.current?.close();
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError && caught.code === "image_refused"
+          ? texts.editor.imageRefused
+          : texts.library.failed,
+      );
+      setPending(false);
+    }
+  }
+
+  async function pickFile(file: File): Promise<void> {
+    if (file.size > IMAGE_MAX_BYTES) {
+      setError(texts.editor.tooLarge);
+      return;
+    }
+    setError(null);
+    const data = await base64Of(file);
+    // La politique des images de la page prend les adresses data:, pas blob:.
+    setImage({ kind: "file", name: file.name, data, preview: `data:${file.type};base64,${data}` });
   }
 
   const input = (key: keyof Fields, label: string, wide = false): ReactElement => (
@@ -127,7 +226,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
               {texts.editor.title}
             </h2>
             <p className="mt-0.5 text-sm text-slate-500">
-              {series.name} · {texts.library.libraries[series.library]} · {texts.library.volumes(series.volumes)}
+              {series.name} · {texts.library.libraries[series.kind]} · {texts.library.volumes(series.volumes)}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-2">
@@ -177,7 +276,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
             <h3 id="editor-image" className="text-sm font-semibold">
               {texts.editor.image}
             </h3>
-            <Cover hue={choiceHue(series, image)} label={fields.name} className="h-96 w-64" />
+            <Cover src={previewOf(series, image)} label={fields.name} className="h-96 w-64" />
 
             <div>
               <p className="mb-2 text-xs text-slate-500">{texts.editor.proposals}</p>
@@ -187,28 +286,49 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
                     active={image.kind === "current"}
                     label={texts.editor.current}
                     caption={texts.editor.current}
-                    hue={series.hasImage ? series.hue : null}
+                    src={series.hasImage ? itemImage(series.id, 200) : null}
                     title={series.name}
                     onClick={() => {
                       setImage({ kind: "current" });
                     }}
                   />
                 </li>
-                {series.covers.map((cover) => (
-                  <li key={cover.id}>
+                {proposals?.volumes.map((volume) => (
+                  <li key={volume.itemId}>
                     <ImageButton
-                      active={image.kind === "proposal" && image.id === cover.id}
-                      label={`${cover.source} · ${String(cover.width)}×${String(cover.height)}`}
-                      caption={cover.source}
-                      hue={cover.hue}
+                      active={image.kind === "item" && image.itemId === volume.itemId}
+                      label={volume.label}
+                      caption={volume.label}
+                      src={itemImage(volume.itemId, 200)}
                       title={series.name}
                       onClick={() => {
-                        setImage({ kind: "proposal", id: cover.id, hue: cover.hue });
+                        setImage({ kind: "item", itemId: volume.itemId });
+                      }}
+                    />
+                  </li>
+                ))}
+                {proposals?.covers.map((cover) => (
+                  <li key={cover.url}>
+                    <ImageButton
+                      active={image.kind === "url" && image.url === cover.url}
+                      label={cover.source}
+                      caption={cover.source}
+                      src={cover.url}
+                      title={series.name}
+                      onClick={() => {
+                        setImage({ kind: "url", url: cover.url });
                       }}
                     />
                   </li>
                 ))}
               </ul>
+              {proposals === null ? (
+                <p role="status" className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                  <Spinner className="size-3" /> {texts.editor.proposalsLoading}
+                </p>
+              ) : proposals.volumes.length + proposals.covers.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-500">{texts.editor.noProposals}</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -225,7 +345,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
                   />
                   <button
                     type="button"
-                    disabled={!url.startsWith("http")}
+                    disabled={!/^https?:\/\//.test(url)}
                     onClick={() => {
                       setImage({ kind: "url", url });
                     }}
@@ -239,12 +359,12 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
                 {image.kind === "file" ? image.name : texts.editor.upload}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   className="sr-only"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file !== undefined) {
-                      setImage({ kind: "file", name: file.name });
+                      void pickFile(file);
                     }
                   }}
                 />
@@ -255,7 +375,11 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
               <fieldset className="space-y-1.5 text-sm">
                 <legend className="mb-1 text-xs text-slate-500">{texts.editor.applyTo}</legend>
                 <Check checked={toSeries} onChange={setToSeries} label={texts.editor.applyToSeries} />
-                <Check checked={toVolumes} onChange={setToVolumes} label={texts.editor.applyToVolumes} />
+                <Check
+                  checked={toVolumes}
+                  onChange={setToVolumes}
+                  label={`${texts.editor.applyToVolumes} (${String(series.volumesWithoutImage)})`}
+                />
                 <Check checked={saveCover} onChange={setSaveCover} label={texts.editor.saveCover} />
               </fieldset>
             )}
@@ -272,9 +396,9 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
             <label className="block space-y-1.5">
               <span className="flex items-center justify-between text-sm font-medium">
                 {texts.editor.summary}
-                {series.proposedSummary === null || fields.summary !== "" ? null : (
+                {proposedSummary === null || fields.summary !== "" ? null : (
                   <span className="text-xs font-normal text-slate-500">
-                    {texts.editor.summaryFrom(series.proposedSummary.source)}
+                    {texts.editor.summaryFrom(proposedSummary.source)}
                   </span>
                 )}
               </span>
@@ -284,15 +408,15 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
                   set("summary", event.target.value);
                 }}
                 rows={6}
-                placeholder={series.proposedSummary?.text}
+                placeholder={proposedSummary?.text}
                 className={`${field} resize-y ${fields.summary === initial.summary ? "" : "border-accent"}`}
               />
             </label>
-            {series.proposedSummary === null || fields.summary !== "" ? null : (
+            {proposedSummary === null || fields.summary !== "" ? null : (
               <button
                 type="button"
                 onClick={() => {
-                  set("summary", series.proposedSummary?.text ?? "");
+                  set("summary", proposedSummary.text);
                 }}
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
               >
@@ -313,7 +437,13 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-6 py-4">
-          <span className="text-sm text-slate-500">{changed === 0 ? null : texts.editor.changed(changed)}</span>
+          {error === null ? (
+            <span className="text-sm text-slate-500">{changed === 0 ? null : texts.editor.changed(changed)}</span>
+          ) : (
+            <p role="alert" className="text-sm text-rose-700">
+              {error}
+            </p>
+          )}
           <span className="flex gap-2">
             <button
               type="button"
@@ -346,14 +476,14 @@ function ImageButton({
   active,
   label,
   caption,
-  hue,
+  src,
   title,
   onClick,
 }: {
   readonly active: boolean;
   readonly label: string;
   readonly caption: string;
-  readonly hue: number | null;
+  readonly src: string | null;
   readonly title: string;
   readonly onClick: () => void;
 }): ReactElement {
@@ -369,7 +499,7 @@ function ImageButton({
       <span
         className={`block rounded-lg p-0.5 ${active ? "ring-2 ring-accent" : "ring-1 ring-transparent hover:ring-slate-300"}`}
       >
-        <Cover hue={hue} label={title} className="aspect-[2/3] w-full" bare />
+        <Cover src={src} label={title} className="aspect-[2/3] w-full" bare />
       </span>
       <span className={`block truncate text-[11px] ${active ? "text-accent-text" : "text-slate-500"}`}>{caption}</span>
     </button>
