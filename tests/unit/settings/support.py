@@ -8,7 +8,7 @@ from shelfdrop.settings.catalog import VALUES
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.reader import SettingsReader
 from shelfdrop.settings.repository import SettingsRepository
-from shelfdrop.settings.types import AuditAction, AuditRecord, SettingValue
+from shelfdrop.settings.types import AuditAction, AuditRecord, ProbeResult, SettingValue
 from tests.unit.support import no_session
 
 TEST_SECRET_KEY: Final = "k" * 32
@@ -87,3 +87,17 @@ class FakeSettingsRepository(SettingsRepository):
     @override
     def commit(self) -> None:
         self.commits += 1
+
+
+class FakeProbes:
+    """Every test answers `connected`, and keeps what it was given."""
+
+    def __init__(self) -> None:
+        self.runs: list[tuple[str, str | None, str | None]] = []
+
+    def names(self) -> tuple[str, ...]:
+        return ("prowlarr", "qbittorrent", "jellyfin", "kitsu", "myanimelist")
+
+    async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult:
+        self.runs.append((service, url, secret))
+        return ProbeResult(service=service, state="connected")

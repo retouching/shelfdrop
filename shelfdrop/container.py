@@ -15,6 +15,7 @@ from shelfdrop.auth.repository import SessionRepository
 from shelfdrop.auth.service import AuthService, JellyfinAddress
 from shelfdrop.auth.throttle import LoginThrottle
 from shelfdrop.clients.jellyfin import JellyfinClient
+from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.config import Settings
 from shelfdrop.db.engine import open_engine, open_session
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
@@ -23,9 +24,11 @@ from shelfdrop.releases.repository import ReleaseRepository, repository_factory
 from shelfdrop.releases.service import NameLimit, ReleaseService
 from shelfdrop.releases.types import ReleaseOptions
 from shelfdrop.settings.cipher import SecretBox
+from shelfdrop.settings.monitor import ConnectionMonitor
+from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.settings.reader import SettingsReader
 from shelfdrop.settings.repository import SettingsRepository, settings_repository_factory
-from shelfdrop.settings.service import SettingsService
+from shelfdrop.settings.service import Probes, SettingsService
 from shelfdrop.works.clients.anilist import AniListClient
 from shelfdrop.works.clients.bnf import BnfClient
 from shelfdrop.works.clients.kitsu import KitsuClient
@@ -87,6 +90,27 @@ async def open_jellyfin(settings: Settings) -> AsyncIterator[JellyfinClient]:
         timeout=httpx.Timeout(SERVICE_TIMEOUT_SECONDS),
     ) as http:
         yield JellyfinClient(http, version("shelfdrop"))
+
+
+async def open_qbittorrent(settings: Settings) -> AsyncIterator[QBittorrentClient]:
+    """The client of qBittorrent (a singleton), on its own HTTP client: its address and its
+    key come from the settings at each call."""
+    async with httpx.AsyncClient(
+        headers={"User-Agent": user_agent(settings)},
+        timeout=httpx.Timeout(SERVICE_TIMEOUT_SECONDS),
+    ) as http:
+        yield QBittorrentClient(http)
+
+
+def as_probes(probes: ConnectionProbes) -> Probes:
+    return probes
+
+
+def new_connection_monitor(
+    probes: ConnectionProbes, reader: SettingsReader, clock: Clock
+) -> ConnectionMonitor:
+    """The tests of the services saved, every 5 minutes (a singleton, run by the lifespan)."""
+    return ConnectionMonitor(probes, reader, clock)
 
 
 def as_jellyfin_address(reader: SettingsReader) -> JellyfinAddress:
@@ -175,6 +199,10 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(as_work_settings),
         wireup.injectable(as_jellyfin_address),
         wireup.injectable(open_jellyfin),
+        wireup.injectable(open_qbittorrent),
+        wireup.injectable(ConnectionProbes),
+        wireup.injectable(as_probes),
+        wireup.injectable(new_connection_monitor),
         wireup.injectable(as_name_limit),
         wireup.injectable(new_work_sources),
         wireup.injectable(open_prowlarr),

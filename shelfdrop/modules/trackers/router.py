@@ -1,10 +1,14 @@
 """The routes of the trackers: the indexers of Prowlarr, which are asked, in which order. Async,
 as every route of the release search (ADR 0011)."""
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
 from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
+from shelfdrop.auth.types import Account
+from shelfdrop.http.dependencies import require_session
 from shelfdrop.modules.trackers.errors import prowlarr_unavailable
 from shelfdrop.modules.trackers.schemas import TrackerRead, TrackersRead, TrackersUpdate
 from shelfdrop.releases.exceptions import ProwlarrError
@@ -33,6 +37,10 @@ async def refresh_trackers(service: Injected[ReleaseService]) -> TrackersRead:
 
 
 @router.put("")
-async def save_trackers(service: Injected[ReleaseService], body: TrackersUpdate) -> TrackersRead:
+async def save_trackers(
+    service: Injected[ReleaseService],
+    account: Annotated[Account, Depends(require_session)],
+    body: TrackersUpdate,
+) -> TrackersRead:
     choices = [(c.indexer_id, c.used, c.auto) for c in body.trackers]
-    return trackers_read(await service.save_trackers(choices))
+    return trackers_read(await service.save_trackers(choices, account.username))

@@ -2,6 +2,8 @@
 build_app() registers the routers, the middlewares and the error handlers and wires the
 container (ADR 0004)."""
 
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -32,9 +34,11 @@ from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
 from shelfdrop.modules.searches.router import router as searches_router
 from shelfdrop.modules.session.router import router as session_router
+from shelfdrop.modules.settings.router import router as settings_router
 from shelfdrop.modules.trackers.router import router as trackers_router
 from shelfdrop.modules.web.router import web_router
 from shelfdrop.modules.works.router import router as works_router
+from shelfdrop.settings.monitor import ConnectionMonitor
 from shelfdrop.settings.service import SettingsService
 
 logger = logging.getLogger(__name__)
@@ -57,13 +61,21 @@ def build_app(settings: Settings) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """At start: the settings of the environment imported once into the database
-        (ADR 0012)."""
-        async with get_app_container(app).enter_scope() as scope:
+        (ADR 0012), then the tests of the services every 5 minutes, until the end."""
+        container = get_app_container(app)
+        async with container.enter_scope() as scope:
             service = await scope.get(SettingsService)
             imported = await service.import_environment(environment_values(settings))
         if imported:
             logger.info("Settings imported from the environment", extra={"keys": imported})
-        yield
+        monitor = await container.get(ConnectionMonitor)
+        checks = asyncio.create_task(monitor.run())
+        try:
+            yield
+        finally:
+            checks.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await checks
 
     app = FastAPI(
         lifespan=lifespan,
@@ -93,7 +105,13 @@ def build_app(settings: Settings) -> FastAPI:
     # The session asks for itself; every other route of the API needs one (plan section 5).
     app.include_router(session_router, prefix=prefix)
     signed_in = [Depends(require_session)]
-    for router in (works_router, searches_router, trackers_router, filters_router):
+    for router in (
+        works_router,
+        searches_router,
+        trackers_router,
+        filters_router,
+        settings_router,
+    ):
         app.include_router(router, prefix=prefix, dependencies=signed_in)
     # The front-end, last: its route answers every path the others leave.
     if (settings.static_dir / "index.html").is_file():

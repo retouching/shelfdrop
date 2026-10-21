@@ -10,6 +10,8 @@ import shelfdrop
 
 ROOT: Final = Path(shelfdrop.__file__).resolve().parent.parent
 MIGRATIONS: Final = "shelfdrop/db/migrations/versions/"
+# The tests of the connections: the one file of the settings that calls the clients.
+PROBES: Final = "shelfdrop/settings/probes.py"
 FRAMEWORKS: Final = frozenset({"fastapi", "starlette", "wireup"})
 WIREUP_IMPORTERS: Final = frozenset(
     {"shelfdrop/container.py", "shelfdrop/main.py", "shelfdrop/http/dependencies.py"}
@@ -118,7 +120,8 @@ def test_only_the_service_and_the_composition_import_the_clients() -> None:
     assert (
         offenders(
             lambda path: (
-                path != "shelfdrop/container.py" and not path.startswith("shelfdrop/works/")
+                path not in ("shelfdrop/container.py", PROBES)
+                and not path.startswith("shelfdrop/works/")
             ),
             lambda module: module.startswith("shelfdrop.works.clients"),
         )
@@ -130,7 +133,8 @@ def test_only_the_releases_and_the_composition_import_the_prowlarr_client() -> N
     assert (
         offenders(
             lambda path: (
-                path != "shelfdrop/container.py" and not path.startswith("shelfdrop/releases/")
+                path not in ("shelfdrop/container.py", PROBES)
+                and not path.startswith("shelfdrop/releases/")
             ),
             lambda module: module.startswith("shelfdrop.releases.clients"),
         )
@@ -152,7 +156,7 @@ def test_only_the_sign_in_and_the_composition_import_the_service_clients() -> No
     assert (
         offenders(
             lambda path: (
-                path != "shelfdrop/container.py"
+                path not in ("shelfdrop/container.py", PROBES)
                 and not path.startswith(("shelfdrop/auth/", "shelfdrop/clients/"))
             ),
             lambda module: module.startswith("shelfdrop.clients"),

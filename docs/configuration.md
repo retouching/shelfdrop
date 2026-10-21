@@ -26,7 +26,7 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `prowlarr.url`, `qbittorrent.url`, `jellyfin.url` | none | The address of each service. Without the address or the key of Prowlarr, no release is searched (`prowlarr_unavailable`). |
+| `prowlarr.url`, `qbittorrent.url`, `jellyfin.url` | none | The address of each service; for qBittorrent, the address of qui (`http://qui:7476`), whose client proxy key is `qbittorrent.api_key`. Without the address or the key of Prowlarr, no release is searched (`prowlarr_unavailable`). |
 | `sources.<source>.enabled` | on | Whether a metadata source is asked (`mangaupdates`, `kitsu`, `myanimelist`, `anilist`, `mangadex`, `bnf`, `openlibrary`, `wikidata`). MyAnimeList is asked with its Client ID alone. |
 | `search.max_names` | 6 | The names of a work searched in Prowlarr, 1 to 10. |
 | `search.release_cache_minutes` | 10 | How long an answer of Prowlarr is reused, 0 to 1440. |

@@ -6,6 +6,7 @@ import anyio
 import httpx
 import pytest
 
+from shelfdrop.works.clients.myanimelist import MyAnimeListClient
 from shelfdrop.works.exceptions import (
     NoSourceAnsweredError,
     QueryTooShortError,
@@ -313,3 +314,30 @@ async def test_the_answers_are_kept_as_long_as_the_settings_say() -> None:
     await service.search("Berserk", "manga")
 
     assert client.searches == 2
+
+
+@pytest.mark.anyio
+async def test_myanimelist_is_asked_once_its_client_id_is_saved_without_a_restart() -> None:
+    """The Client ID is read from the settings at each search: saved on the page, the next
+    search asks MyAnimeList, with it, on the same service."""
+    seen: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    settings = FakeSettingsReader()
+    http = httpx.AsyncClient(transport=httpx.MockTransport(answer))
+    service = new_service(
+        WorkSources(clients=(MyAnimeListClient(http, settings.myanimelist_client_id),)),
+        settings=settings,
+    )
+
+    await service.search("Berserk", "manga")
+    assert seen == []
+    settings.secrets["sources.myanimelist.client_id"] = "client-id-2"
+    await service.search("Berserk", "manga")
+
+    [request] = seen
+    assert request.url.host == "api.myanimelist.net"
+    assert request.headers["X-MAL-CLIENT-ID"] == "client-id-2"

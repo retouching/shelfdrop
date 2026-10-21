@@ -14,6 +14,7 @@ from tests.integration.support import (
     cookie_of,
     jellyfin_stubs,
     prowlarr_stubs,
+    qbittorrent_stubs,
     recorded_stubs,
     sign_in,
     signed_in_headers,
@@ -47,7 +48,7 @@ def stack() -> Iterator[Stack]:
         except RuntimeError as error:
             pytest.fail(str(error), pytrace=False)
         FakeSources(built.sources_url).load(
-            [*recorded_stubs(), *prowlarr_stubs(), *jellyfin_stubs()]
+            [*recorded_stubs(), *prowlarr_stubs(), *jellyfin_stubs(), *qbittorrent_stubs()]
         )
         yield built
     finally:

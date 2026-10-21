@@ -94,7 +94,7 @@ Starts a search of releases in Prowlarr, or joins the same one running.
 - `state`: `queued`, `running`, `done`, or `failed` when no name got an answer. A name: `queued`, `running`, `done`, `failed` (error or 60 seconds).
 - `queued_ahead`: the other searches before it while it waits; `followers`: the requests that asked it (more than one: shared); `fetched_at`: Unix seconds of the oldest answer of Prowlarr (a kept one may be minutes old).
 
-Errors: `422 query_too_short`, `422 too_many_names`, `422 validation_failed`, `503 prowlarr_unavailable` (the trackers were never read and Prowlarr does not answer, or it is not configured).
+Errors: `422 query_too_short`, `422 too_many_names`, `422 validation_failed`, `503 prowlarr_unavailable` (the trackers were never read and Prowlarr does not answer, or its address or key is not saved).
 
 ## GET /api/v1/searches/{id}
 The progress and the releases found so far, scored and ranked with the filters and the trackers of now; a search is kept 10 minutes after its end.
@@ -124,3 +124,33 @@ The indexers of Prowlarr, in their order: `{"trackers": [{"indexer_id": 1, "name
 
 ## GET /api/v1/works/{id}
 A work a search returned in the last 7 days, the same object as an item of `works`. `404 work_not_found` otherwise.
+
+## GET /api/v1/settings, PUT /api/v1/settings
+The settings of the page ([the list](configuration.md#settings-of-the-page)):
+
+```json
+{"values": {"prowlarr.url": "http://prowlarr:9696", "search.max_names": 6, "sources.kitsu.enabled": true},
+ "secrets": {"prowlarr.api_key": 1792598400, "qbittorrent.api_key": null}}
+```
+
+- `values`: every setting, its default when never saved. `secrets`: when each secret was set (Unix seconds), or `null`; never its value.
+- `PUT` takes `{"values": {...}, "secrets": {"prowlarr.api_key": "new key", "jellyfin.api_key": null}}`: the keys given alone change, `null` clears a secret. Each change is audited (who, when, which key), never its value. Errors: `422 invalid_settings`, `data.keys` the keys unknown or whose value is refused, nothing saved.
+
+## POST /api/v1/settings/test
+The test of a connection, with the values typed before they are saved: `{"service": "prowlarr", "url": null, "secret": null}`. `service`: `prowlarr`, `qbittorrent`, `jellyfin`, or a metadata source (`kitsu`, `myanimelist`...); `url` and `secret` `null` are the values saved, a `secret` `""` none.
+
+```json
+{"service": "prowlarr", "ok": true, "state": "connected", "status": null, "version": "2.1.5.5216",
+ "count": 4, "missing": [], "elapsed_ms": null}
+```
+
+- `state`: `connected`, `no_address`, `no_key`, `refused` (`status` 401 or 403), `unavailable` (no answer, or an error with its `status`).
+- Prowlarr: `version`, `count` the indexers on. qBittorrent: `version`, `count` the categories of shelfdrop found (`manga`, `ebook`, `audiobook`, `shelfdrop-manual`), `missing` the others. Jellyfin: `version`, `count` its libraries of books. A source: `elapsed_ms`, the time of a fixed search.
+
+Errors: `422 invalid_settings` (an unknown service, or an address refused: `data.keys`).
+
+## GET /api/v1/settings/health
+The last tests of the background, run at start then every 5 minutes, of each service whose address and key are saved: `{"services": [<the object of the test>], "checked_at": 1792598400}`.
+
+## GET /api/v1/settings/audit
+The last 100 changes, the newest first: `{"entries": [{"at": 1792598400, "actor": "Sylvain", "action": "replaced", "target": "prowlarr.api_key"}]}`. `action`: `changed`, `replaced`, `cleared`, `imported` (`actor` `environment`); the target `trackers` or `filters` for a change of those.

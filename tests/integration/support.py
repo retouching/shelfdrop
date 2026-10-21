@@ -24,6 +24,9 @@ ADMIN: Final = ("admin", "admin-password-0d1f")
 READER: Final = ("reader", "reader-password-5e2a")
 JELLYFIN_ADMIN_TOKEN: Final = "jellyfin-admin-token"
 SESSION_COOKIE: Final = "__Host-shelfdrop"
+JELLYFIN_API_KEY: Final = "jellyfin-api-key-of-the-tests"
+QUI_KEY: Final = "qui-client-key-of-the-tests"
+FAKE_ORIGIN: Final = "http://fake-sources:8080"
 UP_TIMEOUT_SECONDS: Final = 900
 COMMAND_TIMEOUT_SECONDS: Final = 120
 LOG_READ_ATTEMPTS: Final = 20
@@ -216,6 +219,14 @@ def prowlarr_stubs() -> list[dict[str, Any]]:
         prowlarr_search_stub(search["query"], search["categories"], search["releases"])
         for search in data["searches"]
     ]
+    # Another key: Prowlarr refuses it.
+    stubs.append(
+        {
+            "priority": 20,
+            "request": {"method": "GET", "urlPathPattern": "/api/v1/.*"},
+            "response": {"status": 401},
+        }
+    )
     return stubs
 
 
@@ -277,7 +288,65 @@ def jellyfin_stubs() -> list[dict[str, Any]]:
             "response": {"status": 204},
         },
     ]
+    key = {"Authorization": {"contains": f'Token="{JELLYFIN_API_KEY}"'}}
+    libraries = [
+        {"Name": "BD & Mangas", "CollectionType": "books", "Locations": ["/data/media/comics"]},
+        {"Name": "Livres", "CollectionType": "books", "Locations": ["/data/media/ebooks"]},
+        {"Name": "Livres audio", "CollectionType": "books", "Locations": ["/data/media/audio"]},
+        {"Name": "Films", "CollectionType": "movies", "Locations": ["/data/media/movies"]},
+    ]
+    stubs += [
+        {
+            "priority": 1,
+            "request": {"method": "GET", "urlPath": "/System/Info", "headers": key},
+            "response": json_response({"Version": "10.11.2", "ServerName": "nami"}),
+        },
+        {
+            "priority": 1,
+            "request": {"method": "GET", "urlPath": "/Library/VirtualFolders", "headers": key},
+            "response": json_response(libraries),
+        },
+        *(
+            {
+                "priority": 10,
+                "request": {"method": "GET", "urlPath": path},
+                "response": {"status": 401},
+            }
+            for path in ("/System/Info", "/Library/VirtualFolders")
+        ),
+    ]
     return stubs
+
+
+def qbittorrent_stubs() -> list[dict[str, Any]]:
+    """qBittorrent behind the client proxy of qui, as the fake sources play it: its version and
+    three of the four categories of shelfdrop under the key of the tests, a 401 under another."""
+    proxy = f"/proxy/{QUI_KEY}/api/v2"
+    categories = {
+        name: {"name": name, "savePath": f"/data/{name}"}
+        for name in ("manga", "ebook", "audiobook")
+    }
+    return [
+        {
+            "priority": 1,
+            "request": {"method": "GET", "urlPath": f"{proxy}/app/version"},
+            "response": {
+                "status": 200,
+                "headers": {"Content-Type": "text/plain"},
+                "body": "v5.1.2",
+            },
+        },
+        {
+            "priority": 1,
+            "request": {"method": "GET", "urlPath": f"{proxy}/torrents/categories"},
+            "response": json_response(categories),
+        },
+        {
+            "priority": 10,
+            "request": {"method": "GET", "urlPathPattern": "/proxy/.*"},
+            "response": {"status": 401},
+        },
+    ]
 
 
 def sign_in(base_url: str, account: tuple[str, str] = ADMIN) -> httpx.Response:

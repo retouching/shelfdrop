@@ -5,9 +5,15 @@ import pytest
 
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.exceptions import InvalidSettingsError
+from shelfdrop.settings.monitor import ConnectionMonitor
 from shelfdrop.settings.service import SettingsService
 from shelfdrop.settings.types import SettingsChange
-from tests.unit.settings.support import TEST_SECRET_KEY, FakeSettingsRepository
+from tests.unit.settings.support import (
+    TEST_SECRET_KEY,
+    FakeProbes,
+    FakeSettingsReader,
+    FakeSettingsRepository,
+)
 from tests.unit.works.support import FixedClock
 
 
@@ -16,9 +22,15 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
-def new_service() -> tuple[SettingsService, FakeSettingsRepository]:
+def new_service(
+    probes: FakeProbes | None = None,
+) -> tuple[SettingsService, FakeSettingsRepository]:
     repository = FakeSettingsRepository()
-    return SettingsService(repository, SecretBox(TEST_SECRET_KEY), FixedClock()), repository
+    probes = probes or FakeProbes()
+    clock = FixedClock()
+    monitor = ConnectionMonitor(probes, FakeSettingsReader(), clock)
+    service = SettingsService(repository, SecretBox(TEST_SECRET_KEY), clock, probes, monitor)
+    return service, repository
 
 
 @pytest.mark.anyio
@@ -126,3 +138,52 @@ async def test_the_environment_never_overwrites_the_page() -> None:
 
     assert await service.import_environment({"jellyfin.url": "http://env:8096"}) == []
     assert (await service.read()).values["jellyfin.url"] == "http://page:8096"
+
+
+@pytest.mark.anyio
+async def test_a_test_uses_the_values_typed_or_else_those_saved() -> None:
+    probes = FakeProbes()
+    service, _ = new_service(probes)
+    await service.save(
+        SettingsChange(
+            values={"prowlarr.url": "http://saved:9696"},
+            secrets={"prowlarr.api_key": "saved-key", "sources.myanimelist.client_id": "id-1"},
+        ),
+        "s",
+    )
+
+    await service.test("prowlarr", None, None)
+    await service.test("prowlarr", "http://typed:9696", "typed-key")
+    await service.test("prowlarr", None, "")
+    await service.test("myanimelist", None, None)
+    await service.test("kitsu", None, None)
+
+    assert probes.runs == [
+        ("prowlarr", "http://saved:9696", "saved-key"),
+        ("prowlarr", "http://typed:9696", "typed-key"),
+        ("prowlarr", "http://saved:9696", None),
+        ("myanimelist", None, "id-1"),
+        ("kitsu", None, None),
+    ]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("name", "url", "key"),
+    [
+        ("nothing", None, "nothing"),
+        ("prowlarr", "ftp://x", "prowlarr.url"),
+        ("kitsu", "http://k", "kitsu.url"),
+    ],
+)
+async def test_a_test_of_an_unknown_service_or_a_bad_address_is_refused(
+    name: str, url: str | None, key: str
+) -> None:
+    probes = FakeProbes()
+    service, _ = new_service(probes)
+
+    with pytest.raises(InvalidSettingsError) as refused:
+        await service.test(name, url, None)
+
+    assert refused.value.keys == [key]
+    assert probes.runs == []

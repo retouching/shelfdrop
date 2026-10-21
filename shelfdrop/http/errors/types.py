@@ -36,6 +36,9 @@ class ErrorCode(StrEnum):
     QUERY_TOO_SHORT = "query_too_short"
     # 422: a search of a work under more names than allowed (6); data = null.
     TOO_MANY_NAMES = "too_many_names"
+    # 422: settings or secrets the catalog does not know, a value it refuses, or a test of an
+    # unknown service; data = {"keys": [each key refused]}, never a value.
+    INVALID_SETTINGS = "invalid_settings"
     # 422: a filter rule whose words or regular expression are empty or invalid;
     # data = {"positions": [index of each such rule in the list sent]}.
     INVALID_FILTER_RULE = "invalid_filter_rule"

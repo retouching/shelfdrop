@@ -76,3 +76,27 @@ class FakeJellyfin:
 
     def paths(self) -> list[str]:
         return [request.url.path for request in self.requests]
+
+
+@dataclass
+class FakeQui:
+    """qBittorrent behind the client proxy of qui: `/proxy/<key>/api/v2/...` (the
+    documentation of qui and the WebUI API of qBittorrent 5.0); another key gets a 401."""
+
+    KEY = "qui-client-key"
+    categories: list[str] = field(default_factory=list)
+    requests: list[httpx.Request] = field(default_factory=list)
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        prefix = f"/proxy/{self.KEY}"
+        path = request.url.path
+        if not path.startswith(prefix + "/"):
+            return httpx.Response(401, request=request)
+        path = path.removeprefix(prefix)
+        if path == "/api/v2/app/version":
+            return httpx.Response(200, text="v5.1.2", request=request)
+        if path == "/api/v2/torrents/categories":
+            body = {name: {"name": name, "savePath": f"/data/{name}"} for name in self.categories}
+            return httpx.Response(200, json=body, request=request)
+        return httpx.Response(404, request=request)

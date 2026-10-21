@@ -151,7 +151,7 @@ async def test_a_tracker_not_asked_is_not_searched_and_the_order_ranks() -> None
     service, repository, replay = new_service()
     await service.refresh_trackers()
     # C411 first, Nyaa not asked.
-    await service.save_trackers([(4, True, False), (1, False, False)])
+    await service.save_trackers([(4, True, False), (1, False, False)], "sylvain")
 
     found = await search(service, "Jujutsu Kaisen")
 
@@ -161,12 +161,13 @@ async def test_a_tracker_not_asked_is_not_searched_and_the_order_ranks() -> None
     # Same score: C411 comes first now, whatever its seeds.
     assert t01[0].indexer == "C411"
     assert repository.trackers[0].name == "C411"
+    assert repository.audit == [("sylvain", "trackers")]
 
 
 @pytest.mark.anyio
 async def test_the_filters_score_and_set_aside_at_each_read() -> None:
     service, _, _ = new_service()
-    await service.save_filters(Filters(rules=(ENGLISH,), minimum=-10))
+    await service.save_filters(Filters(rules=(ENGLISH,), minimum=-10), "sylvain")
 
     found = await search(service, "Jujutsu Kaisen", "Sorcery Fight")
 
@@ -178,7 +179,7 @@ async def test_the_filters_score_and_set_aside_at_each_read() -> None:
     assert all(r.rejected == "score" for r in english)
     assert english[0].score_rules[0].name == "Anglais"
 
-    await service.save_filters(Filters(rules=(ENGLISH,), minimum=-100))
+    await service.save_filters(Filters(rules=(ENGLISH,), minimum=-100), "sylvain")
     again = await service.read(found.progress.id)
     assert all(r.rejected is None for r in again.releases if r.score == -50)
 
@@ -190,11 +191,11 @@ async def test_filters_are_saved_and_an_invalid_rule_is_refused() -> None:
 
     broken = FilterRule(name="Cassée", pattern="(FRENCH", regex=True, score=5)
     with pytest.raises(InvalidRuleError) as refused:
-        await service.save_filters(Filters(rules=(ENGLISH, broken), minimum=0))
+        await service.save_filters(Filters(rules=(ENGLISH, broken), minimum=0), "sylvain")
     assert refused.value.positions == [1]
     assert repository.commits == 0
 
-    await service.save_filters(Filters(rules=(ENGLISH,), minimum=-20))
+    await service.save_filters(Filters(rules=(ENGLISH,), minimum=-20), "sylvain")
     assert await service.read_filters() == Filters(rules=(ENGLISH,), minimum=-20)
 
 
@@ -202,7 +203,7 @@ async def test_filters_are_saved_and_an_invalid_rule_is_refused() -> None:
 async def test_a_read_of_prowlarr_again_keeps_the_choices() -> None:
     service, _, _ = new_service()
     await service.refresh_trackers()
-    await service.save_trackers([(2, True, True), (1, False, False)])
+    await service.save_trackers([(2, True, True), (1, False, False)], "sylvain")
 
     trackers = await service.refresh_trackers()
 

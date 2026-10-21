@@ -26,6 +26,8 @@ PARTS: Final = {
     "test_release_filters.py": "releases",
     "test_session.py": "auth",
     "test_sign_in.py": "auth",
+    "test_settings.py": "settings",
+    "test_settings_tests.py": "settings",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -43,6 +45,8 @@ FILE_BLOCKS: Final = {
     "test_release_filters.py": "releases_filters",
     "test_session.py": "auth_session",
     "test_sign_in.py": "auth_sign_in",
+    "test_settings.py": "settings_store",
+    "test_settings_tests.py": "settings_tests",
 }
 
 

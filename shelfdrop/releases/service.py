@@ -30,6 +30,9 @@ from shelfdrop.works.types import Clock, Kind
 MINIMUM_KEY: Final = "filters.minimum"
 # The minimum score before it is ever saved.
 DEFAULT_MINIMUM: Final = -100
+# The targets of the audit of a change of the trackers and of the filters.
+TRACKERS_TARGET: Final = "trackers"
+FILTERS_TARGET: Final = "filters"
 
 
 class NameLimit(Protocol):
@@ -122,13 +125,18 @@ class ReleaseService:
         self.repository.commit()
         return trackers
 
-    async def save_trackers(self, choices: Sequence[tuple[int, bool, bool]]) -> list[Tracker]:
+    async def save_trackers(
+        self, choices: Sequence[tuple[int, bool, bool]], actor: str
+    ) -> list[Tracker]:
         """The order and the choices of the trackers: (indexer id, asked, automatic)."""
-        return await anyio.to_thread.run_sync(self.order_and_save, choices)
+        return await anyio.to_thread.run_sync(self.order_and_save, choices, actor)
 
-    def order_and_save(self, choices: Sequence[tuple[int, bool, bool]]) -> list[Tracker]:
+    def order_and_save(
+        self, choices: Sequence[tuple[int, bool, bool]], actor: str
+    ) -> list[Tracker]:
         trackers = ordered_choices(self.repository.read_trackers(), choices)
         self.repository.replace_trackers(trackers)
+        self.repository.add_audit(int(self.clock.now()), actor, TRACKERS_TARGET)
         self.repository.commit()
         return trackers
 
@@ -142,15 +150,17 @@ class ReleaseService:
             minimum=minimum if isinstance(minimum, int) else DEFAULT_MINIMUM,
         )
 
-    async def save_filters(self, filters: Filters) -> Filters:
+    async def save_filters(self, filters: Filters, actor: str) -> Filters:
         """Raises InvalidRuleError when a rule's expression is empty or invalid."""
         invalid = invalid_rules(filters.rules)
         if invalid:
             raise InvalidRuleError(invalid)
-        return await anyio.to_thread.run_sync(self.replace_filters, filters)
+        return await anyio.to_thread.run_sync(self.replace_filters, filters, actor)
 
-    def replace_filters(self, filters: Filters) -> Filters:
+    def replace_filters(self, filters: Filters, actor: str) -> Filters:
+        now = int(self.clock.now())
         self.repository.replace_rules(filters.rules)
-        self.repository.save_setting(MINIMUM_KEY, filters.minimum, int(self.clock.now()))
+        self.repository.save_setting(MINIMUM_KEY, filters.minimum, now, actor)
+        self.repository.add_audit(now, actor, FILTERS_TARGET)
         self.repository.commit()
         return filters

@@ -1,10 +1,14 @@
 """The routes of the filters of the releases: rules with points, and a minimum score. Async, as
 every route of the release search (ADR 0011)."""
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
 from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
+from shelfdrop.auth.types import Account
+from shelfdrop.http.dependencies import require_session
 from shelfdrop.modules.filters.errors import invalid_filter_rule
 from shelfdrop.modules.filters.schemas import FilterRuleBody, FiltersBody
 from shelfdrop.releases.exceptions import InvalidRuleError
@@ -27,7 +31,11 @@ async def read_filters(service: Injected[ReleaseService]) -> FiltersBody:
 
 
 @router.put("")
-async def save_filters(service: Injected[ReleaseService], body: FiltersBody) -> FiltersBody:
+async def save_filters(
+    service: Injected[ReleaseService],
+    account: Annotated[Account, Depends(require_session)],
+    body: FiltersBody,
+) -> FiltersBody:
     filters = Filters(
         rules=tuple(
             FilterRule(
@@ -43,6 +51,6 @@ async def save_filters(service: Injected[ReleaseService], body: FiltersBody) -> 
         minimum=body.minimum,
     )
     try:
-        return filters_body(await service.save_filters(filters))
+        return filters_body(await service.save_filters(filters, account.username))
     except InvalidRuleError as exc:
         raise invalid_filter_rule(exc.positions) from exc

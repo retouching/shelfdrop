@@ -88,6 +88,9 @@ markers = [
     "auth: integration part, the sign-in and the sessions through the fake Jellyfin",
     "auth_session: block of auth, the routes without a session, the origin, the sign-out (test_session.py)",
     "auth_sign_in: block of auth, the sign-in, the refusals, the attempts counted (test_sign_in.py)",
+    "settings: integration part, the settings, their secrets and the tests of the connections",
+    "settings_store: block of settings, kept, audited, imported, read at each use (test_settings.py)",
+    "settings_tests: block of settings, the tests of the connections (test_settings_tests.py)",
 ]
 
 [dependency-groups]

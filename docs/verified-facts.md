@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F21.
+Next fact ID: F23.
 
 ## Metadata sources
 
@@ -79,6 +79,17 @@ Next fact ID: F21.
   - Evidence: the same OpenAPI document (`GetSystemInfo`, `GetVirtualFolders`, `VirtualFolderInfo`, `CollectionTypeOptions`).
   - Pinned by: `tests/unit/clients/test_jellyfin.py::test_the_server_and_its_libraries_are_read_with_the_api_key`
   - Re-verify: when Jellyfin changes its major version.
+
+### qBittorrent (WebUI API v2), behind qui
+
+- **F21** `GET /api/v2/app/version` answers the version as text (`v4.1.3`); `GET /api/v2/torrents/categories` a JSON object by name (`{"name", "savePath"}`). Every method but the sign-in needs the cookie `SID`.
+  - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" (read on 2026-10-21). No real qBittorrent asked; `FakeQui` and `qbittorrent_stubs` answer in this shape.
+  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_the_version_and_the_categories_go_through_the_proxy_of_its_key`
+  - Re-verify: before the first test against the qBittorrent of the user.
+- **F22** The client proxy of qui stands for a qBittorrent at `<qui>/proxy/<client API key>`: an application uses it as the address of qBittorrent with no credentials, qui keeps the session of qBittorrent; a key missing or wrong gets a `401` from qui.
+  - Evidence: the documentation of qui, "Reverse proxy for external applications" (getqui.com/docs/features/reverse-proxy, read on 2026-10-21), and its issue #3167 ("the qui proxy middleware only returns 401 for a missing or invalid API key").
+  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_wrong_key_is_refused_and_a_missing_one_asks_nothing`
+  - Re-verify: before the first test against the qui of the user, and when qui changes its major version.
 
 ## Pinned components
 

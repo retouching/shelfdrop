@@ -69,6 +69,7 @@ class FakeReleaseRepository(ReleaseRepository):
 
     def __init__(self) -> None:
         super().__init__(no_session())
+        self.audit: list[tuple[str, str]] = []
         self.answers: dict[str, tuple[tuple[FoundRelease, ...], float, int]] = {}
         self.trackers: list[Tracker] = []
         self.rules: tuple[FilterRule, ...] = ()
@@ -111,8 +112,12 @@ class FakeReleaseRepository(ReleaseRepository):
         return self.settings.get(key)
 
     @override
-    def save_setting(self, key: str, value: object, now: int) -> None:
+    def save_setting(self, key: str, value: object, now: int, actor: str) -> None:
         self.settings[key] = value
+
+    @override
+    def add_audit(self, at: int, actor: str, target: str) -> None:
+        self.audit.append((actor, target))
 
     @override
     def commit(self) -> None:

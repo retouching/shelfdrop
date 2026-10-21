@@ -1,0 +1,152 @@
+"""shelfdrop.settings.probes: the test of each service and source, with the values given."""
+
+import httpx
+import pytest
+
+from shelfdrop.clients.jellyfin import JellyfinClient
+from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
+from shelfdrop.settings.probes import ConnectionProbes
+from shelfdrop.works.clients.kitsu import KitsuClient
+from shelfdrop.works.clients.myanimelist import MyAnimeListClient
+from shelfdrop.works.service import WorkSources
+from tests.unit.clients.support import API_KEY as JELLYFIN_KEY
+from tests.unit.clients.support import URL as JELLYFIN_URL
+from tests.unit.clients.support import FakeJellyfin, FakeQui
+from tests.unit.releases.support import API_KEY, URL, ProwlarrReplay
+
+QUI = "http://qui.test:7476"
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+def http(handler: object) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler))  # type: ignore[arg-type]  # the fakes are handlers of MockTransport
+
+
+def new_probes(
+    sources: httpx.AsyncClient | None = None,
+    qui: FakeQui | None = None,
+    jellyfin: FakeJellyfin | None = None,
+) -> ConnectionProbes:
+    source_http = sources or http(lambda r: httpx.Response(200, json={"data": []}))
+
+    async def no_id() -> str | None:
+        return None
+
+    return ConnectionProbes(
+        ProwlarrClient(http(ProwlarrReplay()), fixed(None, None)),
+        QBittorrentClient(http(qui or FakeQui(categories=["manga", "ebook", "audiobook"]))),
+        JellyfinClient(http(jellyfin or FakeJellyfin()), "0.3.0"),
+        WorkSources(clients=(KitsuClient(source_http), MyAnimeListClient(source_http, no_id))),
+    )
+
+
+@pytest.mark.anyio
+async def test_prowlarr_gives_its_version_and_its_indexers_on() -> None:
+    result = await new_probes().run("prowlarr", URL, API_KEY)
+
+    assert result.ok
+    assert result.version == "2.1.5.5216"
+    assert result.count == 4  # on, torrent: C411, Abnormal, Nyaa.si, The Old School
+
+
+@pytest.mark.anyio
+async def test_a_wrong_key_is_refused_with_its_status() -> None:
+    result = await new_probes().run("prowlarr", URL, "wrong")
+
+    assert result.state == "refused"
+    assert result.status == 401
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("url", "key", "state"), [(None, "k", "no_address"), (URL, None, "no_key")]
+)
+async def test_without_address_or_key_nothing_is_asked(
+    url: str | None, key: str | None, state: str
+) -> None:
+    assert (await new_probes().run("jellyfin", url, key)).state == state
+
+
+@pytest.mark.anyio
+async def test_qbittorrent_names_the_categories_of_shelfdrop_it_misses() -> None:
+    result = await new_probes().run("qbittorrent", QUI, FakeQui.KEY)
+
+    assert result.ok
+    assert result.version == "5.1.2"
+    assert result.count == 3
+    assert result.missing == ("shelfdrop-manual",)
+
+
+@pytest.mark.anyio
+async def test_jellyfin_gives_its_version_and_its_libraries_of_books() -> None:
+    jellyfin = FakeJellyfin(
+        libraries=[
+            {"Name": "BD & Mangas", "CollectionType": "books"},
+            {"Name": "Livres", "CollectionType": "books"},
+            {"Name": "Livres audio", "CollectionType": "books"},
+            {"Name": "Films", "CollectionType": "movies"},
+        ]
+    )
+
+    result = await new_probes(jellyfin=jellyfin).run("jellyfin", JELLYFIN_URL, JELLYFIN_KEY)
+
+    assert result.ok
+    assert result.version == "10.11.2"
+    assert result.count == 3
+
+
+@pytest.mark.anyio
+async def test_unreachable_is_unavailable() -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    probes = new_probes()
+    probes.qbittorrent = QBittorrentClient(http(refuse))
+
+    result = await probes.run("qbittorrent", QUI, FakeQui.KEY)
+
+    assert result.state == "unavailable"
+    assert result.status is None
+
+
+@pytest.mark.anyio
+async def test_a_source_answers_a_fixed_search_in_its_time() -> None:
+    seen: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    result = await new_probes(sources=http(answer)).run("kitsu", None, None)
+
+    assert result.ok
+    assert result.elapsed_ms is not None
+    assert "Chainsaw Man" in seen[0].url.params.values()
+
+
+@pytest.mark.anyio
+async def test_myanimelist_is_tested_with_the_client_id_typed() -> None:
+    seen: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            403 if request.headers["X-MAL-CLIENT-ID"] == "bad" else 200, json={"data": []}
+        )
+
+    probes = new_probes(sources=http(answer))
+
+    without = await probes.run("myanimelist", None, None)
+    refused = await probes.run("myanimelist", None, "bad")
+    ok = await probes.run("myanimelist", None, "good")
+
+    assert without.state == "no_key"
+    assert refused.state == "unavailable"
+    assert refused.status == 403
+    assert ok.ok
+    assert [r.headers["X-MAL-CLIENT-ID"] for r in seen] == ["bad", "good"]

@@ -2,16 +2,17 @@
 and imported once from the environment."""
 
 from collections.abc import Mapping
-from typing import Final
+from typing import Final, Protocol
 
 import anyio
 import anyio.to_thread
 
-from shelfdrop.settings.catalog import SECRETS, VALUES, invalid_keys, is_valid
+from shelfdrop.settings.catalog import ADDRESS, SECRETS, SERVICES, VALUES, invalid_keys, is_valid
 from shelfdrop.settings.cipher import SecretBox
-from shelfdrop.settings.exceptions import InvalidSettingsError
+from shelfdrop.settings.exceptions import InvalidSettingsError, SecretUnreadableError
+from shelfdrop.settings.monitor import ConnectionMonitor
 from shelfdrop.settings.repository import SettingsRepository
-from shelfdrop.settings.types import AuditRecord, SettingsChange, SettingsView
+from shelfdrop.settings.types import AuditRecord, ProbeResult, SettingsChange, SettingsView
 from shelfdrop.works.types import Clock
 
 # The keys already imported from the environment: each one is imported once (ADR 0012).
@@ -21,11 +22,33 @@ ENVIRONMENT: Final = "environment"
 AUDIT_SHOWN: Final = 100
 
 
+class Probes(Protocol):
+    def names(self) -> tuple[str, ...]: ...
+
+    async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult: ...
+
+
+def secret_key_of(service: str) -> str | None:
+    """The key of the secret a test of `service` uses."""
+    if service in SERVICES:
+        return f"{service}.api_key"
+    return "sources.myanimelist.client_id" if service == "myanimelist" else None
+
+
 class SettingsService:
-    def __init__(self, repository: SettingsRepository, box: SecretBox, clock: Clock) -> None:
+    def __init__(
+        self,
+        repository: SettingsRepository,
+        box: SecretBox,
+        clock: Clock,
+        probes: Probes,
+        monitor: ConnectionMonitor,
+    ) -> None:
         self.repository = repository
         self.box = box
         self.clock = clock
+        self.probes = probes
+        self.monitor = monitor
 
     async def read(self) -> SettingsView:
         return await anyio.to_thread.run_sync(self.view)
@@ -61,6 +84,37 @@ class SettingsService:
                 self.repository.add_audit(now, actor, "cleared", key)
         self.repository.commit()
         return self.view()
+
+    async def test(self, service: str, url: str | None, secret: str | None) -> ProbeResult:
+        """The test of a connection with the values typed: `url` and `secret` None are those
+        saved, a `secret` "" none. Raises InvalidSettingsError for an unknown service or an
+        address refused."""
+        if service not in self.probes.names():
+            raise InvalidSettingsError([service])
+        if url is not None and (service not in SERVICES or ADDRESS.match(url) is None):
+            raise InvalidSettingsError([f"{service}.url"])
+        saved_url, saved_secret = await anyio.to_thread.run_sync(self.saved_connection, service)
+        return await self.probes.run(
+            service,
+            saved_url if url is None else url,
+            saved_secret if secret is None else (secret or None),
+        )
+
+    def saved_connection(self, service: str) -> tuple[str | None, str | None]:
+        url_key, secret_key = f"{service}.url", secret_key_of(service)
+        url = self.repository.read_values([url_key]).get(url_key) if service in SERVICES else None
+        sealed = None if secret_key is None else self.repository.read_sealed(secret_key)
+        secret = None
+        if secret_key is not None and sealed is not None:
+            try:
+                secret = self.box.open(secret_key, sealed)
+            except SecretUnreadableError:
+                secret = None
+        return (url if isinstance(url, str) else None), secret
+
+    def health(self) -> tuple[list[ProbeResult], int | None]:
+        """The last background tests of the services saved."""
+        return self.monitor.last()
 
     async def read_audit(self) -> list[AuditRecord]:
         return await anyio.to_thread.run_sync(self.repository.read_audit, AUDIT_SHOWN)

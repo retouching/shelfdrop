@@ -8,6 +8,7 @@ from typing import Literal
 type ValueKind = Literal["address", "number", "switch"]
 type SettingValue = str | int | bool | None
 type AuditAction = Literal["changed", "replaced", "cleared", "imported"]
+type ProbeState = Literal["connected", "no_address", "no_key", "refused", "unavailable"]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -42,3 +43,25 @@ class AuditRecord:
     actor: str
     action: AuditAction
     target: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class ProbeResult:
+    """What a test of a connection found: `connected`, or why not."""
+
+    service: str
+    state: ProbeState
+    status: int | None = None
+    """The HTTP status of a refusal or of an error."""
+    version: str | None = None
+    count: int | None = None
+    """Prowlarr: the indexers on; qBittorrent: the categories of shelfdrop found; Jellyfin: the
+    libraries of books."""
+    missing: tuple[str, ...] = ()
+    """qBittorrent: the categories of shelfdrop it does not have."""
+    elapsed_ms: int | None = None
+    """A metadata source: the time of its answer."""
+
+    @property
+    def ok(self) -> bool:
+        return self.state == "connected"

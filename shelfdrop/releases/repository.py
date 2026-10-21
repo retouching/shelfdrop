@@ -9,8 +9,8 @@ from pydantic import TypeAdapter
 from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
+from shelfdrop.db.models import AuditEntry, ReleaseAnswer, Setting
 from shelfdrop.db.models import FilterRule as FilterRuleRow
-from shelfdrop.db.models import ReleaseAnswer, Setting
 from shelfdrop.db.models import Tracker as TrackerRow
 from shelfdrop.releases.types import FilterRule, FoundRelease, Tracker
 from shelfdrop.works.types import Kind
@@ -109,8 +109,14 @@ class ReleaseRepository:
         row = self.session.get(Setting, key)
         return None if row is None else json.loads(row.value)
 
-    def save_setting(self, key: str, value: object, now: int) -> None:
-        self.session.merge(Setting(key=key, value=json.dumps(value), updated_at=now))
+    def save_setting(self, key: str, value: object, now: int, actor: str) -> None:
+        self.session.merge(
+            Setting(key=key, value=json.dumps(value), updated_at=now, updated_by=actor)
+        )
+
+    def add_audit(self, at: int, actor: str, target: str) -> None:
+        """A change of the trackers or of the filters, by `actor` (never what changed)."""
+        self.session.add(AuditEntry(at=at, actor=actor, action="changed", target=target))
 
     def commit(self) -> None:
         self.session.commit()
