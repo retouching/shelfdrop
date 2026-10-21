@@ -1,7 +1,7 @@
 // Briques communes de la page Paramètres : carte, champs, secret, test de connexion.
 import { useState, type ReactElement, type ReactNode } from "react";
 
-import { wait } from "../../mock/latency";
+import type { ProbeRead } from "../../api/settings";
 import { texts } from "../../texts";
 import { CheckIcon } from "../icons";
 import { Spinner } from "../Skeletons";
@@ -86,19 +86,31 @@ export function Toggle({
   );
 }
 
-/** Secret : jamais affiché ni renvoyé. On peut seulement le remplacer ou l'effacer. */
+/** « 21/10/2026 » : la date de définition d'un secret (secondes Unix). */
+function dayOf(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleDateString("fr-FR");
+}
+
+/**
+ * Secret : jamais affiché ni renvoyé, seulement sa date. On peut le remplacer ou l'effacer ;
+ * `edit` est la modification en cours (une valeur saisie, null : effacé), enregistrée par le
+ * bouton « Enregistrer ».
+ */
 export function SecretField({
   label,
-  setOn,
+  setAt,
+  edit,
+  onEdit,
   optional,
 }: {
   readonly label: string;
-  readonly setOn: string | null;
+  readonly setAt: number | null;
+  readonly edit: string | null | undefined;
+  readonly onEdit: (edit: string | null | undefined) => void;
   readonly optional?: boolean;
 }): ReactElement {
-  const [editing, setEditing] = useState(false);
-  const [cleared, setCleared] = useState(false);
-  const isSet = setOn !== null && !cleared;
+  const editing = typeof edit === "string";
+  const isSet = setAt !== null && edit !== null;
 
   return (
     <div className="space-y-1.5">
@@ -108,11 +120,20 @@ export function SecretField({
       </span>
       {editing ? (
         <div className="flex gap-2">
-          <input type="password" autoComplete="off" aria-label={label} className={input} />
+          <input
+            type="password"
+            autoComplete="off"
+            aria-label={label}
+            value={edit}
+            onChange={(event) => {
+              onEdit(event.target.value);
+            }}
+            className={input}
+          />
           <button
             type="button"
             onClick={() => {
-              setEditing(false);
+              onEdit(undefined);
             }}
             className="rounded-lg px-3 text-sm text-slate-600 hover:bg-slate-100"
           >
@@ -122,13 +143,14 @@ export function SecretField({
       ) : (
         <div className="flex items-center gap-3 rounded-lg border border-dashed border-slate-300 px-3 py-2">
           <span className={`flex-1 text-sm ${isSet ? "text-ink" : "text-slate-500"}`}>
-            {isSet ? `•••••••• · ${texts.settings.secretSet(setOn)}` : texts.settings.secretUnset}
+            {setAt !== null && edit !== null
+              ? `•••••••• · ${texts.settings.secretSet(dayOf(setAt))}`
+              : texts.settings.secretUnset}
           </span>
           <button
             type="button"
             onClick={() => {
-              setEditing(true);
-              setCleared(false);
+              onEdit("");
             }}
             className="text-sm font-medium text-accent-text hover:underline"
           >
@@ -138,7 +160,7 @@ export function SecretField({
             <button
               type="button"
               onClick={() => {
-                setCleared(true);
+                onEdit(null);
               }}
               className="text-sm text-slate-500 hover:text-rose-700"
             >
@@ -158,12 +180,49 @@ export type TestState =
 
 export type ConnectionTest = { readonly state: TestState; readonly run: () => Promise<void> };
 
-export function useConnectionTest(result: TestResult, delayMs: number): ConnectionTest {
+/** « 2.1.5.5216 » → « 2.1 ». */
+function shortVersion(version: string | null): string {
+  return (version ?? "").split(".").slice(0, 2).join(".");
+}
+
+/** Le message d'un test, avec les textes de la page ; `name` : le nom du service. */
+export function probeMessage(probe: ProbeRead, name: string): TestResult {
+  const results = texts.settings.results;
+  switch (probe.state) {
+    case "connected": {
+      if (probe.elapsed_ms !== null) {
+        const seconds = (probe.elapsed_ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+        return { ok: true, message: results.answersIn(seconds) };
+      }
+      const count = probe.count ?? 0;
+      const detail =
+        probe.service === "prowlarr"
+          ? results.indexers(count)
+          : probe.service === "qbittorrent"
+            ? results.categories(count)
+            : results.libraries(count);
+      return { ok: true, message: results.connected([`${name} ${shortVersion(probe.version)}`, detail]) };
+    }
+    case "no_address":
+    case "no_key":
+      return { ok: false, message: results.keyMissing };
+    case "refused":
+      return { ok: false, message: results.refused(probe.status ?? 401, name) };
+    case "unavailable":
+      return { ok: false, message: results.noAnswer(probe.status) };
+  }
+}
+
+/** Un test de connexion : `probe` l'envoie avec les valeurs saisies. */
+export function useConnectionTest(probe: () => Promise<TestResult>): ConnectionTest {
   const [state, setState] = useState<TestState>({ kind: "idle" });
   async function run(): Promise<void> {
     setState({ kind: "running" });
-    await wait(delayMs);
-    setState({ kind: "done", ...result });
+    try {
+      setState({ kind: "done", ...(await probe()) });
+    } catch {
+      setState({ kind: "done", ok: false, message: texts.settings.results.noAnswer(null) });
+    }
   }
   return { state, run };
 }

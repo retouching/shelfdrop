@@ -300,6 +300,17 @@ export const texts = {
     webhook: "Webhook",
     events: "Événements envoyés",
     sendTest: "Envoyer un message de test",
+    results: {
+      connected: (parts: readonly string[]): string => ["Connecté", ...parts].join(" · "),
+      indexers: (n: number): string => plural(n, "indexeur actif", "indexeurs actifs"),
+      categories: (n: number): string => plural(n, "catégorie trouvée", "catégories trouvées"),
+      libraries: (n: number): string => plural(n, "bibliothèque trouvée", "bibliothèques trouvées"),
+      keyMissing: "Clé API manquante",
+      refused: (status: number, service: string): string => `${String(status)} : clé refusée par ${service}`,
+      noAnswer: (status: number | null): string =>
+        status === null ? "Ne répond pas" : `Ne répond pas (${String(status)})`,
+      answersIn: (seconds: string): string => `Répond en ${seconds} s`,
+    },
     tokens: "Jetons d'accès",
     tokenName: "Nom",
     tokenScope: "Droits",

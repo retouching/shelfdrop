@@ -25,6 +25,8 @@ import { WaitDialog } from "./components/WaitDialog";
 import { whenSignedOut } from "./api/http";
 import type { SearchProgress } from "./api/searches";
 import { readSession, signOut } from "./api/session";
+import { readHealth } from "./api/settings";
+import { loadSettings, useSettings, valueOf } from "./state/settings";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
 import { mockDownloads, nextDownloads } from "./mock/data";
 import { guessKind, mockFiles } from "./mock/files";
@@ -55,8 +57,10 @@ function withMerges(list: readonly Work[], merges: readonly Work[]): readonly Wo
   });
 }
 
-/** Au plus 6 noms partent à Prowlarr pour une œuvre. */
-const MAX_NAMES = 6;
+/** Noms envoyés à Prowlarr pour une œuvre avant la lecture des paramètres. */
+const DEFAULT_MAX_NAMES = 6;
+/** Les tests des services tournent toutes les 5 minutes : la page relit leur résultat au même rythme. */
+const HEALTH_EVERY_MS = 5 * 60 * 1000;
 
 function stats(downloads: readonly Download[]): readonly Stat[] {
   const count = (kinds: readonly string[]): string =>
@@ -72,6 +76,10 @@ export function App(): ReactElement | null {
   const [username, setUsername] = useState<string | null>(null);
   // La session est lue au chargement : rien n'est affiché avant sa réponse.
   const [sessionRead, setSessionRead] = useState(false);
+  const [servicesDown, setServicesDown] = useState(false);
+  const settings = useSettings();
+  const maxNamesSetting = valueOf(settings, "search.max_names");
+  const maxNames = typeof maxNamesSetting === "number" ? maxNamesSetting : DEFAULT_MAX_NAMES;
   const [page, setPage] = useState<Page>("auto");
   const [kind, setKind] = useState<Kind>("manga");
   const [query, setQuery] = useState("");
@@ -201,6 +209,26 @@ export function App(): ReactElement | null {
     };
   }, []);
 
+  useEffect(() => {
+    if (username === null) {
+      return undefined;
+    }
+    loadSettings().catch(() => undefined);
+    function check(): void {
+      readHealth().then(
+        (services) => {
+          setServicesDown(services.some((service) => !service.ok));
+        },
+        () => undefined,
+      );
+    }
+    check();
+    const timer = window.setInterval(check, HEALTH_EVERY_MS);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [username]);
+
   if (!sessionRead) {
     return null;
   }
@@ -252,7 +280,7 @@ export function App(): ReactElement | null {
         next?.titles
           .filter((t) => t.checked !== false)
           .map((t) => t.title)
-          .slice(0, MAX_NAMES),
+          .slice(0, maxNames),
       ),
     );
     setRefreshRound(0);
@@ -263,7 +291,7 @@ export function App(): ReactElement | null {
     const next = new Set(names);
     if (next.has(title)) {
       next.delete(title);
-    } else if (next.size < MAX_NAMES) {
+    } else if (next.size < maxNames) {
       next.add(title);
     }
     setRefreshRound(0);
@@ -338,6 +366,7 @@ export function App(): ReactElement | null {
         page={page}
         username={username}
         runningCount={running}
+        settingsAlert={servicesDown}
         waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
         toPlaceCount={files.filter((file) => file.state.kind === "unlinked" || file.state.kind === "misplaced").length}
         onNavigate={(next) => {

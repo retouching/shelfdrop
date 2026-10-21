@@ -1,7 +1,7 @@
-import { useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 
-import { wait } from "../../mock/latency";
 import { saveSearchSettings } from "../../state/searchSettings";
+import { loadSettings, saveChangedSettings } from "../../state/settings";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import { AccessTab } from "./AccessTab";
@@ -33,6 +33,11 @@ function TabContent({ tab }: { readonly tab: Tab }): ReactElement | null {
 
 export function SettingsPage(): ReactElement {
   const [tab, setTab] = useState<Tab>("services");
+
+  useEffect(() => {
+    // Une erreur de lecture laisse les champs vides.
+    loadSettings().catch(() => undefined);
+  }, []);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -40,8 +45,8 @@ export function SettingsPage(): ReactElement {
     setSaving(true);
     setSaved(false);
     try {
-      // Recherche et Filtres sont enregistrés par l'API ; les autres rubriques viendront avec elle.
-      await Promise.all([saveSearchSettings(), wait(300)]);
+      // Rangement et API et MCP ne sont pas encore enregistrés : ils viennent avec leur étape.
+      await Promise.all([saveSearchSettings(), saveChangedSettings()]);
       setSaved(true);
     } catch {
       setSaved(false);

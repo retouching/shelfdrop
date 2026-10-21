@@ -1,7 +1,9 @@
-// Rubriques Services, Sources, Recherche, Rangement et Journal Discord. Valeurs fictives de la maquette.
+// Rubriques Services, Sources, Recherche, Rangement et Journal Discord. Services, sources, recherche
+// et journal : lus et enregistrés par l'API ; Rangement : valeurs fictives jusqu'à son étape.
 import { useEffect, useState, type ReactElement } from "react";
 
-import type { Tracker } from "../../api/settings";
+import { testConnection, type SettingValue, type Tracker } from "../../api/settings";
+import { setSecret, setValue, useSettings, valueOf } from "../../state/settings";
 import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } from "../../state/searchSettings";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
@@ -9,49 +11,54 @@ import {
   Card,
   Field,
   input,
+  probeMessage,
   SecretField,
   TestButton,
   TestStatus,
   Toggle,
   useConnectionTest,
   type ConnectionTest,
-  type TestResult,
 } from "./parts";
 
-type Service = {
-  readonly id: "prowlarr" | "qbittorrent" | "jellyfin";
-  readonly url: string;
-  readonly secrets: readonly { readonly label: string; readonly setOn: string | null }[];
-  readonly result: TestResult;
-  readonly delayMs: number;
-};
+type ServiceId = "prowlarr" | "qbittorrent" | "jellyfin";
 
-const services: readonly Service[] = [
-  {
-    id: "prowlarr",
-    url: "http://tunnel:9696",
-    secrets: [{ label: texts.settings.apiKey, setOn: "21/10/2026" }],
-    result: { ok: true, message: "Connecté · Prowlarr 2.1 · 6 indexeurs actifs" },
-    delayMs: 900,
-  },
-  {
-    id: "qbittorrent",
-    url: "http://tunnel:7476",
-    secrets: [{ label: texts.settings.apiKey, setOn: "20/10/2026" }],
-    result: { ok: true, message: "Connecté · qui · 3 catégories trouvées" },
-    delayMs: 1100,
-  },
-  {
-    id: "jellyfin",
-    url: "http://jellyfin:8096",
-    secrets: [{ label: texts.settings.apiKey, setOn: null }],
-    result: { ok: false, message: "Clé API manquante" },
-    delayMs: 700,
-  },
-];
+const serviceIds: readonly ServiceId[] = ["prowlarr", "qbittorrent", "jellyfin"];
 
-function ServiceCard({ service, test }: { readonly service: Service; readonly test: ConnectionTest }): ReactElement {
-  const info = texts.settings.services[service.id];
+/** Le texte d'un champ d'adresse : la valeur modifiée, sinon celle enregistrée. */
+function textOf(value: SettingValue | undefined): string {
+  return typeof value === "string" ? value : "";
+}
+
+/** La clé envoyée au test : celle saisie, "" si effacée, null pour celle enregistrée. */
+function typedSecret(edit: string | null | undefined): string | null {
+  if (edit === undefined || edit === "") {
+    return null;
+  }
+  return edit;
+}
+
+function useServiceTest(id: ServiceId): ConnectionTest {
+  const settings = useSettings();
+  const url = textOf(valueOf(settings, `${id}.url`));
+  const edit = settings.secrets[`${id}.api_key`];
+  const name = texts.settings.services[id].name.split(" ")[0] ?? id;
+  return useConnectionTest(async () =>
+    probeMessage(
+      await testConnection({
+        service: id,
+        url: url === "" ? null : url,
+        secret: edit === null ? "" : typedSecret(edit),
+      }),
+      name,
+    ),
+  );
+}
+
+function ServiceCard({ id, test }: { readonly id: ServiceId; readonly test: ConnectionTest }): ReactElement {
+  const settings = useSettings();
+  const info = texts.settings.services[id];
+  const secretKey = `${id}.api_key`;
+  const url = textOf(valueOf(settings, `${id}.url`));
   return (
     <Card
       title={info.name}
@@ -60,7 +67,7 @@ function ServiceCard({ service, test }: { readonly service: Service; readonly te
         <span className="flex items-center gap-3">
           <TestStatus state={test.state} />
           <TestButton
-            busy={test.state.kind === "running"}
+            busy={test.state.kind === "running" || url === ""}
             onClick={() => {
               void test.run();
             }}
@@ -69,31 +76,40 @@ function ServiceCard({ service, test }: { readonly service: Service; readonly te
       }
     >
       <Field label={texts.settings.url}>
-        <input defaultValue={service.url} className={input} />
+        <input
+          value={url}
+          onChange={(event) => {
+            setValue(`${id}.url`, event.target.value === "" ? null : event.target.value);
+          }}
+          className={input}
+        />
       </Field>
-      {service.secrets.map((secret) => (
-        <SecretField key={secret.label} label={secret.label} setOn={secret.setOn} />
-      ))}
+      <SecretField
+        label={texts.settings.apiKey}
+        setAt={settings.saved?.secrets[secretKey] ?? null}
+        edit={settings.secrets[secretKey]}
+        onEdit={(next) => {
+          setSecret(secretKey, next);
+        }}
+      />
     </Card>
   );
 }
 
-const [prowlarr, qbittorrent, jellyfin] = services;
-
-export function ServicesTab(): ReactElement | null {
-  const tests = [
-    useConnectionTest(prowlarr?.result ?? { ok: false, message: "" }, prowlarr?.delayMs ?? 0),
-    useConnectionTest(qbittorrent?.result ?? { ok: false, message: "" }, qbittorrent?.delayMs ?? 0),
-    useConnectionTest(jellyfin?.result ?? { ok: false, message: "" }, jellyfin?.delayMs ?? 0),
-  ];
+export function ServicesTab(): ReactElement {
+  const tests = {
+    prowlarr: useServiceTest("prowlarr"),
+    qbittorrent: useServiceTest("qbittorrent"),
+    jellyfin: useServiceTest("jellyfin"),
+  };
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <button
           type="button"
           onClick={() => {
-            for (const test of tests) {
-              void test.run();
+            for (const id of serviceIds) {
+              void tests[id].run();
             }
           }}
           className="rounded-lg border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-slate-100"
@@ -101,10 +117,9 @@ export function ServicesTab(): ReactElement | null {
           {texts.settings.testAll}
         </button>
       </div>
-      {services.map((service, index) => {
-        const test = tests[index];
-        return test === undefined ? null : <ServiceCard key={service.id} service={service} test={test} />;
-      })}
+      {serviceIds.map((id) => (
+        <ServiceCard key={id} id={id} test={tests[id]} />
+      ))}
     </div>
   );
 }
@@ -113,81 +128,36 @@ type Source = {
   readonly id: string;
   readonly name: string;
   readonly kind: "manga" | "books";
-  readonly key: "none" | "optional" | "required";
-  readonly enabled: boolean;
-  readonly result: TestResult;
+  readonly key: "none" | "optional";
 };
 
 const sources: readonly Source[] = [
-  {
-    id: "mu",
-    name: "MangaUpdates",
-    kind: "manga",
-    key: "none",
-    enabled: true,
-    result: { ok: true, message: "Répond en 0,4 s" },
-  },
-  {
-    id: "kitsu",
-    name: "Kitsu",
-    kind: "manga",
-    key: "none",
-    enabled: true,
-    result: { ok: true, message: "Répond en 0,6 s" },
-  },
-  {
-    id: "mal",
-    name: "MyAnimeList",
-    kind: "manga",
-    key: "optional",
-    enabled: true,
-    result: { ok: false, message: "Ne répond pas (503)" },
-  },
-  {
-    id: "anilist",
-    name: "AniList",
-    kind: "manga",
-    key: "none",
-    enabled: true,
-    result: { ok: false, message: "Ne répond pas (403)" },
-  },
-  {
-    id: "mangadex",
-    name: "MangaDex",
-    kind: "manga",
-    key: "none",
-    enabled: false,
-    result: { ok: false, message: "Ne répond pas (503)" },
-  },
-  {
-    id: "bnf",
-    name: "BnF",
-    kind: "books",
-    key: "none",
-    enabled: true,
-    result: { ok: true, message: "Répond en 1,2 s" },
-  },
-  {
-    id: "ol",
-    name: "Open Library",
-    kind: "books",
-    key: "none",
-    enabled: true,
-    result: { ok: true, message: "Répond en 0,9 s" },
-  },
-  {
-    id: "wikidata",
-    name: "Wikidata",
-    kind: "books",
-    key: "none",
-    enabled: true,
-    result: { ok: true, message: "Répond en 0,5 s" },
-  },
+  { id: "mangaupdates", name: "MangaUpdates", kind: "manga", key: "none" },
+  { id: "kitsu", name: "Kitsu", kind: "manga", key: "none" },
+  { id: "myanimelist", name: "MyAnimeList", kind: "manga", key: "optional" },
+  { id: "anilist", name: "AniList", kind: "manga", key: "none" },
+  { id: "mangadex", name: "MangaDex", kind: "manga", key: "none" },
+  { id: "bnf", name: "BnF", kind: "books", key: "none" },
+  { id: "openlibrary", name: "Open Library", kind: "books", key: "none" },
+  { id: "wikidata", name: "Wikidata", kind: "books", key: "none" },
 ];
 
+const CLIENT_ID_KEY = "sources.myanimelist.client_id";
+
 function SourceRow({ source }: { readonly source: Source }): ReactElement {
-  const [enabled, setEnabled] = useState(source.enabled);
-  const { state, run } = useConnectionTest(source.result, 800);
+  const settings = useSettings();
+  const enabledKey = `sources.${source.id}.enabled`;
+  const edit = settings.secrets[CLIENT_ID_KEY];
+  const { state, run } = useConnectionTest(async () =>
+    probeMessage(
+      await testConnection({
+        service: source.id,
+        url: null,
+        secret: source.key === "none" ? null : edit === null ? "" : typedSecret(edit),
+      }),
+      source.name,
+    ),
+  );
   return (
     <li className="space-y-3 py-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -195,8 +165,10 @@ function SourceRow({ source }: { readonly source: Source }): ReactElement {
           <Toggle
             label={source.name}
             hint={source.key === "none" ? texts.settings.noKey : texts.settings.optionalKey}
-            checked={enabled}
-            onChange={setEnabled}
+            checked={valueOf(settings, enabledKey) !== false}
+            onChange={(checked) => {
+              setValue(enabledKey, checked);
+            }}
           />
         </div>
         <TestStatus state={state} />
@@ -207,7 +179,17 @@ function SourceRow({ source }: { readonly source: Source }): ReactElement {
           }}
         />
       </div>
-      {source.key === "none" ? null : <SecretField label={texts.settings.clientId} setOn={null} optional />}
+      {source.key === "none" ? null : (
+        <SecretField
+          label={texts.settings.clientId}
+          setAt={settings.saved?.secrets[CLIENT_ID_KEY] ?? null}
+          edit={edit}
+          onEdit={(next) => {
+            setSecret(CLIENT_ID_KEY, next);
+          }}
+          optional
+        />
+      )}
     </li>
   );
 }
@@ -227,6 +209,39 @@ export function SourcesTab(): ReactElement {
         </Card>
       ))}
     </div>
+  );
+}
+
+/** Un champ numérique d'un paramètre : vide ou hors bornes, il n'est pas pris. */
+function NumberField({
+  label,
+  settingKey,
+  min,
+  max,
+}: {
+  readonly label: string;
+  readonly settingKey: string;
+  readonly min: number;
+  readonly max: number;
+}): ReactElement {
+  const settings = useSettings();
+  const value = valueOf(settings, settingKey);
+  return (
+    <Field label={label}>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={typeof value === "number" ? value : ""}
+        onChange={(event) => {
+          const next = event.target.valueAsNumber;
+          if (Number.isInteger(next) && next >= min && next <= max) {
+            setValue(settingKey, next);
+          }
+        }}
+        className={input}
+      />
+    </Field>
   );
 }
 
@@ -390,18 +405,17 @@ export function SearchTab(): ReactElement {
       </Card>
       <Card title={texts.nav.search}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={texts.settings.maxNames}>
-            <input type="number" min={1} max={10} defaultValue={6} className={input} />
-          </Field>
+          <NumberField label={texts.settings.maxNames} settingKey="search.max_names" min={1} max={10} />
           <Field label={texts.settings.parallel}>
             <input type="number" min={1} max={4} defaultValue={2} className={input} />
           </Field>
-          <Field label={texts.settings.cacheProwlarr}>
-            <input type="number" min={0} defaultValue={10} className={input} />
-          </Field>
-          <Field label={texts.settings.cacheWorks}>
-            <input type="number" min={0} defaultValue={24} className={input} />
-          </Field>
+          <NumberField
+            label={texts.settings.cacheProwlarr}
+            settingKey="search.release_cache_minutes"
+            min={0}
+            max={1440}
+          />
+          <NumberField label={texts.settings.cacheWorks} settingKey="search.work_cache_hours" min={0} max={720} />
         </div>
         <Toggle label={texts.settings.hideNoSeed} checked={hideNoSeed} onChange={setHideNoSeed} />
         <Toggle label={texts.settings.relevance} checked={relevance} onChange={setRelevance} />
@@ -448,60 +462,60 @@ export function PlacementTab(): ReactElement {
 }
 
 /** Couleurs des embeds, une par type d'événement (palette Radix du site). */
-const events: readonly { readonly name: string; readonly color: string }[] = [
-  { name: "Envoyé", color: "#6E56CF" },
-  { name: "Téléchargé", color: "#7CE2FE" },
-  { name: "Rangé", color: "#30A46C" },
-  { name: "À associer", color: "#FFC53D" },
-  { name: "Fichier envoyé", color: "#AB4ABA" },
-  { name: "Réessai", color: "#F76B15" },
-  { name: "Échec", color: "#E5484D" },
-  { name: "Mal rangés", color: "#8E8C99" },
-  { name: "Connexion", color: "#D6409F" },
+const events: readonly { readonly id: string; readonly name: string; readonly color: string }[] = [
+  { id: "sent", name: "Envoyé", color: "#6E56CF" },
+  { id: "downloaded", name: "Téléchargé", color: "#7CE2FE" },
+  { id: "placed", name: "Rangé", color: "#30A46C" },
+  { id: "to_place", name: "À associer", color: "#FFC53D" },
+  { id: "uploaded", name: "Fichier envoyé", color: "#AB4ABA" },
+  { id: "retry", name: "Réessai", color: "#F76B15" },
+  { id: "failed", name: "Échec", color: "#E5484D" },
+  { id: "misplaced", name: "Mal rangés", color: "#8E8C99" },
+  { id: "login", name: "Connexion", color: "#D6409F" },
 ];
 
+const WEBHOOK_KEY = "discord.webhook";
+
 function EventRow({ event }: { readonly event: (typeof events)[number] }): ReactElement {
-  const [on, setOn] = useState(true);
+  const settings = useSettings();
+  const key = `discord.events.${event.id}`;
   return (
     <li className="flex items-center gap-3 py-2.5">
       <svg viewBox="0 0 10 10" aria-hidden="true" className="size-3 shrink-0">
         <circle cx="5" cy="5" r="5" fill={event.color} />
       </svg>
       <div className="flex-1">
-        <Toggle label={event.name} checked={on} onChange={setOn} />
+        <Toggle
+          label={event.name}
+          checked={valueOf(settings, key) !== false}
+          onChange={(checked) => {
+            setValue(key, checked);
+          }}
+        />
       </div>
     </li>
   );
 }
 
+/** Le webhook et les événements sont enregistrés ; l'envoi des messages vient avec le journal. */
 export function DiscordTab(): ReactElement {
-  const { state, run } = useConnectionTest({ ok: true, message: "Message de test publié dans #captain-hook" }, 900);
+  const settings = useSettings();
   return (
     <div className="space-y-4">
-      <Card
-        title={texts.settings.webhook}
-        aside={
-          <span className="flex items-center gap-3">
-            <TestStatus state={state} />
-            <button
-              type="button"
-              disabled={state.kind === "running"}
-              onClick={() => {
-                void run();
-              }}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-ink hover:bg-slate-100 disabled:opacity-60"
-            >
-              {texts.settings.sendTest}
-            </button>
-          </span>
-        }
-      >
-        <SecretField label={texts.settings.webhook} setOn="20/10/2026" />
+      <Card title={texts.settings.webhook}>
+        <SecretField
+          label={texts.settings.webhook}
+          setAt={settings.saved?.secrets[WEBHOOK_KEY] ?? null}
+          edit={settings.secrets[WEBHOOK_KEY]}
+          onEdit={(next) => {
+            setSecret(WEBHOOK_KEY, next);
+          }}
+        />
       </Card>
       <Card title={texts.settings.events}>
         <ul className="-my-2.5 divide-y divide-slate-200">
           {events.map((event) => (
-            <EventRow key={event.name} event={event} />
+            <EventRow key={event.id} event={event} />
           ))}
         </ul>
       </Card>

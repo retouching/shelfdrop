@@ -4,6 +4,7 @@ shelfdrop finds manga, books and audiobooks, downloads them and shelves them int
 
 - **Work search**: a title, in any language, gives the work and every name it is published under, merged from eight metadata sources: MangaUpdates, Kitsu, MyAnimeList (with a Client ID), AniList and MangaDex for manga, the BnF, Open Library and Wikidata for books ([how it works](docs/how-it-works.md#work-search)).
 - **Sign-in**: the administrators of the Jellyfin server alone, with their account of Jellyfin ([ADR 0013](docs/adr/0013-sign-in-and-sessions.md)).
+- **Settings**: the services, their keys (sealed), the sources and the search, changed from the page without a restart, each connection tested ([ADR 0012](docs/adr/0012-settings-and-secrets.md)).
 - **Front-end**: the pages of shelfdrop (`web/`), served by the API.
 
 ## Quick start

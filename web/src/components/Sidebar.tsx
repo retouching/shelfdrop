@@ -58,6 +58,8 @@ type Props = {
   readonly runningCount: number;
   readonly toPlaceCount: number;
   readonly waitingFound: number;
+  /** Un service enregistré ne répond pas : point rouge sur Paramètres. */
+  readonly settingsAlert: boolean;
   readonly onNavigate: (page: Page) => void;
   readonly onSignOut: () => void;
 };
@@ -67,12 +69,14 @@ function NavButton({
   label,
   icon,
   badge,
+  alert,
   onClick,
 }: {
   readonly active: boolean;
   readonly label: string;
   readonly icon: ReactElement;
   readonly badge?: number;
+  readonly alert?: boolean;
   readonly onClick: () => void;
 }): ReactElement {
   return (
@@ -91,6 +95,7 @@ function NavButton({
           {badge}
         </span>
       )}
+      {alert === true ? <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" /> : null}
     </button>
   );
 }
@@ -101,6 +106,7 @@ export function Sidebar({
   runningCount,
   toPlaceCount,
   waitingFound,
+  settingsAlert,
   onNavigate,
   onSignOut,
 }: Props): ReactElement {
@@ -179,6 +185,7 @@ export function Sidebar({
             active={page === "settings"}
             label={texts.nav.settings}
             icon={<GearIcon />}
+            alert={settingsAlert}
             onClick={() => {
               onNavigate("settings");
             }}

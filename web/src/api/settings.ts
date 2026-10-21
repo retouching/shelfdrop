@@ -55,3 +55,57 @@ export function readFilters(): Promise<FilterSettings> {
 export function saveFilters(filters: FilterSettings): Promise<FilterSettings> {
   return request<FilterSettings>("PUT", "/v1/filters", filters);
 }
+
+/** Une valeur des paramètres : adresse, nombre ou interrupteur. */
+export type SettingValue = string | number | boolean | null;
+
+export type SettingsRead = {
+  readonly values: Readonly<Record<string, SettingValue>>;
+  /** Date de définition de chaque secret (secondes Unix), ou null : jamais sa valeur. */
+  readonly secrets: Readonly<Record<string, number | null>>;
+};
+
+export type SettingsUpdate = {
+  readonly values: Readonly<Record<string, SettingValue>>;
+  /** Nouvelle valeur, ou null pour effacer. */
+  readonly secrets: Readonly<Record<string, string | null>>;
+};
+
+export type ProbeState = "connected" | "no_address" | "no_key" | "refused" | "unavailable";
+
+export type ProbeRead = {
+  readonly service: string;
+  readonly ok: boolean;
+  readonly state: ProbeState;
+  readonly status: number | null;
+  readonly version: string | null;
+  readonly count: number | null;
+  readonly missing: readonly string[];
+  readonly elapsed_ms: number | null;
+};
+
+export type ProbeBody = {
+  readonly service: string;
+  /** Adresse saisie ; null : celle enregistrée. */
+  readonly url: string | null;
+  /** Clé saisie ; null : celle enregistrée ; "" : aucune. */
+  readonly secret: string | null;
+};
+
+type HealthRead = { readonly services: readonly ProbeRead[]; readonly checked_at: number | null };
+
+export function readSettings(): Promise<SettingsRead> {
+  return request<SettingsRead>("GET", "/v1/settings");
+}
+
+export function saveSettings(update: SettingsUpdate): Promise<SettingsRead> {
+  return request<SettingsRead>("PUT", "/v1/settings", update);
+}
+
+export function testConnection(body: ProbeBody): Promise<ProbeRead> {
+  return request<ProbeRead>("POST", "/v1/settings/test", body);
+}
+
+export async function readHealth(): Promise<readonly ProbeRead[]> {
+  return (await request<HealthRead>("GET", "/v1/settings/health")).services;
+}
