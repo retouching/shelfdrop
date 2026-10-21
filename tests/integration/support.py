@@ -347,10 +347,17 @@ def jellyfin_stubs() -> list[dict[str, Any]]:
 QUI_PROXY: Final = f"/proxy/{QUI_KEY}/api/v2"
 
 
+QBITTORRENT_LISTS: Final = "http://qbittorrent-lists:8080"
+# The mark of the requests of one hash `qbittorrent-lists` sends (its `PART_HEADER`): not those of
+# the API, `FakeSources.requests` leaves them out.
+PART_HEADER: Final = "X-Fake-Part"
+
+
 def qbittorrent_stubs() -> list[dict[str, Any]]:
     """qBittorrent behind the client proxy of qui, as the fake sources play it: its version and
     three of the four categories of shelfdrop under the key of the tests, no torrent but those a
-    test adds (`torrent_stubs`), a 401 under another key."""
+    test adds (`torrent_stubs`), each torrent of a list of several hashes (`hashes=<a>|<b>`), a
+    401 under another key."""
     proxy = QUI_PROXY
     categories = {
         name: {"name": name, "savePath": f"/data/{name}"}
@@ -370,6 +377,17 @@ def qbittorrent_stubs() -> list[dict[str, Any]]:
             "priority": 1,
             "request": {"method": "GET", "urlPath": f"{proxy}/torrents/categories"},
             "response": json_response(categories),
+        },
+        # A list of several hashes: the torrents of each, joined by the service
+        # `qbittorrent-lists` (tests/integration/qbittorrent_lists.py), as qBittorrent lists them.
+        {
+            "priority": 2,
+            "request": {
+                "method": "GET",
+                "urlPath": f"{proxy}/torrents/info",
+                "queryParameters": {"hashes": {"contains": "|"}},
+            },
+            "response": {"proxyBaseUrl": QBITTORRENT_LISTS},
         },
         {
             "priority": 5,
@@ -412,7 +430,8 @@ def torrent_stubs(
     it listed with the fields `complete`."""
     scenario = f"torrent-{digest}"
     info = {"method": "GET", "urlPath": f"{QUI_PROXY}/torrents/info"}
-    hashes = {"hashes": {"contains": digest}}
+    # Its hash alone: a list of several goes to `qbittorrent-lists`, which asks for each.
+    hashes = {"hashes": {"equalTo": digest}}
     add = {
         "method": "POST",
         "urlPath": f"{QUI_PROXY}/torrents/add",
@@ -609,10 +628,10 @@ class FakeSources:
 
     def requests(self, method: str, path: str) -> list[dict[str, Any]]:
         """The requests to `path` the fake received, as its journal keeps them (`url`, `headers`,
-        `body`)."""
+        `body`), but those of one hash `qbittorrent-lists` sends."""
         response = httpx.post(
             f"{self.url}/__admin/requests/find",
-            json={"method": method, "urlPath": path},
+            json={"method": method, "urlPath": path, "headers": {PART_HEADER: {"absent": True}}},
             timeout=10.0,
         )
         response.raise_for_status()

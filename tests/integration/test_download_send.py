@@ -126,7 +126,7 @@ def test_a_torrent_already_in_qbittorrent_is_a_duplicate_never_sent_again(
                 "request": {
                     "method": "GET",
                     "urlPath": f"{QUI_PROXY}/torrents/info",
-                    "queryParameters": {"hashes": {"contains": digest}},
+                    "queryParameters": {"hashes": {"equalTo": digest}},
                 },
                 "response": {
                     "status": 200,

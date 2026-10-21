@@ -111,7 +111,7 @@ Next fact ID: F33.
   - Re-verify: before the first test against the qui of the user, and when qui changes its major version.
 
 - **F25** `POST /api/v2/torrents/add` takes a `multipart/form-data` body: `torrents` (the `.torrent` files) or `urls` (links, a magnet among them, one per line), `category`, and the options (`savepath`, `tags`...). qBittorrent 5.0 answers `200` (`Ok.`, or `Fails.` when it added nothing) and `415` for a file it cannot read; its later versions answer `200` with `added_torrent_ids`, `202` for a link still to fetch, `409` when nothing was added. `GET /api/v2/torrents/info?hashes=<a>|<b>` lists the torrents of these hashes it has, each with `hash`, `name`, `state` (`downloading`, `stalledDL`, `metaDL`, `queuedDL`, `pausedDL`, `uploading`, `stalledUP`...), `progress` (0 to 1), `dlspeed` (bytes a second), `eta` (seconds, `8640000` when unknown), `category`. `QBittorrentClient.add` takes `200` and `202` as accepted but `Fails.`; the hash decides, not the answer.
-  - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" ("Add new torrent", "Get torrent list"), and its source, branch master (`src/webui/api/torrentscontroller.cpp`, `TorrentsController::addAction`), read on 2026-10-21. No real qBittorrent asked; `FakeQui` and the stubs of the downloads answer in this shape.
+  - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" ("Add new torrent", "Get torrent list"), and its source, branch master (`src/webui/api/torrentscontroller.cpp`, `TorrentsController::addAction`), read on 2026-10-21. No real qBittorrent asked; `FakeQui` and the stubs of the downloads answer in this shape (a list of several hashes through `qbittorrent-lists`, F33).
   - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_torrent_is_added_into_its_category_and_read_by_its_hash`
   - Re-verify: before the first download to the qBittorrent of the user, and when qBittorrent changes its major version.
 - **F23** qBittorrent names a torrent (`hash` of `GET /api/v2/torrents/info`, the `hashes` it filters on) by its `TorrentID`, libtorrent's `info_hash_t::get_best()`: the SHA-256 of the bencoded `info` cut to 20 bytes when the torrent is of BitTorrent v2 (hybrid ones included), otherwise its SHA-1, in hex. `shelfdrop.utils.torrent.torrent_id` and `magnet_id` give the same id.
@@ -174,6 +174,10 @@ Next fact ID: F33.
 - **F10** `POST /__admin/mappings/import` loads stubs over the running ones with `duplicatePolicy` `OVERWRITE`, and answers `500` (a `NullPointerException`) when `importOptions` has no `deleteAllNotInImport`; `POST /__admin/requests/count` counts the journal entries that match a request pattern.
   - Evidence: WireMock documentation, "Administration API".
   - Pinned by: `tests/integration/test_work_sources.py::test_two_identical_searches_at_once_share_one_run`
+  - Re-verify: on version change.
+- **F33** A request gets the answer of one stub alone, of the highest priority (the lowest `priority`): `GET /torrents/info?hashes=<a>|<b>|<c>`, matched by the stubs of each of the three torrents, got the one torrent of one of them, where qBittorrent lists the three (F25). A stub with `proxyBaseUrl` sends the request, its path and its query, to that address and answers what it answers.
+  - Evidence: WireMock documentation, "Stubbing" (priority) and "Proxying"; the journal of WireMock in a run of `tests/integration/test_journal.py` on 2026-10-21 (every list of the three hashes answered with one torrent, a download left `waiting`).
+  - Pinned by: `tests/integration/test_journal.py::test_the_volumes_sent_by_one_request_make_one_embed`
   - Re-verify: on version change.
 
 ### docker compose 2.26 and later
