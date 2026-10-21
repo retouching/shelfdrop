@@ -6,6 +6,7 @@ shelfdrop finds manga, books and audiobooks, downloads them and shelves them int
 - **Release search**: the releases of a work in Prowlarr, under each of its names, scored by the filters and ranked by the trackers ([how it works](docs/how-it-works.md#release-search)).
 - **Downloads**: the releases chosen sent to qBittorrent (through qui), each found there by its hash, then followed live; a torrent not received is sent again ([how it works](docs/how-it-works.md#downloads)).
 - **Sign-in**: the administrators of the Jellyfin server alone, with their account of Jellyfin ([ADR 0013](docs/adr/0013-sign-in-and-sessions.md)).
+- **API and MCP**: access tokens (reading, or reading and downloading) for the API and for an MCP server at `/mcp`, whose tools search, send, follow and place as the page does; the API documented in OpenAPI ([ADR 0020](docs/adr/0020-access-tokens.md), [ADR 0022](docs/adr/0022-mcp-server.md), [Hermes](docs/hermes.md)).
 - **Settings**: the services, their keys (sealed), the sources and the search, changed from the page without a restart, each connection tested ([ADR 0012](docs/adr/0012-settings-and-secrets.md)).
 - **Front-end**: the pages of shelfdrop (`web/`), served by the API.
 
@@ -25,7 +26,8 @@ Without Docker: `uv sync`, `uv run shelfdrop db upgrade`, `uv run uvicorn --fact
 ## Documentation
 - [Installation](docs/installation.md): the image, the database, the reverse proxy, the upgrades.
 - [Configuration](docs/configuration.md): every `SHELFDROP_*` variable.
-- [API](docs/api.md): the routes, their answers and the error codes.
+- [API](docs/api.md): the routes, their answers and the error codes, the access tokens, the MCP server; [OpenAPI](docs/openapi.json).
+- [Hermes](docs/hermes.md): the MCP server from the side of Hermes, its configuration.
 - [How it works](docs/how-it-works.md): a request, a work search, the cache.
 - [Development](docs/development.md): the module map, the layers, the tests.
 - [Visible texts](docs/writing.md): the rules of every text the interface shows.

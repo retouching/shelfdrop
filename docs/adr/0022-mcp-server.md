@@ -20,3 +20,4 @@ Decided by the user on 2026-10-21 (plan section 3 quater): a server MCP at `/mcp
 
 ## Consequences
 - A tool call that waits on Prowlarr (`search_releases`) holds its HTTP request for the time of the search (60 seconds at most for a name stuck): the proxy in front of `/mcp` waits that long ([installation](../installation.md#the-mcp-server-and-the-access-tokens)).
+- [docs/hermes.md](../hermes.md) describes the client side, for Hermes: its token, its entry `mcp_servers`, the scripts the tools replace.
