@@ -7,11 +7,14 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from functools import partial
 from importlib.metadata import version
+from typing import Final
 
 import wireup
 from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 from wireup.integration.fastapi import get_app_container, setup
@@ -20,6 +23,7 @@ from shelfdrop.config import Settings
 from shelfdrop.container import environment_values, injectables
 from shelfdrop.downloads.sender import DownloadSender
 from shelfdrop.http.dependencies import (
+    check_token,
     release_session,
     require_access,
     require_reader,
@@ -31,6 +35,7 @@ from shelfdrop.http.errors.handlers import (
     handle_unhandled_exception,
 )
 from shelfdrop.http.middleware.access_log import AccessLogMiddleware
+from shelfdrop.http.middleware.mcp import McpMiddleware
 from shelfdrop.http.middleware.origin import OriginMiddleware
 from shelfdrop.http.middleware.request_id import RequestIdMiddleware
 from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
@@ -43,6 +48,7 @@ from shelfdrop.modules.downloads.router import router as downloads_router
 from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
 from shelfdrop.modules.library.router import router as library_router
+from shelfdrop.modules.mcp.router import new_mcp_server
 from shelfdrop.modules.place.router import router as place_router
 from shelfdrop.modules.releases.router import router as releases_router
 from shelfdrop.modules.searches.router import router as searches_router
@@ -59,6 +65,9 @@ from shelfdrop.settings.service import SettingsService
 from shelfdrop.waiting.service import WaitingRunner
 
 logger = logging.getLogger(__name__)
+
+# The path of the MCP server, outside the prefix of the API (plan section 3 quater).
+MCP_PATH: Final = "/mcp"
 
 
 def create_app() -> FastAPI:
@@ -98,7 +107,8 @@ def build_app(settings: Settings) -> FastAPI:
             asyncio.create_task(waiting.run()),
         ]
         try:
-            yield
+            async with mcp_server.session_manager.run():
+                yield
         finally:
             for loop in loops:
                 loop.cancel()
@@ -125,10 +135,22 @@ def build_app(settings: Settings) -> FastAPI:
             Exception: handle_unhandled_exception,
         },
     )
+    # The MCP server (ADR 0022): stateless, JSON answers, behind an access token; the host is
+    # not checked (the token is what a page of another site cannot send).
+    mcp_server = new_mcp_server(app, version("shelfdrop"))
+    mcp_app = mcp_server.streamable_http_app(
+        streamable_http_path=MCP_PATH,
+        json_response=True,
+        stateless_http=True,
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
     # The last middleware added is the outermost one.
+    app.add_middleware(
+        McpMiddleware, path=MCP_PATH, server=mcp_app, check=partial(check_token, app)
+    )
     app.add_middleware(OriginMiddleware, api_paths=(f"{prefix}/",))
     app.add_middleware(UnhandledErrorsMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware, api_paths=(f"{prefix}/", "/health"))
+    app.add_middleware(SecurityHeadersMiddleware, api_paths=(f"{prefix}/", "/health", MCP_PATH))
     app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health"}))
     app.add_middleware(RequestIdMiddleware)
     app.include(health_router)

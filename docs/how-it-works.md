@@ -21,6 +21,9 @@ A request goes through, from the outside in:
 ## Access tokens
 A request with `Authorization: Bearer <secret>` is judged by its token alone ([ADR 0020](adr/0020-access-tokens.md), `shelfdrop.tokens.service.TokenService.check`): the SHA-256 of the secret finds a token neither revoked nor expired, it is counted (60 a minute), and its last use is written once a minute at most. The route then asks for its scope: none for a read, `write` for a write of the works, the downloads, Ranger, the uploads, the waiting searches or the page Métadonnées; the settings, the trackers, the filters and the tokens refuse every token.
 
+## MCP server
+`/mcp` is answered by `McpMiddleware`, inside the middlewares of the request id, the access log and the headers, before the routes ([ADR 0022](adr/0022-mcp-server.md)): the access token is checked as for the API, then the request goes to the MCP server of the SDK (stateless, one JSON answer per request). A tool opens a scope of the container of its own, calls the service of the route it mirrors (`WorkService.search`, `ReleaseService.start` then `watch` until the end, `DownloadService.send` under the name of the token...) and answers its schema; the tools that write refuse a token of reading.
+
 ## Release search
 `POST /api/v1/searches` runs `shelfdrop.releases.service.ReleaseService.start` ([ADR 0011](adr/0011-release-search.md)):
 

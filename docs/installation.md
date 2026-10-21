@@ -39,6 +39,21 @@ The page sends a file in chunks of 50 MiB ([ADR 0019](adr/0019-uploads.md)). The
 
 The proxy in front of the API takes requests of 50 MiB and a little more on `PUT /api/v1/uploads/{id}/chunks/{n}` (nginx: `client_max_body_size 60m` there), and must not buffer them on its disk (`proxy_request_buffering off`).
 
+## The MCP server and the access tokens
+The API serves the MCP server at `/mcp` on its own port ([ADR 0022](adr/0022-mcp-server.md)); it needs no new variable, mount nor service, and the container starts with the configuration of today. The table `api_tokens` comes with a migration, applied at start. A program reaches the API (`/api/...`) and `/mcp` with `Authorization: Bearer <token>`, a token created on the page Paramètres, API et MCP.
+
+What the proxy in front of it needs for `/mcp`:
+- the same proxy as the pages, the header `Authorization` passed as it is;
+- a read timeout of 2 minutes at least (`proxy_read_timeout`): a call of `search_releases` holds its request until the search of Prowlarr ends (60 seconds at most a name, the names queued two at a time). The plan asks for `proxy_buffering off` and 1 hour: harmless, but the answers are single JSON documents (no event stream);
+- no cache, no challenge page: the client is a program, not a browser.
+
+Where a program comes from is a choice of the deployment, to make before it; three ways, none of them changes the code:
+1. **The public name, through Cloudflare** (`https://shelfdrop.maigo.party/mcp`): the same vhost as the pages. Authenticated Origin Pulls checks Cloudflare towards the proxy, not the client: a token passes it. But the pages of challenge (bocchi) and `limit_req` of the vhost must not apply to `/mcp` nor to the requests with `Authorization: Bearer` (a location `/mcp` without them, and a `limit_req` of its own around 60 a minute, the limit of a token), and Cloudflare must not challenge them (a rule of the WAF that skips `/mcp` and `/api/` with that header, or a bot fight mode off for them).
+2. **Another name, without Cloudflare**, on the proxy alone (a vhost `shelfdrop-api` reachable from the machine of the client alone, by IP or by its WireGuard address): no AOP nor challenge there; the client verifies the certificate of `*.maigo.party`.
+3. **The tunnel**: a client on the proxy machine (maomao) reaches `http://10.66.0.2:8485/mcp` directly, through WireGuard, without TLS nor Cloudflare; the port stays closed to the LAN (ufw `wg0` from 10.66.0.1 alone).
+
+Default proposed: 1 if the client runs outside maomao, 3 if it runs on maomao; to decide when deploying.
+
 ## Database and upgrades
 The database is one SQLite file, `shelfdrop.db`, in `SHELFDROP_DATA_DIR` (`/data/shelfdrop` in the image), in WAL mode. It holds the uploads in progress (their chunks next to it, in `uploads/`), the caches (the answers of the metadata sources and of Prowlarr, the works found), the trackers and the filters, and the settings with their sealed secrets and their audit. Deleting it loses the settings too; the secrets cannot be read without `SHELFDROP_SECRET_KEY`.
 

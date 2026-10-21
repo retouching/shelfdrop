@@ -187,6 +187,24 @@ Next fact ID: F33.
   - Pinned by: `tests/integration/test_journal.py::test_the_volumes_sent_by_one_request_make_one_embed`
   - Re-verify: on version change.
 
+### mcp 2.3.0 (the official MCP SDK for Python)
+
+- **F35** The server class is `mcp.server.mcpserver.MCPServer` (`FastMCP` of 1.x is gone: `mcp.server.fastmcp` raises `ModuleNotFoundError`). `streamable_http_app(streamable_http_path=..., json_response=True, stateless_http=True)` gives a Starlette app whose session manager (`MCPServer.session_manager.run()`) must run for the requests to be served: mounted in another application, its lifespan does not run by itself. A tool reaches the Starlette `Request` of its HTTP request at `ctx.request_context.request`, its scope included. A parameter typed `Context` is left out of the input schema of the tool.
+  - Evidence: the sources of `mcp` 2.3.0 (`mcp/server/mcpserver/server.py`, `mcp/server/lowlevel/server.py`, `mcp/server/streamable_http.py`), read on 2026-10-22; the runs of `tests/integration/test_mcp.py`.
+  - Pinned by: `tests/integration/test_mcp.py::test_a_token_finds_a_work_its_releases_and_sends_one_under_its_name`, `tests/unit/modules/mcp/test_router.py::test_the_tools_of_the_plan_and_which_ones_only_read`
+  - Re-verify: on version change.
+- **F36** `streamable_http_app` turns on its protection against DNS rebinding when its `host` is `127.0.0.1` (the default), `localhost` or `::1` and no `transport_security` is given: a request whose `Host` is another name is refused. `TransportSecuritySettings(enable_dns_rebinding_protection=False)` turns it off.
+  - Evidence: `mcp/server/lowlevel/server.py`, `streamable_http_app`, read on 2026-10-22.
+  - Pinned by: `tests/integration/test_mcp.py::test_a_token_revoked_is_refused_at_once` (the `Host` `shelfdrop.maigo.party` answered 200)
+  - Re-verify: on version change.
+
+### fastapi 0.157.0 (routes)
+
+- **F37** `include_router` keeps the router whole in `app.routes` (an `_IncludedRouter`, private) instead of copying its `APIRoute`s with their dependencies: the routes and their guards cannot be read back from the application. `DocumentedApi.include` records the access of each route as it includes its router.
+  - Evidence: `fastapi/routing.py` 0.157.0 (`_IncludedRouter`), and `app.routes` of `build_app()` listing `_IncludedRouter` objects on 2026-10-22.
+  - Pinned by: `tests/unit/http/test_openapi.py::test_each_operation_names_who_may_call_it`
+  - Re-verify: on version change.
+
 ### docker compose 2.26 and later
 
 - **F11** The YAML tag `!override` in a file given after another replaces a list (`ports`) instead of adding to it; `docker compose port` prints `127.0.0.1:<port>` of a port published as `127.0.0.1::8000`.

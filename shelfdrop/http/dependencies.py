@@ -1,13 +1,16 @@
 """What every route shares about the request: the release of its database session, and who
 asks: the session of an account signed in, or an access token (ADR 0020)."""
 
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from typing import Final
 
-from fastapi import Request
+import anyio
+import anyio.to_thread
+from fastapi import FastAPI, Request
 from sqlalchemy.orm import Session
-from wireup import Injected
-from wireup.integration.fastapi import inject
+from wireup import Injected, ScopedAsyncContainer
+from wireup.integration.fastapi import get_app_container, inject
 
 from shelfdrop.auth.exceptions import NotSignedInError
 from shelfdrop.auth.service import AuthService
@@ -109,3 +112,23 @@ async def require_access(
     if secret is None:
         return await check_cookie(request, auth)
     return await check_bearer(secret, tokens, "read" if request.method in READS else "write")
+
+
+@asynccontextmanager
+async def scope_of(app: FastAPI) -> AsyncIterator[ScopedAsyncContainer]:
+    """A scope of the container outside a route (the MCP server, its tools): its database
+    session closed in the threadpool at the end, as `release_session` does for a route."""
+    async with get_app_container(app).enter_scope() as scope:
+        try:
+            yield scope
+        finally:
+            session = await scope.get(Session)
+            await anyio.to_thread.run_sync(session.close)
+
+
+async def check_token(app: FastAPI, secret: str) -> StoredToken:
+    """The token of `secret`, outside a route (the MCP server). Raises TokenRefusedError and
+    TokenThrottledError."""
+    async with scope_of(app) as scope:
+        tokens = await scope.get(TokenService)
+        return await tokens.check(secret)

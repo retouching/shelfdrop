@@ -20,6 +20,21 @@ The session alone. `GET`: the tokens not revoked, the newest first, never a secr
 ## OpenAPI
 The document of every route, with the access each needs (`x-access`: `public`, `session`, `read`, `write`), its bodies and examples, and the error body ([ADR 0021](adr/0021-openapi.md)): [docs/openapi.json](openapi.json) in the repository, `GET /api/v1/openapi.json` and the page `GET /api/docs` for the session of an administrator (a token gets `403 token_forbidden`).
 
+## MCP server
+`POST /mcp`: the MCP server ([ADR 0022](adr/0022-mcp-server.md)), Streamable HTTP, stateless, JSON answers, with `Authorization: Bearer <token>` (without one, or one refused: `401 not_signed_in` and `WWW-Authenticate: Bearer`; past 60 requests a minute: `429 too_many_requests`). Its tools answer the schemas of the routes they mirror:
+
+| Tool | Scope | Arguments | Answer, as the route |
+|---|---|---|---|
+| `search_works` | read | `query`, `kind` (`manga` by default) | `GET /api/v1/works` |
+| `search_releases` | read | `kind`, `title`, `names`, `mode` (`work` by default, or `manual`), `refresh` | `GET /api/v1/searches/{id}` once the search ended |
+| `grab_releases` | write | `search_id`, `releases` (`[{"id", "volumes"}]`), `work_id`, `author`, `series` | `POST /api/v1/downloads`, sent under the name of the token |
+| `list_downloads` | read | none | `GET /api/v1/downloads` |
+| `retry_download` | write | `download_id` | `POST /api/v1/downloads/{id}/retry` |
+| `list_files_to_place` | read | `query` (empty by default) | `GET /api/v1/place/items` |
+| `place_file` | write | `item_id`, `request` (the body of `POST /api/v1/place/items/{id}/link`) | that route |
+
+A refusal is a tool error whose text starts with the code of the API (`token_forbidden: ...`, `search_not_found: ...`).
+
 ## Responses
 Every response carries `X-Request-ID`: the value the request sent, when it is 1 to 128 characters among `A-Z a-z 0-9 . _ -`, otherwise a new one. The same id is in every log record of the request.
 
