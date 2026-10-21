@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* Police Outfit (variable, licence OFL), servie par le site lui-même : public/fonts/. */
+@font-face {
+  font-family: "Outfit";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/outfit-latin-ext.woff2") format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Outfit";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/outfit-latin.woff2") format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
+ * Palette : Radix Colors, gris « mauve » (neutre teinté de violet) et violet, avec vert, rouge
+ * et ambre pour les états seulement. Chaque thème donne ses propres valeurs aux mêmes noms :
+ * les composants n'ont pas de classes dark:.
+ * Thème sombre : data-theme="dark" sur <html>, posé par src/theme.ts.
+ */
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #211f26;
+  --color-surface: #ffffff;
+  --color-band: #f4f0fe;
+  --color-bar: #211f26;
+  --color-accent: #6e56cf;
+  --color-accent-strong: #5b45b8;
+  --color-accent-soft: #f4f0fe;
+  --color-accent-text: #5a47b0;
+  --color-accent-ring: #d4cafe;
+  --color-page: #faf9fb;
+  --color-slate-50: #faf9fb;
+  --color-slate-100: #f2eff3;
+  --color-slate-200: #e6e2e9;
+  --color-slate-300: #d0cdd7;
+  --color-slate-400: #8e8c99;
+  --color-slate-500: #6f6d78;
+  --color-slate-600: #65636d;
+  --color-slate-700: #3c393f;
+  --color-violet-50: #f4f0fe;
+  --color-violet-100: #ebe4ff;
+  --color-violet-200: #d4cafe;
+  --color-violet-500: #6e56cf;
+  --color-violet-700: #5a47b0;
+  --color-violet-800: #2f265f;
+  --color-emerald-50: #e6f6eb;
+  --color-emerald-200: #adddc0;
+  --color-emerald-600: #218358;
+  --color-emerald-700: #218358;
+  --color-emerald-800: #193b2d;
+  --color-rose-50: #feebec;
+  --color-rose-200: #fdbdbe;
+  --color-rose-600: #ce2c31;
+  --color-rose-700: #ce2c31;
+  --color-rose-800: #641723;
+  --color-amber-50: #fff7c2;
+  --color-amber-100: #fff1b3;
+  --color-amber-200: #f3d673;
+  --color-amber-700: #9a5a00;
+  --color-amber-800: #7a4600;
+}
+
+:root {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-ink: #eeeef0;
+  --color-surface: #1a191b;
+  --color-band: #1b1525;
+  --color-bar: #323035;
+  --color-accent: #6e56cf;
+  --color-accent-strong: #7d66d9;
+  --color-accent-soft: #291f43;
+  --color-accent-text: #baa7ff;
+  --color-accent-ring: #473876;
+  --color-page: #121113;
+  --color-slate-50: #232225;
+  --color-slate-100: #2b292d;
+  --color-slate-200: #323035;
+  --color-slate-300: #49474e;
+  --color-slate-400: #6f6d78;
+  --color-slate-500: #a09ea8;
+  --color-slate-600: #b5b2bc;
+  --color-slate-700: #d6d4db;
+  --color-violet-50: #291f43;
+  --color-violet-100: #33255b;
+  --color-violet-200: #473876;
+  --color-violet-500: #7d66d9;
+  --color-violet-700: #baa7ff;
+  --color-violet-800: #e2ddfe;
+  --color-emerald-50: #132d21;
+  --color-emerald-200: #20573e;
+  --color-emerald-600: #3dd68c;
+  --color-emerald-700: #3dd68c;
+  --color-emerald-800: #b1f1cb;
+  --color-rose-50: #3b1219;
+  --color-rose-200: #72232d;
+  --color-rose-600: #ff9592;
+  --color-rose-700: #ff9592;
+  --color-rose-800: #ffd1d9;
+  --color-amber-50: #302008;
+  --color-amber-100: #3a2a0a;
+  --color-amber-200: #5c3d05;
+  --color-amber-700: #ffca16;
+  --color-amber-800: #ffe7b3;
+}
+
+body {
+  background: var(--color-page);
+}
+
+dialog::backdrop {
+  background: rgb(33 31 38 / 0.45);
+}
+
+:root[data-theme="dark"] dialog::backdrop {
+  background: rgb(0 0 0 / 0.65);
+}
