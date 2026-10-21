@@ -206,3 +206,38 @@ async def test_the_sends_a_stop_left_are_resumed_and_one_runs_once() -> None:
 
     assert desk.repository.rows[download_id].stage == "sent"
     assert len(desk.qui.added) == 1
+
+
+@pytest.mark.anyio
+async def test_the_journal_gets_a_send_a_failure_and_a_retry_but_no_duplicate() -> None:
+    desk = new_desk()
+    data = torrent_file("Berserk T01.cbz")
+    desk.prowlarr.torrents[LINK] = Torrent(file=data)
+    sent = order(desk)
+    lost = order(desk, link="http://prowlarr.test/1/download?link=gone")
+
+    await send(desk, sent)
+    await send(desk, lost)
+    duplicate = order(desk)
+    await send(desk, duplicate)
+    desk.prowlarr.torrents["http://prowlarr.test/1/download?link=gone"] = Torrent(
+        file=torrent_file("Berserk T02.cbz")
+    )
+    desk.repository.mark_retried(lost)
+    await send(desk, lost)
+
+    assert [e.type for e in desk.journal.events] == ["sent", "failed", "retry"]
+    first, failed, retry = desk.journal.events
+    assert first.facts == {
+        "work": "Berserk",
+        "volumes": [1],
+        "tracker": "Nyaa.si",
+        "size": 1000,
+        "mode": "auto",
+        "actor": "sylvain",
+    }
+    assert failed.facts == {"what": "not_received", "release": "Berserk.T01.FRENCH.CBZ"}
+    assert retry.facts["attempt"] == 2
+    assert retry.facts["result"] == "sent"
+    # The downloads of one request share the group of their message.
+    assert first.group == "sent:sylvain:0:Berserk"

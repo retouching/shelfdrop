@@ -11,6 +11,7 @@ from shelfdrop.downloads.types import (
     DownloadMode,
     Progress,
 )
+from shelfdrop.journal.types import NewEvent
 from shelfdrop.works.types import Kind
 
 # The states of qBittorrent of a torrent it has all of (the WebUI API: `stoppedUP` from
@@ -62,3 +63,25 @@ def progress_of(download: Download, info: TorrentInfo | None) -> Progress:
                     eta=info.eta if 0 <= info.eta < UNKNOWN_ETA else 0,
                 )
             return Progress(state="waiting")
+
+
+def completion_event(download: Download, now: int) -> NewEvent:
+    """The end of a download: `downloaded` for an automatic one, before its placement;
+    `to_place` for a manual one, placed by hand in Ranger."""
+    if download.mode == "manual":
+        return NewEvent(
+            type="to_place",
+            group=f"to_place:manual:{download.created_by}:{download.created_at}",
+            facts={"work": download.work_name, "release": download.title, "reason": "manual"},
+        )
+    seconds = now - download.added_at if download.added_at is not None else 0
+    return NewEvent(
+        type="downloaded",
+        group=f"downloaded:{download.created_by}:{download.created_at}:{download.work_name}",
+        facts={
+            "work": download.series or download.work_name,
+            "release": download.title,
+            "size": download.size,
+            "seconds": max(0, seconds),
+        },
+    )

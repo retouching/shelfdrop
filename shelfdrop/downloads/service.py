@@ -18,8 +18,8 @@ from shelfdrop.downloads.exceptions import (
     UnknownReleasesError,
 )
 from shelfdrop.downloads.repository import DownloadRepository
-from shelfdrop.downloads.sender import DownloadSender, QbittorrentAddress
-from shelfdrop.downloads.states import category_of, is_complete, progress_of
+from shelfdrop.downloads.sender import DownloadEvents, DownloadSender, QbittorrentAddress
+from shelfdrop.downloads.states import category_of, completion_event, is_complete, progress_of
 from shelfdrop.downloads.types import (
     Download,
     DownloadMode,
@@ -53,6 +53,7 @@ class DownloadService:
         finder: ReleaseFinder,
         options: DownloadOptions,
         clock: Clock,
+        events: DownloadEvents,
     ) -> None:
         self.repository = repository
         self.sender = sender
@@ -61,6 +62,7 @@ class DownloadService:
         self.finder = finder
         self.options = options
         self.clock = clock
+        self.events = events
 
     async def send(self, order: SendOrder, actor: str) -> list[DownloadView]:
         """The releases of a search sent to qBittorrent, each a download of its own. The
@@ -140,7 +142,7 @@ class DownloadService:
             except ServiceError as exc:
                 logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
         complete = [
-            d.id
+            d
             for d in downloads
             if d.stage == "sent" and d.info_hash in torrents and is_complete(torrents[d.info_hash])
         ]
@@ -154,9 +156,13 @@ class DownloadService:
             for d in downloads
         ]
 
-    def complete(self, download_ids: list[int]) -> None:
-        self.repository.mark_completed(download_ids, int(self.clock.now()))
+    def complete(self, downloads: list[Download]) -> None:
+        now = int(self.clock.now())
+        done = set(self.repository.mark_completed([d.id for d in downloads], now))
         self.repository.commit()
+        for download in downloads:
+            if download.id in done:
+                self.events.record(completion_event(download, now))
 
     async def retry(self, download_id: int) -> DownloadView:
         """The same torrent sent again, into the same category: one more attempt. Raises

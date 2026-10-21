@@ -21,7 +21,7 @@ from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.settings.cipher import SecretBox
 from tests.unit.clients.support import URL, FakeJellyfin, user_dto
 from tests.unit.settings.support import TEST_SECRET_KEY, FakeSettingsReader
-from tests.unit.support import no_session
+from tests.unit.support import FakeJournal, no_session
 from tests.unit.works.support import FixedClock
 
 
@@ -84,8 +84,14 @@ def new_service(
         SecretBox(TEST_SECRET_KEY),
         LoginThrottle(),
         clock,
+        FakeJournal(),
     )
     return service, repository, jellyfin, clock
+
+
+def journal_of(service: AuthService) -> FakeJournal:
+    assert isinstance(service.events, FakeJournal)
+    return service.events
 
 
 @pytest.mark.anyio
@@ -227,3 +233,18 @@ async def test_a_sign_out_ends_the_session_here_and_in_jellyfin() -> None:
     assert jellyfin.tokens == {}
     with pytest.raises(NotSignedInError):
         await service.check(signed_in.token)
+
+
+@pytest.mark.anyio
+async def test_a_sign_in_and_the_attempts_throttled_go_to_the_journal_without_a_name() -> None:
+    service, _, _, _ = new_service()
+
+    await service.sign_in("sylvain", "pw", "10.0.0.1", "FR")
+    for _ in range(6):
+        with pytest.raises((LoginRefusedError, TooManyAttemptsError)):
+            await service.sign_in("guess-of-a-stranger", "x", "10.0.0.9", "DE")
+
+    signed, refused = journal_of(service).events
+    assert signed.facts == {"account": "Sylvain", "address": "10.0.0.1", "country": "FR"}
+    assert refused.facts == {"refused": True, "address": "10.0.0.9", "country": "DE"}
+    assert "guess-of-a-stranger" not in repr(refused)

@@ -12,16 +12,20 @@ import wireup
 from sqlalchemy import Engine
 
 from shelfdrop.auth.repository import SessionRepository
-from shelfdrop.auth.service import AuthService, JellyfinAddress
+from shelfdrop.auth.service import AuthEvents, AuthService, JellyfinAddress
 from shelfdrop.auth.throttle import LoginThrottle
+from shelfdrop.clients.discord import DiscordClient
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.config import Settings
 from shelfdrop.db.engine import open_engine, open_session
 from shelfdrop.downloads.repository import DownloadRepository, download_repository_factory
-from shelfdrop.downloads.sender import DownloadSender, QbittorrentAddress
+from shelfdrop.downloads.sender import DownloadEvents, DownloadSender, QbittorrentAddress
 from shelfdrop.downloads.service import DownloadService, ReleaseFinder
 from shelfdrop.downloads.types import DownloadOptions
+from shelfdrop.journal.repository import event_repository_factory
+from shelfdrop.journal.service import DiscordSettings, Journal, JournalSender
+from shelfdrop.journal.types import JournalOptions
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository, repository_factory
@@ -106,6 +110,53 @@ async def open_qbittorrent(settings: Settings) -> AsyncIterator[QBittorrentClien
         yield QBittorrentClient(http)
 
 
+async def open_discord(settings: Settings) -> AsyncIterator[DiscordClient]:
+    """The client of the webhook of the journal (a singleton): the webhook is read from the
+    settings at each message."""
+    async with httpx.AsyncClient(
+        headers={"User-Agent": user_agent(settings)},
+        timeout=httpx.Timeout(SERVICE_TIMEOUT_SECONDS),
+    ) as http:
+        yield DiscordClient(http)
+
+
+def new_journal(engine: Engine, clock: Clock) -> Journal:
+    """The events of every process kept as they happen (a singleton), on sessions of their
+    own."""
+    return Journal(event_repository_factory(engine), clock)
+
+
+def as_discord_settings(reader: SettingsReader) -> DiscordSettings:
+    return reader
+
+
+def new_journal_sender(
+    discord: DiscordClient,
+    reader: SettingsReader,
+    engine: Engine,
+    clock: Clock,
+    settings: Settings,
+) -> JournalSender:
+    """The messages of the journal posted on Discord (a singleton, run by the lifespan of the
+    API alone)."""
+    return JournalSender(
+        discord,
+        reader,
+        event_repository_factory(engine),
+        JournalOptions(batch_seconds=settings.journal_batch_seconds),
+        clock,
+        settings.public_url,
+    )
+
+
+def as_auth_events(journal: Journal) -> AuthEvents:
+    return journal
+
+
+def as_download_events(journal: Journal) -> DownloadEvents:
+    return journal
+
+
 def as_probes(probes: ConnectionProbes) -> Probes:
     return probes
 
@@ -135,6 +186,7 @@ def environment_values(settings: Settings) -> dict[str, str]:
     secrets = {
         "prowlarr.api_key": settings.prowlarr_api_key,
         "sources.myanimelist.client_id": settings.myanimelist_client_id,
+        "discord.webhook": settings.discord_webhook,
     }
     values = {"prowlarr.url": settings.prowlarr_url, "jellyfin.url": settings.jellyfin_url}
     found = {key: value for key, value in values.items() if value is not None}
@@ -183,11 +235,12 @@ def new_download_sender(
     engine: Engine,
     options: DownloadOptions,
     clock: Clock,
+    journal: Journal,
 ) -> DownloadSender:
     """The sends to qBittorrent of every request (a singleton, resumed by the lifespan); its
     downloads on sessions of their own, since a send outlives its request."""
     return DownloadSender(
-        prowlarr, qbittorrent, reader, download_repository_factory(engine), options, clock
+        prowlarr, qbittorrent, reader, download_repository_factory(engine), options, clock, journal
     )
 
 
@@ -239,6 +292,12 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(new_search_board),
         wireup.injectable(as_qbittorrent_address),
         wireup.injectable(new_download_sender),
+        wireup.injectable(open_discord),
+        wireup.injectable(new_journal),
+        wireup.injectable(as_discord_settings),
+        wireup.injectable(new_journal_sender),
+        wireup.injectable(as_auth_events),
+        wireup.injectable(as_download_events),
         wireup.injectable(open_engine),
         wireup.injectable(open_session, lifetime="scoped"),
         wireup.injectable(WorkRepository, lifetime="scoped"),

@@ -16,11 +16,13 @@ def test_the_environment_gives_the_settings_it_sets_alone() -> None:
         prowlarr_api_key=SecretStr("prowlarr-key"),
         jellyfin_url="",
         myanimelist_client_id=None,
+        discord_webhook=SecretStr("https://discord.test/api/webhooks/1/t"),
     )
 
     assert environment_values(settings) == {
         "prowlarr.url": "http://prowlarr:9696",
         "prowlarr.api_key": "prowlarr-key",
+        "discord.webhook": "https://discord.test/api/webhooks/1/t",
     }
 
 

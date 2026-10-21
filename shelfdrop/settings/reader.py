@@ -8,7 +8,7 @@ from typing import Final
 import anyio
 import anyio.to_thread
 
-from shelfdrop.settings.catalog import SOURCES, VALUES
+from shelfdrop.settings.catalog import EVENTS, SOURCES, VALUES
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.exceptions import SecretUnreadableError
 from shelfdrop.settings.repository import SettingsRepositoryFactory
@@ -17,6 +17,7 @@ from shelfdrop.settings.types import SettingValue
 logger = logging.getLogger(__name__)
 
 MYANIMELIST_KEY: Final = "sources.myanimelist.client_id"
+WEBHOOK_KEY: Final = "discord.webhook"
 
 
 class SettingsReader:
@@ -95,3 +96,16 @@ class SettingsReader:
 
     async def work_answer_seconds(self) -> int:
         return 3600 * await self.number("search.work_cache_hours")
+
+    async def jellyfin(self) -> tuple[str | None, str | None]:
+        """The address of Jellyfin and its API key."""
+        return await self.connection("jellyfin")
+
+    async def discord(self) -> tuple[str | None, frozenset[str]]:
+        """The webhook of the journal and the events switched on."""
+        keys = tuple(f"discord.events.{event}" for event in EVENTS)
+        values, secrets = await anyio.to_thread.run_sync(self.read, keys, (WEBHOOK_KEY,))
+        events = frozenset(
+            event for event, key in zip(EVENTS, keys, strict=True) if values[key] is True
+        )
+        return secrets[WEBHOOK_KEY], events

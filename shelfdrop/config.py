@@ -14,7 +14,7 @@ DEFAULT_STATIC_DIR: Final = Path(__file__).resolve().parent / "static"
 # The settings reserved for the test stack: `docker/compose.test.yaml` alone sets them, through
 # the environment of the process, and a `.env` file never does (ADR 0010).
 TEST_STACK_SETTINGS: Final = frozenset(
-    {"sources_origin", "source_rest_seconds", "send_check_seconds"}
+    {"sources_origin", "source_rest_seconds", "send_check_seconds", "journal_batch_seconds"}
 )
 # The address of a service: http(s), a host, a port, a path.
 ADDRESS_PATTERN: Final = r"^https?://[A-Za-z0-9.-]+(:\d+)?(/.*)?$"
@@ -81,7 +81,10 @@ class Settings(BaseSettings):
     # The key the secrets of the database are sealed with (ADR 0012): 32 random bytes or more,
     # written as text (`openssl rand -base64 32`). The API does not start without it.
     secret_key: SecretStr | None = Field(default=None, min_length=32, repr=False)
-    # The four settings below are imported once into the database, at the first start where
+    # The address of the pages, as the browser reaches them (https://shelfdrop.maigo.party):
+    # the title of each message of the journal links there. None: no link.
+    public_url: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
+    # The five settings below are imported once into the database, at the first start where
     # they are set; then the settings page holds them (ADR 0012).
     # The Client ID of the MyAnimeList API.
     myanimelist_client_id: SecretStr | None = Field(default=None, repr=False)
@@ -90,7 +93,9 @@ class Settings(BaseSettings):
     prowlarr_api_key: SecretStr | None = Field(default=None, repr=False)
     # The address of Jellyfin (http://host:8096): the accounts sign in there.
     jellyfin_url: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
-    # The three settings below are reserved for the test stack (TEST_STACK_SETTINGS).
+    # The webhook of Discord the journal posts on.
+    discord_webhook: SecretStr | None = Field(default=None, repr=False)
+    # The four settings below are reserved for the test stack (TEST_STACK_SETTINGS).
     # Every request to a metadata source goes to this origin instead, its own origin in the
     # header X-Original-Origin: the fake sources of the test stack answer it.
     sources_origin: str | None = Field(default=None, pattern=r"^https?://[A-Za-z0-9.-]+(:\d+)?$")
@@ -98,6 +103,8 @@ class Settings(BaseSettings):
     source_rest_seconds: int = Field(default=300, ge=0, le=86400)
     # Seconds between two looks for a torrent sent to qBittorrent (ADR 0014).
     send_check_seconds: float = Field(default=8.0, ge=0, le=60)
+    # Seconds the events of one batch of the journal wait for the others (ADR 0015).
+    journal_batch_seconds: int = Field(default=30, ge=0, le=600)
 
     @field_validator(
         "secret_key",
@@ -105,6 +112,8 @@ class Settings(BaseSettings):
         "prowlarr_url",
         "prowlarr_api_key",
         "jellyfin_url",
+        "discord_webhook",
+        "public_url",
         mode="before",
     )
     @classmethod

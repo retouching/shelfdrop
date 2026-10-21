@@ -26,6 +26,7 @@ from shelfdrop.auth.types import Account, SignedIn, StoredSession
 from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.types import JellyfinUser
+from shelfdrop.journal.types import NewEvent
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.exceptions import SecretUnreadableError
 from shelfdrop.works.types import Clock
@@ -41,6 +42,12 @@ class JellyfinAddress(Protocol):
     """The address of Jellyfin, read at each sign-in and check (the settings page)."""
 
     async def jellyfin_url(self) -> str | None: ...
+
+
+class AuthEvents(Protocol):
+    """The journal: a sign-in, and the attempts refused from one address."""
+
+    def record(self, event: NewEvent) -> None: ...
 
 
 def fingerprint(token: str) -> str:
@@ -65,6 +72,7 @@ class AuthService:
         box: SecretBox,
         throttle: LoginThrottle,
         clock: Clock,
+        events: AuthEvents,
     ) -> None:
         self.repository = repository
         self.jellyfin = jellyfin
@@ -72,13 +80,23 @@ class AuthService:
         self.box = box
         self.throttle = throttle
         self.clock = clock
+        self.events = events
 
-    async def sign_in(self, username: str, password: str, client: str) -> SignedIn:
+    async def sign_in(
+        self, username: str, password: str, client: str, country: str = ""
+    ) -> SignedIn:
         """Raises TooManyAttemptsError, LoginRefusedError (whatever is wrong with the
-        account) and JellyfinUnavailableError."""
+        account) and JellyfinUnavailableError. `country`: the country Cloudflare gives the
+        address, for the journal. The journal never holds the name typed for a refusal."""
         now = int(self.clock.now())
         if not self.throttle.allow(client, now):
             logger.warning("Sign-in throttled")
+            refused = NewEvent(
+                type="login",
+                group=f"refused:{client}",
+                facts={"refused": True, "address": client, "country": country},
+            )
+            await anyio.to_thread.run_sync(self.events.record, refused)
             raise TooManyAttemptsError
         url = await self.address.jellyfin_url()
         device_id = secrets.token_hex(16)
@@ -108,6 +126,12 @@ class AuthService:
         )
         await anyio.to_thread.run_sync(self.keep, stored, now)
         logger.info("Signed in", extra={"account": account.username})
+        signed = NewEvent(
+            type="login",
+            group=f"login:{account.username}:{client}",
+            facts={"account": account.username, "address": client, "country": country},
+        )
+        await anyio.to_thread.run_sync(self.events.record, signed)
         return SignedIn(account=account, token=token, expires_at=stored.expires_at)
 
     def keep(self, stored: StoredSession, now: int) -> None:

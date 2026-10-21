@@ -11,6 +11,7 @@
 | `SHELFDROP_API_PREFIX` | `/api` | The prefix of every route but `/health` and the pages: one or more `/segment`. |
 | `SHELFDROP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. SQLAlchemy, httpx and httpcore never log below `WARNING`. |
 | `SHELFDROP_LOG_FORMAT` | `json` | `json` (one object per line) or `text`. |
+| `SHELFDROP_PUBLIC_URL` | none | The address of the pages as the browser reaches them (`https://shelfdrop.maigo.party`): the title of each message of the journal links there. |
 
 Imported once into the database, at the first start where they are set ([ADR 0012](adr/0012-settings-and-secrets.md)); then the settings page holds them, and a later change of the variable is ignored:
 
@@ -20,6 +21,7 @@ Imported once into the database, at the first start where they are set ([ADR 001
 | `SHELFDROP_PROWLARR_API_KEY` | the secret `prowlarr.api_key` |
 | `SHELFDROP_JELLYFIN_URL` | `jellyfin.url`, the address of Jellyfin (`http://jellyfin:8096`) |
 | `SHELFDROP_MYANIMELIST_CLIENT_ID` | the secret `sources.myanimelist.client_id`, the Client ID of the MyAnimeList API (myanimelist.net/apiconfig) |
+| `SHELFDROP_DISCORD_WEBHOOK` | the secret `discord.webhook`, the webhook of Discord the journal posts on |
 
 ## Settings of the page
 Kept in the database (`settings`, `secrets`), read at each use, so a change applies without a restart. `shelfdrop.settings.catalog` lists them:
@@ -31,7 +33,7 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `search.max_names` | 6 | The names of a work searched in Prowlarr, 1 to 10. |
 | `search.release_cache_minutes` | 10 | How long an answer of Prowlarr is reused, 0 to 1440. |
 | `search.work_cache_hours` | 24 | How long an answer of a metadata source is reused, 0 to 720. |
-| `discord.events.<event>` | on | The events of the journal sent to Discord. |
+| `discord.events.<event>` | on | The events of the journal sent to Discord: `sent`, `downloaded`, `placed`, `to_place`, `uploaded`, `retry`, `failed`, `misplaced`, `login`, `found` ([ADR 0015](adr/0015-journal.md)). Without the secret `discord.webhook`, nothing is posted. |
 
 The secrets: `prowlarr.api_key`, `qbittorrent.api_key`, `jellyfin.api_key`, `sources.myanimelist.client_id`, `discord.webhook`. Sealed with AES-GCM under `SHELFDROP_SECRET_KEY`, opened in memory at the time of a call, never logged nor shown.
 

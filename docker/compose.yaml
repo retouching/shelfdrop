@@ -16,6 +16,9 @@ services:
       SHELFDROP_MYANIMELIST_CLIENT_ID: ${SHELFDROP_MYANIMELIST_CLIENT_ID:-}
       SHELFDROP_PROWLARR_URL: ${SHELFDROP_PROWLARR_URL:-}
       SHELFDROP_PROWLARR_API_KEY: ${SHELFDROP_PROWLARR_API_KEY:-}
+      SHELFDROP_DISCORD_WEBHOOK: ${SHELFDROP_DISCORD_WEBHOOK:-}
+      # The address of the pages, linked by the messages of the journal.
+      SHELFDROP_PUBLIC_URL: ${SHELFDROP_PUBLIC_URL:-}
       # The address of the reverse proxy, whose X-Forwarded-For uvicorn trusts.
       FORWARDED_ALLOW_IPS: ${SHELFDROP_PROXY_ADDRESS:-127.0.0.1}
     volumes:

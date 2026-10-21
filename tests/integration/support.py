@@ -604,6 +604,48 @@ class FakeSources:
         httpx.delete(f"{self.url}/__admin/requests", timeout=10.0).raise_for_status()
 
 
+WEBHOOK_PATH: Final = "/api/webhooks/1/token-of-the-tests"
+WEBHOOK: Final = f"{FAKE_ORIGIN}{WEBHOOK_PATH}"
+
+
+def discord_stub() -> dict[str, Any]:
+    """The webhook of Discord the journal posts on: every message taken (`200` and its id)."""
+    return {
+        "priority": 1,
+        "request": {"method": "POST", "urlPath": WEBHOOK_PATH},
+        "response": json_response({"id": "1"}),
+    }
+
+
+def payload_of(request: dict[str, Any]) -> dict[str, Any]:
+    """The JSON of a message of the webhook: its body, or its part `payload_json`."""
+    body = str(request["body"])
+    if "payload_json" in body:
+        start = body.index("{", body.index("payload_json"))
+        body = body[start : body.rindex("}") + 1].split("\r\n--")[0]
+    payload: dict[str, Any] = json.loads(body)
+    return payload
+
+
+def wait_for_messages(
+    fake_sources: FakeSources, contains: str, *, count: int = 1, seconds: float = 30
+) -> list[dict[str, Any]]:
+    """The messages posted on the webhook whose body contains `contains`, once there are
+    `count` of them (the journal waits for the end of the window of a batch). Read again
+    without sleeping, `seconds` at most."""
+    deadline = time.monotonic() + seconds
+    found: list[dict[str, Any]] = []
+    while time.monotonic() < deadline:
+        found = [
+            payload_of(r)
+            for r in fake_sources.requests("POST", WEBHOOK_PATH)
+            if contains in str(r["body"])
+        ]
+        if len(found) >= count:
+            return found
+    return found
+
+
 def new_request_id() -> str:
     """A unique X-Request-ID: the records of a request are found by it."""
     return uuid.uuid4().hex

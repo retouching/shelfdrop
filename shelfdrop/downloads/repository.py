@@ -139,12 +139,16 @@ class DownloadRepository:
             .values(stage="failed", failure=failure)
         )
 
-    def mark_completed(self, download_ids: Sequence[int], now: int) -> None:
-        """qBittorrent has them all."""
-        self.session.execute(
-            update(DownloadRow)
-            .where(DownloadRow.id.in_(download_ids), DownloadRow.stage == "sent")
-            .values(stage="completed", completed_at=now)
+    def mark_completed(self, download_ids: Sequence[int], now: int) -> list[int]:
+        """qBittorrent has them all: those still `sent` are completed; their ids (the page and
+        the placement worker may both see the end: one of them only completes each)."""
+        return list(
+            self.session.scalars(
+                update(DownloadRow)
+                .where(DownloadRow.id.in_(download_ids), DownloadRow.stage == "sent")
+                .values(stage="completed", completed_at=now)
+                .returning(DownloadRow.id)
+            )
         )
 
     def mark_retried(self, download_id: int) -> None:

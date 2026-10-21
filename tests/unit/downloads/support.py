@@ -24,7 +24,7 @@ from shelfdrop.releases.types import (
 )
 from shelfdrop.works.types import Kind
 from tests.unit.clients.support import FakeQui
-from tests.unit.support import no_session
+from tests.unit.support import FakeJournal, no_session
 from tests.unit.works.support import FixedClock
 
 URL: Final = "http://qui.test:7476"
@@ -104,10 +104,11 @@ class FakeDownloadRepository(DownloadRepository):
         self.change(download_id, stage="failed", failure=failure)
 
     @override
-    def mark_completed(self, download_ids: Sequence[int], now: int) -> None:
-        for download_id in download_ids:
-            if self.rows[download_id].stage == "sent":
-                self.change(download_id, stage="completed")
+    def mark_completed(self, download_ids: Sequence[int], now: int) -> list[int]:
+        done = [i for i in download_ids if self.rows[i].stage == "sent"]
+        for download_id in done:
+            self.change(download_id, stage="completed")
+        return done
 
     @override
     def mark_retried(self, download_id: int) -> None:
@@ -225,6 +226,7 @@ class Desk:
     qui: FakeQui
     finder: FakeFinder
     clock: FixedClock
+    journal: FakeJournal
 
 
 def new_desk(
@@ -240,6 +242,11 @@ def new_desk(
     clock = FixedClock()
     qbittorrent = QBittorrentClient(httpx.AsyncClient(transport=httpx.MockTransport(qui)))
     address = address or FakeAddress()
-    sender = DownloadSender(prowlarr, qbittorrent, address, lambda: repository, options, clock)
-    service = DownloadService(repository, sender, qbittorrent, address, finder, options, clock)
-    return Desk(service, sender, repository, prowlarr, qui, finder, clock)
+    journal = FakeJournal()
+    sender = DownloadSender(
+        prowlarr, qbittorrent, address, lambda: repository, options, clock, journal
+    )
+    service = DownloadService(
+        repository, sender, qbittorrent, address, finder, options, clock, journal
+    )
+    return Desk(service, sender, repository, prowlarr, qui, finder, clock, journal)

@@ -32,6 +32,7 @@ EVENTS: Final = (
     "failed",
     "misplaced",
     "login",
+    "found",
 )
 ADDRESS: Final = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d+)?(/\S*)?$")
 SECRET_MAX_LENGTH: Final = 1000

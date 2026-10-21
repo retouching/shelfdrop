@@ -32,7 +32,13 @@ async def sign_in(
     """Open a session for an administrator of Jellyfin: the cookie `__Host-shelfdrop`."""
     client = request.client.host if request.client else ""
     try:
-        signed_in = await auth.sign_in(body.username, body.password, client)
+        signed_in = await auth.sign_in(
+            body.username,
+            body.password,
+            client,
+            # The country Cloudflare gives the address, in the journal alone.
+            request.headers.get("cf-ipcountry", "")[:2],
+        )
     except TooManyAttemptsError as exc:
         raise too_many_attempts() from exc
     except LoginRefusedError as exc:

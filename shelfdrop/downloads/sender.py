@@ -20,6 +20,7 @@ from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.downloads.repository import DownloadRepository, DownloadRepositoryFactory
 from shelfdrop.downloads.types import Download, DownloadOptions, Failure
+from shelfdrop.journal.types import NewEvent
 from shelfdrop.releases.exceptions import ProwlarrError
 from shelfdrop.releases.types import Torrent
 from shelfdrop.utils.torrent import magnet_id, torrent_id
@@ -38,6 +39,63 @@ class QbittorrentAddress(Protocol):
     """The address of qui and the key of its client proxy, read at each use (the settings)."""
 
     async def qbittorrent(self) -> tuple[str | None, str | None]: ...
+
+
+class DownloadEvents(Protocol):
+    """The journal: a torrent sent, not received, sent again."""
+
+    def record(self, event: NewEvent) -> None: ...
+
+
+def volume_numbers(download: Download) -> list[int]:
+    """The volumes of a download, as numbers: none for a whole series or unknown volumes."""
+    volumes = download.volumes
+    if volumes.first is None:
+        return []
+    last = volumes.last if volumes.last is not None else volumes.first
+    return list(range(volumes.first, max(volumes.first, last) + 1))[:500]
+
+
+def sent_event(download: Download) -> NewEvent:
+    """The downloads sent by one request make one message: same account, same second, same
+    work."""
+    return NewEvent(
+        type="sent",
+        group=f"sent:{download.created_by}:{download.created_at}:{download.work_name}",
+        facts={
+            "work": download.series or download.work_name,
+            "volumes": volume_numbers(download),
+            "tracker": download.indexer,
+            "size": download.size,
+            "mode": download.mode,
+            "actor": download.created_by,
+        },
+    )
+
+
+def outcome_event(download: Download, failure: Failure | None) -> NewEvent | None:
+    """The event of the end of a send: sent, not received (`failed`), or, for a retry, the
+    retry and its result. A duplicate has none."""
+    if failure == "duplicate":
+        return None
+    if download.attempts > 1:
+        return NewEvent(
+            type="retry",
+            group=f"retry:{download.id}:{download.attempts}",
+            facts={
+                "work": download.series or download.work_name,
+                "release": download.title,
+                "attempt": download.attempts,
+                "result": failure or "sent",
+            },
+        )
+    if failure is None:
+        return sent_event(download)
+    return NewEvent(
+        type="failed",
+        group=f"failed:not_received:{download.created_by}:{download.created_at}",
+        facts={"what": "not_received", "release": download.title},
+    )
 
 
 class SendFailedError(Exception):
@@ -63,6 +121,7 @@ class DownloadSender:
         repositories: DownloadRepositoryFactory,
         options: DownloadOptions,
         clock: Clock,
+        events: DownloadEvents,
     ) -> None:
         self.source = source
         self.qbittorrent = qbittorrent
@@ -70,6 +129,7 @@ class DownloadSender:
         self.repositories = repositories
         self.options = options
         self.clock = clock
+        self.events = events
         self.slots = asyncio.Semaphore(options.parallel)
         self.sending: set[int] = set()
         self.tasks: set[asyncio.Task[None]] = set()
@@ -106,16 +166,21 @@ class DownloadSender:
             download = await self.read(lambda r: r.read(download_id))
             if download is None or download.stage != "sending":
                 return
+            failure: Failure | None = None
             try:
                 await self.deliver(download)
             except SendFailedError as exc:
                 failure = exc.failure
+                refused: Failure = exc.failure
                 logger.info("Download not sent", extra={"download": download_id, "reason": failure})
-                await self.write(lambda r: r.mark_failed(download_id, failure))
-                return
-            now = int(self.clock.now())
-            await self.write(lambda r: r.mark_sent(download_id, now))
-            logger.info("Download sent", extra={"download": download_id})
+                await self.write(lambda r: r.mark_failed(download_id, refused))
+            else:
+                now = int(self.clock.now())
+                await self.write(lambda r: r.mark_sent(download_id, now))
+                logger.info("Download sent", extra={"download": download_id})
+            event = outcome_event(download, failure)
+            if event is not None:
+                await anyio.to_thread.run_sync(self.events.record, event)
         finally:
             self.sending.discard(download_id)
 

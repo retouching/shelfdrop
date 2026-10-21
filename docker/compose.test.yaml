@@ -16,6 +16,10 @@ services:
       # A torrent sent to qBittorrent is looked for every second instead of 8, so that a send
       # not received fails in 2 seconds.
       SHELFDROP_SEND_CHECK_SECONDS: "1"
+      # The events of one batch of the journal wait 2 seconds for the others instead of 30.
+      SHELFDROP_JOURNAL_BATCH_SECONDS: "2"
+      # The journal links its messages there.
+      SHELFDROP_PUBLIC_URL: http://shelfdrop.test
       # Prowlarr is played by the fake sources too, with the answers of
       # tests/unit/releases/fixtures/prowlarr.json and the key of the tests, imported into the
       # settings at start.

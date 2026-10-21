@@ -165,6 +165,11 @@ async def test_the_downloads_show_the_figures_of_qbittorrent_and_complete_once()
     done = await desk.service.read()
     assert [v.progress.state for v in done] == ["to_place", "placing"]
     assert {d.stage for d in desk.repository.rows.values()} == {"completed"}
+    # Each end once in the journal: downloaded for the automatic one, to place for the manual.
+    assert [(e.type, e.facts.get("reason")) for e in desk.journal.events[2:]] == [
+        ("to_place", "manual"),
+        ("downloaded", None),
+    ]
     # Completed: qBittorrent is not asked again.
     asked = len(qui.requests)
     qui.torrents.clear()

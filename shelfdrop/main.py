@@ -30,6 +30,7 @@ from shelfdrop.http.middleware.origin import OriginMiddleware
 from shelfdrop.http.middleware.request_id import RequestIdMiddleware
 from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
 from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
+from shelfdrop.journal.service import JournalSender
 from shelfdrop.logging.setup import configure_logging
 from shelfdrop.modules.downloads.router import router as downloads_router
 from shelfdrop.modules.filters.router import router as filters_router
@@ -65,7 +66,7 @@ def build_app(settings: Settings) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """At start: the settings of the environment imported once into the database
         (ADR 0012), the sends a stop left unfinished (ADR 0014), then the tests of the services
-        every 5 minutes, until the end."""
+        every 5 minutes and the messages of the journal (ADR 0015), until the end."""
         container = get_app_container(app)
         async with container.enter_scope() as scope:
             service = await scope.get(SettingsService)
@@ -75,13 +76,16 @@ def build_app(settings: Settings) -> FastAPI:
         sender = await container.get(DownloadSender)
         await sender.resume()
         monitor = await container.get(ConnectionMonitor)
-        checks = asyncio.create_task(monitor.run())
+        journal = await container.get(JournalSender)
+        loops = [asyncio.create_task(monitor.run()), asyncio.create_task(journal.run())]
         try:
             yield
         finally:
-            checks.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await checks
+            for loop in loops:
+                loop.cancel()
+            for loop in loops:
+                with contextlib.suppress(asyncio.CancelledError):
+                    await loop
             await sender.close()
 
     app = FastAPI(

@@ -4,6 +4,8 @@ from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
+from shelfdrop.journal.types import EventType, NewEvent
+
 
 class NoSession:
     """A session no code may use: any access fails the test."""
@@ -16,6 +18,19 @@ class NoSession:
 def no_session() -> Session:
     # cast: the fake implements nothing; a fake repository built on it overrides every method.
     return cast("Session", NoSession())
+
+
+class FakeJournal:
+    """The journal of a test: the events recorded, in their order."""
+
+    def __init__(self) -> None:
+        self.events: list[NewEvent] = []
+
+    def record(self, event: NewEvent) -> None:
+        self.events.append(event)
+
+    def of(self, event_type: EventType) -> list[NewEvent]:
+        return [event for event in self.events if event.type == event_type]
 
 
 type Bencodable = int | bytes | str | list["Bencodable"] | dict[str, "Bencodable"]

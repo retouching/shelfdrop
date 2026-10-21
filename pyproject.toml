@@ -96,6 +96,7 @@ markers = [
     "downloads_follow: block of downloads, the figures of qBittorrent, the end (test_download_follow.py)",
     "downloads_retry: block of downloads, a torrent lost, sent again (test_download_retry.py)",
     "downloads_manual: block of downloads, a manual download, to place (test_download_manual.py)",
+    "journal: integration part, the events posted on the fake webhook of Discord (test_journal.py)",
 ]
 
 [dependency-groups]

@@ -10,10 +10,12 @@ from tests.integration.support import (
     FAKE_ORIGIN,
     QUI_KEY,
     UP_TIMEOUT_SECONDS,
+    WEBHOOK,
     FakeSources,
     Stack,
     compose,
     cookie_of,
+    discord_stub,
     jellyfin_stubs,
     prowlarr_stubs,
     qbittorrent_stubs,
@@ -50,7 +52,13 @@ def stack() -> Iterator[Stack]:
         except RuntimeError as error:
             pytest.fail(str(error), pytrace=False)
         FakeSources(built.sources_url).load(
-            [*recorded_stubs(), *prowlarr_stubs(), *jellyfin_stubs(), *qbittorrent_stubs()]
+            [
+                *recorded_stubs(),
+                *prowlarr_stubs(),
+                *jellyfin_stubs(),
+                *qbittorrent_stubs(),
+                discord_stub(),
+            ]
         )
         yield built
     finally:
@@ -103,3 +111,13 @@ def qbittorrent_saved(client: httpx.Client) -> Iterator[None]:
     yield
     cleared = {"values": {"qbittorrent.url": None}, "secrets": {"qbittorrent.api_key": None}}
     client.put("/api/v1/settings", json=cleared).raise_for_status()
+
+
+@pytest.fixture
+def webhook_saved(client: httpx.Client) -> Iterator[None]:
+    """The webhook of the journal saved (the fake one), then cleared again."""
+    client.put(
+        "/api/v1/settings", json={"secrets": {"discord.webhook": WEBHOOK}}
+    ).raise_for_status()
+    yield
+    client.put("/api/v1/settings", json={"secrets": {"discord.webhook": None}}).raise_for_status()

@@ -6,10 +6,9 @@ DeviceId=..., Version=...`, with `Token=...` once signed in (an access token or 
 The password goes in the body of `POST /Users/AuthenticateByName` alone, never in a log.
 """
 
-from typing import Any, Final
-
 import base64
 from collections.abc import Mapping, Sequence
+from typing import Any, Final
 
 import httpx
 

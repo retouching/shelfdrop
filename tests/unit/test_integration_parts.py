@@ -32,6 +32,7 @@ PARTS: Final = {
     "test_download_follow.py": "downloads",
     "test_download_retry.py": "downloads",
     "test_download_manual.py": "downloads",
+    "test_journal.py": "journal",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
