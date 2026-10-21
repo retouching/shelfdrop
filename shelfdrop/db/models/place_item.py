@@ -31,6 +31,9 @@ class PlaceItem(Base):
     chapters: Mapped[str] = mapped_column(Text)
     series: Mapped[str] = mapped_column(String(200))
     existing: Mapped[str] = mapped_column(Text)
+    # The chapters loose in the folder of that series, out of its files (JSON): with its own,
+    # they make a volume complete; the worker reads them again at each round.
+    loose: Mapped[str] = mapped_column(Text, server_default="[]")
     work_id: Mapped[str | None] = mapped_column(String(200))
     author: Mapped[str] = mapped_column(String(200))
     # What the page asked (JSON, `shelfdrop.placement.types.PlaceRequest`) until the worker

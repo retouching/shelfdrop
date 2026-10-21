@@ -42,9 +42,10 @@ def test_a_release_in_chapters_is_one_file_of_ranger_with_its_chapters() -> None
     torrent = "/data/torrents/manga/Chainsaw Man"
     files = [(f"{torrent}/Chainsaw Man - Ch. {n}.cbz", 10) for n in ("230", "231", "231.5")]
 
-    [item] = items_of(download(), torrent, files, [1, 2])
+    [item] = items_of(download(), torrent, files, [1, 2], [229.0])
 
     assert (item.state, item.reason, item.path, item.size) == ("chapters", "chapters", torrent, 30)
+    assert item.loose == (229.0,)
     assert item.chapters == (230.0, 231.0, 231.5)
     assert (item.series, item.existing, item.work_id) == ("Chainsaw Man", (1, 2), "mangaupdates:1")
 

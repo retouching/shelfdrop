@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from shelfdrop.placement.chapters import place_chapter, place_chapters, place_volume
+from shelfdrop.placement.chapters import loose_chapters, place_chapter, place_chapters, place_volume
 from shelfdrop.placement.layout import NotPlacedError
 from shelfdrop.placement.types import (
     ChapterRequest,
@@ -153,3 +153,16 @@ def test_a_volume_there_is_replaced_only_when_asked(tmp_path: Path) -> None:
 
     assert pages_in(root / SERIES / f"{SERIES} - T23.cbz")[0][1] == JPEG + b"206-1.jpg"
     assert sorted(p.name for p in (root / SERIES).iterdir()) == [f"{SERIES} - T23.cbz"]
+
+
+def test_the_loose_chapters_are_the_cbz_of_chapters_of_the_folder_but_those_taken(
+    tmp_path: Path,
+) -> None:
+    folder = tmp_path / "Chainsaw Man"
+    taken = cbz(folder / "Chainsaw Man - Ch. 230.cbz", ["1.jpg"])
+    cbz(folder / "Chainsaw Man - T23 - Ch. 206.cbz", ["1.jpg"])
+    cbz(folder / "Chainsaw Man - Ch. 207.5.cbz", ["1.jpg"])
+    cbz(folder / "Chainsaw Man - T22.cbz", ["1.jpg"])
+
+    assert loose_chapters(folder, [str(taken)]) == (206.0, 207.5)
+    assert loose_chapters(tmp_path / "none", []) == ()

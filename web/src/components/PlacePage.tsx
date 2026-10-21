@@ -257,6 +257,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
           file={chaptering}
           chapters={chaptering.chapters.numbers}
           existing={chaptering.chapters.existing}
+          loose={chaptering.chapters.loose}
           onClose={() => {
             setChaptering(null);
           }}

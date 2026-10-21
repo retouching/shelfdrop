@@ -165,6 +165,12 @@ class FakePlacementRepository(PlacementRepository):
         self.change(item_id, **values, updated_at=now)
 
     @override
+    def set_item_shelf(
+        self, item_id: int, existing: tuple[int, ...], loose: tuple[float, ...]
+    ) -> None:
+        self.change(item_id, existing=existing, loose=loose)
+
+    @override
     def read_items(self, *, placed: bool) -> list[PlaceItem]:
         return [
             i

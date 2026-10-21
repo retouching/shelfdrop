@@ -94,8 +94,13 @@ export type ShelfFile = {
   readonly kind: Kind | null;
   readonly sizeBytes: number;
   readonly state: FileState;
-  /** Release en chapitres : les numéros trouvés dans les noms de fichiers, et les tomes déjà rangés. */
-  readonly chapters?: { readonly numbers: readonly number[]; readonly existing: readonly number[] };
+  /** Release en chapitres : les numéros trouvés dans les noms de fichiers, les tomes déjà rangés, et les
+   * chapitres déjà rangés seuls dans la série, comptés par le serveur pour un tome complet. */
+  readonly chapters?: {
+    readonly numbers: readonly number[];
+    readonly existing: readonly number[];
+    readonly loose: readonly number[];
+  };
   /** Pourquoi le dernier rangement demandé n'a pas eu lieu (« exists », « link_refused »…). */
   readonly error?: string | null;
   /** Série, auteur et œuvre devinés depuis le téléchargement ou le dossier. */

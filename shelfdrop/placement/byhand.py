@@ -17,7 +17,13 @@ from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.types import JellyfinLibrary
 from shelfdrop.downloads.types import Download
 from shelfdrop.journal.types import NewEvent
-from shelfdrop.placement.chapters import HandLaid, place_chapter, place_chapters, place_volume
+from shelfdrop.placement.chapters import (
+    HandLaid,
+    loose_chapters,
+    place_chapter,
+    place_chapters,
+    place_volume,
+)
 from shelfdrop.placement.existing import content_of
 from shelfdrop.placement.items import chapter_numbers, items_of
 from shelfdrop.placement.layout import NotPlacedError, Order, place_books
@@ -64,6 +70,11 @@ def volumes_in(folder: Path) -> tuple[int, ...]:
     return tuple(sorted(content_of(names_in(folder)).volumes))
 
 
+def shelf_of(folder: Path, files: Sequence[str]) -> tuple[tuple[int, ...], tuple[float, ...]]:
+    """The volumes of a series folder, and its chapters loose but in `files`."""
+    return volumes_in(folder), loose_chapters(folder, files)
+
+
 def remove_sources(paths: Sequence[str], kept: set[str]) -> None:
     """The files of the libraries now on the shelf under another name: removed."""
     for path in paths:
@@ -81,6 +92,16 @@ def update_items(
 ) -> None:
     for item_id, item in items:
         repository.update_item(item_id, item, now)
+
+
+def set_shelf(
+    repository: PlacementRepository,
+    *,
+    item_id: int,
+    existing: tuple[int, ...],
+    loose: tuple[float, ...],
+) -> None:
+    repository.set_item_shelf(item_id, existing, loose)
 
 
 def mark_done(repository: PlacementRepository, *, task_id: int, now: int) -> None:
@@ -101,6 +122,7 @@ class HandPlacement:
 
     async def round(self) -> None:
         await self.collect()
+        await self.refresh_shelf()
         await self.run_requests()
         await self.scan_when_due()
 
@@ -139,12 +161,32 @@ class HandPlacement:
     @staticmethod
     def items_for(download: Download, content: str, roots: dict[Kind, str]) -> list[NewItem]:
         files = sized(files_of(Path(content))) if content else []
-        existing = (
-            volumes_in(Path(roots["manga"]) / safe(download.series or download.work_name))
-            if download.kind == "manga"
-            else ()
-        )
-        return items_of(download, content, files, existing)
+        if download.kind != "manga":
+            return items_of(download, content, files, ())
+        folder = Path(roots["manga"]) / safe(download.series or download.work_name)
+        existing, loose = shelf_of(folder, [path for path, _ in files])
+        return items_of(download, content, files, existing, loose)
+
+    async def refresh_shelf(self) -> None:
+        """The volumes and the loose chapters of the series of each release in chapters left
+        in Ranger, read again: the page counts a volume complete as `place_chapters` will."""
+        items = [
+            i
+            for i in await self.placement.on_shelf(
+                lambda r: r.read_items(placed=False), commit=False
+            )
+            if i.state == "chapters" and i.request is None
+        ]
+        if not items:
+            return
+        roots = await self.placement.settings.libraries()
+        for item in items:
+            folder = Path(roots["manga"]) / safe(item.series)
+            existing, loose = await anyio.to_thread.run_sync(shelf_of, folder, item.files)
+            if (existing, loose) != (item.existing, item.loose):
+                await self.placement.on_shelf(
+                    partial(set_shelf, item_id=item.id, existing=existing, loose=loose)
+                )
 
     async def run_requests(self) -> None:
         for item in await self.placement.on_shelf(lambda r: r.read_asked(), commit=False):

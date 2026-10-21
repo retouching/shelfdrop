@@ -66,6 +66,7 @@ def item_of(row: PlaceItemRow) -> PlaceItem:
         chapters=CHAPTERS.validate_json(row.chapters),
         series=row.series,
         existing=VOLUMES.validate_json(row.existing),
+        loose=CHAPTERS.validate_json(row.loose),
         work_id=row.work_id,
         author=row.author,
         request=None if row.request is None else REQUEST.validate_json(row.request),
@@ -182,6 +183,7 @@ class PlacementRepository:
             chapters=CHAPTERS.dump_json(item.chapters).decode(),
             series=item.series[:200],
             existing=VOLUMES.dump_json(item.existing).decode(),
+            loose=CHAPTERS.dump_json(item.loose).decode(),
             work_id=item.work_id,
             author=item.author[:200],
             request=None,
@@ -210,7 +212,21 @@ class PlacementRepository:
                 chapters=CHAPTERS.dump_json(item.chapters).decode(),
                 series=item.series[:200],
                 existing=VOLUMES.dump_json(item.existing).decode(),
+                loose=CHAPTERS.dump_json(item.loose).decode(),
                 updated_at=now,
+            )
+        )
+
+    def set_item_shelf(
+        self, item_id: int, existing: tuple[int, ...], loose: tuple[float, ...]
+    ) -> None:
+        """The volumes and the loose chapters of the series of a file of Ranger, read again."""
+        self.session.execute(
+            update(PlaceItemRow)
+            .where(PlaceItemRow.id == item_id)
+            .values(
+                existing=VOLUMES.dump_json(existing).decode(),
+                loose=CHAPTERS.dump_json(loose).decode(),
             )
         )
 

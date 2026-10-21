@@ -40,10 +40,15 @@ def chapter_files(paths: Iterable[str]) -> dict[float, str]:
 
 
 def items_of(
-    download: Download, content: str, files: Sequence[tuple[str, int]], existing: Sequence[int]
+    download: Download,
+    content: str,
+    files: Sequence[tuple[str, int]],
+    existing: Sequence[int],
+    loose: Sequence[float] = (),
 ) -> list[NewItem]:
     """The files of Ranger of `download`: `files`, the paths of its torrent and their sizes;
-    `existing`, the volumes of its series on the shelf."""
+    `existing`, the volumes of its series on the shelf; `loose`, the chapters loose there,
+    given to a release in chapters."""
     reason = download.unplaced or "manual"
     known = (
         download.volumes.last - download.volumes.first + 1
@@ -72,6 +77,7 @@ def items_of(
             existing=tuple(sorted(existing)),
             work_id=download.work_id,
             author=download.author,
+            loose=tuple(loose) if state == "chapters" else (),
         )
 
     books = [f for f in files if PurePath(f[0]).suffix.lower() in BOOKS[download.kind]]

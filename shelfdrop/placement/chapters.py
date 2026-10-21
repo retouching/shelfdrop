@@ -160,6 +160,26 @@ def merge_volume(files: Sequence[str], target: Path, info: ComicInfo, replace: b
         out.replace(target)
 
 
+def loose_files(folder: Path, names: Sequence[str], taken: set[str]) -> dict[float, str]:
+    """The chapters loose in `folder` (its CBZ of chapters, `names`), but the files `taken`:
+    each chapter and its file."""
+    return {
+        chapter: path
+        for chapter, path in chapter_files(
+            str(folder / n)
+            for n in names
+            if Path(n).suffix.lower() == ".cbz" and chapters_of(Path(n).stem) is not None
+        ).items()
+        if path not in taken
+    }
+
+
+def loose_chapters(folder: Path, taken: Sequence[str]) -> tuple[float, ...]:
+    """The chapters loose in `folder` but in the files `taken`: those `place_chapters` counts
+    with a release to make a volume complete."""
+    return tuple(sorted(loose_files(folder, names_in(folder), set(taken))))
+
+
 def place_chapters(
     sources: Sequence[str], request: ChaptersRequest, root: Path, covers: bool
 ) -> HandLaid:
@@ -171,15 +191,7 @@ def place_chapters(
     shelf = content_of(names)
     release = chapter_files(s for s in sources if Path(s).suffix.lower() in COMIC_EXTENSIONS)
     taken = set(release.values())
-    loose = {
-        chapter: path
-        for chapter, path in chapter_files(
-            str(folder / n)
-            for n in names
-            if Path(n).suffix.lower() == ".cbz" and chapters_of(Path(n).stem) is not None
-        ).items()
-        if path not in taken
-    }
+    loose = loose_files(folder, names, taken)
     make_folder(folder)
     placed: list[PlacedFile] = []
     used: set[str] = set()

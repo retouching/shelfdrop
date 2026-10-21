@@ -18,6 +18,8 @@ def test_chapters_linked_to_volumes_are_merged_placed_as_they_are_or_without_a_v
 ) -> None:
     series = "Shelfdrop Merge Test"
     torrent = f"/data/torrents/manga/{series}"
+    folder = f"/data/files/comics/{series}"
+    stack.exec_placement("python", "-c", MAKE_CBZ, f"{folder}/{series} - Ch. 7.cbz")
     stack.exec_placement(
         "python",
         "-c",
@@ -36,6 +38,13 @@ def test_chapters_linked_to_volumes_are_merged_placed_as_they_are_or_without_a_v
     [item] = named(wait_for_items(client, lambda i: bool(named(i, torrent))), torrent)
     assert (item["state"], item["reason"]) == ("chapters", "chapters")
     assert item["chapters"] == [1, 2, 2.5, 3, 5, 9]
+    # The chapters loose in the folder of the series, counted by the placement: read again.
+    assert item["loose"] == [7]
+    stack.exec_placement("python", "-c", MAKE_CBZ, f"{folder}/{series} - Ch. 8.cbz")
+    [item] = named(
+        wait_for_items(client, lambda i: named(i, torrent)[0]["loose"] == [7, 8]), torrent
+    )
+    assert item["loose"] == [7, 8]
 
     asked = client.post(
         f"/api/v1/place/items/{item['id'].removeprefix('item-')}/link",
@@ -58,8 +67,9 @@ def test_chapters_linked_to_volumes_are_merged_placed_as_they_are_or_without_a_v
         wait_for_items(client, lambda i: named(i, torrent)[0]["state"] == "placed"), torrent
     )
     assert done["destination"].endswith(series)
-    folder = f"/data/files/comics/{series}"
     assert stack.exec_placement("ls", "-1", folder).stdout.splitlines() == [
+        f"{series} - Ch. 7.cbz",
+        f"{series} - Ch. 8.cbz",
         f"{series} - Ch. 9.cbz",
         f"{series} - T01.cbz",
         f"{series} - T02 - Ch. 5.cbz",

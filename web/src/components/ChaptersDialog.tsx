@@ -11,6 +11,8 @@ type Props = {
   readonly chapters: readonly number[];
   /** Tomes déjà dans la bibliothèque pour cette série. */
   readonly existing: readonly number[];
+  /** Chapitres déjà rangés seuls dans le dossier de cette série : le serveur les compte pour un tome complet. */
+  readonly loose: readonly number[];
   readonly onClose: () => void;
   readonly onPlaced: (file: ShelfFile) => void;
 };
@@ -49,7 +51,7 @@ function chapterLabel(chapter: number): string {
   return Number.isInteger(chapter) ? String(chapter) : chapter.toLocaleString("fr-FR");
 }
 
-export function ChaptersDialog({ file, chapters, existing, onClose, onPlaced }: Props): ReactElement {
+export function ChaptersDialog({ file, chapters, existing, loose, onClose, onPlaced }: Props): ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
   const [pick, setPick] = useState<Pick | null>(null);
   const [links, setLinks] = useState<readonly Link[]>([]);
@@ -89,11 +91,13 @@ export function ChaptersDialog({ file, chapters, existing, onClose, onPlaced }: 
     return chapters.filter((chapter) => chapter >= link.from && chapter <= link.to);
   }
 
-  /** Les chapitres entiers de la plage absents de la release (les « .5 » ne sont jamais attendus). */
+  /** Les chapitres entiers de la plage absents de la release et du dossier de la série (les « .5 » ne sont
+   * jamais attendus) : le serveur décide pareil. Ceux du dossier ne comptent que pour la série du fichier. */
   function missingOf(link: Link): readonly number[] {
+    const shelved = pick === null || pick.shelfName === file.series ? loose : [];
     const missing: number[] = [];
     for (let chapter = Math.ceil(link.from); chapter <= link.to; chapter += 1) {
-      if (!chapters.includes(chapter)) {
+      if (!chapters.includes(chapter) && !shelved.includes(chapter)) {
         missing.push(chapter);
       }
     }

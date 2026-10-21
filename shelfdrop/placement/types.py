@@ -138,6 +138,8 @@ class NewItem:
     """The volumes of `series` on the shelf."""
     work_id: str | None = None
     author: str = ""
+    loose: tuple[float, ...] = ()
+    """The chapters loose in the folder of `series`, out of `files`."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -211,6 +213,7 @@ class PlaceItem:
     chapters: tuple[float, ...]
     series: str
     existing: tuple[int, ...]
+    loose: tuple[float, ...]
     work_id: str | None
     author: str
     request: PlaceRequest | None

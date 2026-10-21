@@ -17,6 +17,7 @@ type ItemRead = {
   readonly destination: string | null;
   readonly chapters: readonly number[];
   readonly existing: readonly number[];
+  readonly loose: readonly number[];
   readonly series: string;
   readonly author: string;
   readonly work_id: string | null;
@@ -81,7 +82,7 @@ function fileOf(read: ItemRead): ShelfFile {
     author: read.author,
     workId: read.work_id,
     ...(read.state === "chapters" || read.chapters.length > 0
-      ? { chapters: { numbers: read.chapters, existing: read.existing } }
+      ? { chapters: { numbers: read.chapters, existing: read.existing, loose: read.loose } }
       : {}),
   };
 }

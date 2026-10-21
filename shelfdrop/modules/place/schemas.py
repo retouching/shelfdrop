@@ -79,6 +79,9 @@ class ItemRead(BaseModel):
     chapters: list[float]
     # The volumes of `series` on the shelf.
     existing: list[int]
+    # The chapters loose in the folder of `series`, out of its files: a volume of a release in
+    # chapters is complete with them too, and merged (they are removed).
+    loose: list[float]
     series: str
     author: str
     work_id: str | None

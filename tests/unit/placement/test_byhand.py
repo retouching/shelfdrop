@@ -131,3 +131,34 @@ def test_the_slot_of_the_scan_is_the_last_one_passed() -> None:
 
     assert scan_slot(now, 4, 30) == datetime(2026, 10, 20, 4, 30).astimezone().timestamp()
     assert scan_slot(now, 2, 0) == datetime(2026, 10, 21, 2, 0).astimezone().timestamp()
+
+
+@pytest.mark.anyio
+async def test_a_release_in_chapters_counts_the_chapters_loose_on_the_shelf_as_they_come(
+    tmp_path: Path,
+) -> None:
+    bench = new_bench(tmp_path)
+    folder = bench.roots["manga"] / "Chainsaw Man"
+    cbz(folder / "Chainsaw Man - T22.cbz", ["1.jpg"])
+    cbz(folder / "Chainsaw Man - T23 - Ch. 208.cbz", ["208.jpg"])
+    download_id, _ = chapters_download(bench, tmp_path)
+    await bench.service.round()
+    await bench.hand.round()
+
+    [item] = [i for i in bench.shelf.items.values() if i.download_id == download_id]
+    assert (item.existing, item.loose) == ((22,), (208.0,))
+    cbz(folder / "Chainsaw Man - Ch. 209.cbz", ["209.jpg"])
+    await bench.hand.round()
+
+    assert bench.shelf.items[item.id].loose == (208.0, 209.0)
+    asked = ChaptersRequest(
+        work_id=None,
+        series="Chainsaw Man",
+        author="",
+        volumes=(VolumeRange(volume=23, first=206, last=209),),
+        rest="keep",
+    )
+    assert bench.shelf.ask(item.id, asked, 0)
+    await bench.hand.round()
+    assert (folder / "Chainsaw Man - T23.cbz").is_file()
+    assert not (folder / "Chainsaw Man - Ch. 209.cbz").exists()
