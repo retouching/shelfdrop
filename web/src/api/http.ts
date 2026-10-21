@@ -17,6 +17,13 @@ function isErrorBody(body: unknown): body is { readonly code: string; readonly d
   return typeof body === "object" && body !== null && "code" in body && "detail" in body;
 }
 
+let onSignedOut: (() => void) | null = null;
+
+/** Appelé quand l'API répond qu'il n'y a plus de session : la page revient à la connexion. */
+export function whenSignedOut(handler: (() => void) | null): void {
+  onSignedOut = handler;
+}
+
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method, headers: { Accept: "application/json" } };
   if (body !== undefined) {
@@ -26,6 +33,9 @@ export async function request<T>(method: string, path: string, body?: unknown): 
   const response = await fetch(`/api${path}`, init);
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 401 && isErrorBody(data) && data.code === "not_signed_in") {
+      onSignedOut?.();
+    }
     throw isErrorBody(data)
       ? new ApiError(response.status, data.code, data.detail)
       : new ApiError(response.status, "http_error", response.statusText);

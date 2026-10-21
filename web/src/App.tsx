@@ -22,7 +22,9 @@ import { RefreshBar } from "./components/RefreshBar";
 import { useWaiting } from "./mock/waiting";
 import { WaitingPage } from "./components/WaitingPage";
 import { WaitDialog } from "./components/WaitDialog";
+import { whenSignedOut } from "./api/http";
 import type { SearchProgress } from "./api/searches";
+import { readSession, signOut } from "./api/session";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
 import { mockDownloads, nextDownloads } from "./mock/data";
 import { guessKind, mockFiles } from "./mock/files";
@@ -66,8 +68,10 @@ function stats(downloads: readonly Download[]): readonly Stat[] {
   ];
 }
 
-export function App(): ReactElement {
+export function App(): ReactElement | null {
   const [username, setUsername] = useState<string | null>(null);
+  // La session est lue au chargement : rien n'est affiché avant sa réponse.
+  const [sessionRead, setSessionRead] = useState(false);
   const [page, setPage] = useState<Page>("auto");
   const [kind, setKind] = useState<Kind>("manga");
   const [query, setQuery] = useState("");
@@ -179,6 +183,27 @@ export function App(): ReactElement {
     };
   }, [uploading]);
 
+  useEffect(() => {
+    whenSignedOut(() => {
+      setUsername(null);
+    });
+    readSession().then(
+      (name) => {
+        setUsername(name);
+        setSessionRead(true);
+      },
+      () => {
+        setSessionRead(true);
+      },
+    );
+    return () => {
+      whenSignedOut(null);
+    };
+  }, []);
+
+  if (!sessionRead) {
+    return null;
+  }
   if (username === null) {
     return <LoginPage onSignedIn={setUsername} />;
   }
@@ -321,7 +346,14 @@ export function App(): ReactElement {
           setNotice(null);
         }}
         onSignOut={() => {
-          setUsername(null);
+          signOut().then(
+            () => {
+              setUsername(null);
+            },
+            () => {
+              setUsername(null);
+            },
+          );
         }}
       />
       <div className="min-w-0 flex-1">

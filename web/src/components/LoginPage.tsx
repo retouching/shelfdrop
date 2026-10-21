@@ -3,7 +3,7 @@ import { useState, type ReactElement, type SubmitEvent } from "react";
 import { texts } from "../texts";
 import { ShelfIcon } from "./icons";
 import { Spinner } from "./Skeletons";
-import { wait } from "../mock/latency";
+import { signIn } from "../api/session";
 
 type Props = {
   readonly onSignedIn: (username: string) => void;
@@ -16,16 +16,23 @@ export function LoginPage({ onSignedIn }: Props): ReactElement {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
+  const [refused, setRefused] = useState(false);
 
-  async function signIn(): Promise<void> {
+  async function send(): Promise<void> {
     setPending(true);
-    await wait(800);
-    onSignedIn(username.trim() === "" ? "sylvain" : username.trim());
+    setRefused(false);
+    try {
+      onSignedIn(await signIn(username.trim(), password));
+    } catch {
+      // Refus, trop d'essais ou Jellyfin injoignable : le même message, sans détail.
+      setRefused(true);
+      setPending(false);
+    }
   }
 
   function submit(event: SubmitEvent<HTMLFormElement>): void {
     event.preventDefault();
-    void signIn();
+    void send();
   }
 
   return (
@@ -55,6 +62,7 @@ export function LoginPage({ onSignedIn }: Props): ReactElement {
               setUsername(event.target.value);
             }}
             autoComplete="username"
+            required
             className={field}
           />
         </label>
@@ -67,9 +75,15 @@ export function LoginPage({ onSignedIn }: Props): ReactElement {
               setPassword(event.target.value);
             }}
             autoComplete="current-password"
+            required
             className={field}
           />
         </label>
+        {refused ? (
+          <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {texts.login.refused}
+          </p>
+        ) : null}
         <button
           type="submit"
           disabled={pending}
