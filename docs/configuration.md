@@ -34,6 +34,7 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `search.release_cache_minutes` | 10 | How long an answer of Prowlarr is reused, 0 to 1440. |
 | `search.work_cache_hours` | 24 | How long an answer of a metadata source is reused, 0 to 720. |
 | `placement.library.manga`, `.ebook`, `.audiobook` | `/data/files/comics`, `/data/files/ebooks`, `/data/files/audiobooks` | The folder of each library, as the placement worker sees it: an absolute path. Its library in Jellyfin is the one with a folder of the same name ([ADR 0016](adr/0016-placement.md)). |
+| `waiting.interval_hours` | `6` | The hours between two searches of a waiting search: 1, 3, 6, 12 or 24 ([ADR 0017](adr/0017-waiting.md)). |
 | `placement.merge_mp3` | on | The MP3 tracks of an audiobook merged into one M4B. |
 | `placement.covers` | on | The cover of a series written when it has none (the first page of its first volume). |
 | `placement.lock_jellyfin` | on | The name, the series, the number and the authors of a file placed set and locked in Jellyfin. |

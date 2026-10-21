@@ -41,10 +41,12 @@ from shelfdrop.modules.searches.router import router as searches_router
 from shelfdrop.modules.session.router import router as session_router
 from shelfdrop.modules.settings.router import router as settings_router
 from shelfdrop.modules.trackers.router import router as trackers_router
+from shelfdrop.modules.waiting.router import router as waiting_router
 from shelfdrop.modules.web.router import web_router
 from shelfdrop.modules.works.router import router as works_router
 from shelfdrop.settings.monitor import ConnectionMonitor
 from shelfdrop.settings.service import SettingsService
+from shelfdrop.waiting.service import WaitingRunner
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,8 @@ def build_app(settings: Settings) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """At start: the settings of the environment imported once into the database
         (ADR 0012), the sends a stop left unfinished (ADR 0014), then the tests of the services
-        every 5 minutes and the messages of the journal (ADR 0015), until the end."""
+        every 5 minutes, the messages of the journal (ADR 0015) and the rounds of the waiting
+        searches (ADR 0017), until the end."""
         container = get_app_container(app)
         async with container.enter_scope() as scope:
             service = await scope.get(SettingsService)
@@ -78,7 +81,12 @@ def build_app(settings: Settings) -> FastAPI:
         await sender.resume()
         monitor = await container.get(ConnectionMonitor)
         journal = await container.get(JournalSender)
-        loops = [asyncio.create_task(monitor.run()), asyncio.create_task(journal.run())]
+        waiting = await container.get(WaitingRunner)
+        loops = [
+            asyncio.create_task(monitor.run()),
+            asyncio.create_task(journal.run()),
+            asyncio.create_task(waiting.run()),
+        ]
         try:
             yield
         finally:
@@ -126,6 +134,7 @@ def build_app(settings: Settings) -> FastAPI:
         filters_router,
         settings_router,
         library_router,
+        waiting_router,
     ):
         app.include_router(router, prefix=prefix, dependencies=signed_in)
     # The front-end, last: its route answers every path the others leave.

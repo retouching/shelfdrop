@@ -115,6 +115,10 @@ class SettingsReader:
             for (kind, default), key in zip(LIBRARIES.items(), keys, strict=True)
         }
 
+    async def waiting_seconds(self) -> int:
+        """Seconds between two searches of a waiting search."""
+        return 3600 * await self.number("waiting.interval_hours")
+
     async def merge_mp3(self) -> bool:
         return await self.switch("placement.merge_mp3")
 

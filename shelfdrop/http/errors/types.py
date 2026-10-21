@@ -65,6 +65,8 @@ class ErrorCode(StrEnum):
     JELLYFIN_UNAVAILABLE = "jellyfin_unavailable"
     # 404: no series of a library of books of Jellyfin has this id; data = null.
     SERIES_NOT_FOUND = "series_not_found"
+    # 404: no waiting search has this id (or it left the list); data = null.
+    WAITING_NOT_FOUND = "waiting_not_found"
     # 422: the image chosen for a series is not a JPEG, a PNG or a WebP of 5 MB at most, or its
     # address did not answer one; data = null.
     IMAGE_REFUSED = "image_refused"

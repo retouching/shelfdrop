@@ -99,6 +99,7 @@ markers = [
     "journal: integration part, the events posted on the fake webhook of Discord (test_journal.py)",
     "placement: integration part, the placement worker on the files of its volume",
     "library: integration part, the page Métadonnées on the fake Jellyfin (test_library.py)",
+    "waiting: integration part, the waiting searches on the fake Prowlarr and Discord (test_waiting.py)",
     "placement_comics: block of placement, a manga placed, a release in chapters (test_placement_comics.py)",
     "placement_audio: block of placement, MP3 tracks merged into one M4B, a book (test_placement_audio.py)",
 ]

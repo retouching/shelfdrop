@@ -3,13 +3,16 @@
 The domain never imports wireup.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from importlib.metadata import version
 from typing import Final
 
+import anyio
+import anyio.to_thread
 import httpx
 import wireup
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 
 from shelfdrop.auth.repository import SessionRepository
 from shelfdrop.auth.service import AuthEvents, AuthService, JellyfinAddress
@@ -26,7 +29,7 @@ from shelfdrop.downloads.types import DownloadOptions
 from shelfdrop.journal.repository import event_repository_factory
 from shelfdrop.journal.service import DiscordSettings, Journal, JournalSender
 from shelfdrop.journal.types import JournalOptions
-from shelfdrop.library.service import LibraryService, LibrarySettings
+from shelfdrop.library.service import LibraryReader, LibraryService, LibrarySettings
 from shelfdrop.placement.audio import AudioTools
 from shelfdrop.placement.repository import placement_repository_factory
 from shelfdrop.placement.service import (
@@ -41,13 +44,23 @@ from shelfdrop.releases.clients.prowlarr import ProwlarrClient
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository, repository_factory
 from shelfdrop.releases.service import NameLimit, ReleaseService
-from shelfdrop.releases.types import ReleaseOptions
+from shelfdrop.releases.types import Release, ReleaseOptions
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.monitor import ConnectionMonitor
 from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.settings.reader import SettingsReader
 from shelfdrop.settings.repository import SettingsRepository, settings_repository_factory
 from shelfdrop.settings.service import Probes, SettingsService
+from shelfdrop.waiting.repository import waiting_repository_factory
+from shelfdrop.waiting.service import (
+    LibraryVolumes,
+    ReleaseSearcher,
+    WaitingEvents,
+    WaitingRunner,
+    WaitingService,
+    WaitingSettings,
+)
+from shelfdrop.waiting.types import WaitingOptions
 from shelfdrop.works.clients.anilist import AniListClient
 from shelfdrop.works.clients.bnf import BnfClient
 from shelfdrop.works.clients.kitsu import KitsuClient
@@ -61,7 +74,7 @@ from shelfdrop.works.covers import WorkCovers
 from shelfdrop.works.flights import SearchFlights, SourceHealth
 from shelfdrop.works.repository import WorkRepository, work_repository_factory
 from shelfdrop.works.service import WorkService, WorkSettings, WorkSources
-from shelfdrop.works.types import Clock, SearchOptions
+from shelfdrop.works.types import Clock, Kind, SearchOptions
 
 # Each request to a source gives up after this; the search gives up on the source after
 # SearchOptions.source_timeout_seconds.
@@ -241,6 +254,89 @@ def new_library_service(
     )
 
 
+class BoardSearcher:
+    """The searches of the waiting list: a search of releases of the board, under the names of
+    the work, read once it ends, on a session of its own."""
+
+    def __init__(
+        self,
+        board: SearchBoard,
+        prowlarr: ProwlarrClient,
+        options: ReleaseOptions,
+        clock: Clock,
+        reader: SettingsReader,
+        engine: Engine,
+    ) -> None:
+        self.board = board
+        self.prowlarr = prowlarr
+        self.options = options
+        self.clock = clock
+        self.reader = reader
+        self.engine = engine
+
+    async def releases(self, kind: Kind, title: str, names: Sequence[str]) -> list[Release]:
+        session = Session(self.engine, expire_on_commit=False)
+        try:
+            service = ReleaseService(
+                ReleaseRepository(session),
+                self.board,
+                self.prowlarr,
+                self.options,
+                self.clock,
+                self.reader,
+            )
+            limit = await self.reader.max_names()
+            progress = await service.start(
+                mode="work", kind=kind, title=title, names=names[:limit], refresh=True
+            )
+            async for _ in service.watch(progress.id):
+                pass
+            return list((await service.read(progress.id)).releases)
+        finally:
+            await anyio.to_thread.run_sync(session.close)
+
+
+def as_release_searcher(searcher: BoardSearcher) -> ReleaseSearcher:
+    return searcher
+
+
+def new_library_reader(jellyfin: JellyfinClient, settings: LibrarySettings) -> LibraryReader:
+    return LibraryReader(jellyfin, settings)
+
+
+def as_library_volumes(reader: LibraryReader) -> LibraryVolumes:
+    return reader
+
+
+def as_waiting_settings(reader: SettingsReader) -> WaitingSettings:
+    return reader
+
+
+def as_waiting_events(journal: Journal) -> WaitingEvents:
+    return journal
+
+
+def new_waiting_service(
+    engine: Engine,
+    searcher: ReleaseSearcher,
+    library: LibraryVolumes,
+    settings: WaitingSettings,
+    events: WaitingEvents,
+    clock: Clock,
+) -> WaitingService:
+    """The waiting searches (a singleton: its rounds run in the lifespan), on sessions of their
+    own."""
+    return WaitingService(
+        waiting_repository_factory(engine),
+        placement_repository_factory(engine),
+        searcher,
+        library,
+        settings,
+        events,
+        clock,
+    )
+
+
 def as_probes(probes: ConnectionProbes) -> Probes:
     return probes
 
@@ -361,6 +457,9 @@ def injectables(settings: Settings) -> list[object]:
             PlacementOptions(every_seconds=settings.placement_every_seconds),
             as_type=PlacementOptions,
         ),
+        wireup.instance(
+            WaitingOptions(every_seconds=settings.waiting_every_seconds), as_type=WaitingOptions
+        ),
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.instance(LoginThrottle(), as_type=LoginThrottle),
@@ -393,6 +492,14 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(new_placement_service),
         wireup.injectable(PlacementWorker),
         wireup.injectable(as_library_settings),
+        wireup.injectable(BoardSearcher),
+        wireup.injectable(as_release_searcher),
+        wireup.injectable(new_library_reader),
+        wireup.injectable(as_library_volumes),
+        wireup.injectable(as_waiting_settings),
+        wireup.injectable(as_waiting_events),
+        wireup.injectable(new_waiting_service),
+        wireup.injectable(WaitingRunner),
         wireup.injectable(new_library_service, lifetime="scoped"),
         wireup.injectable(open_engine),
         wireup.injectable(open_session, lifetime="scoped"),

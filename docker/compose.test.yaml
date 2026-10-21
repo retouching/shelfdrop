@@ -18,6 +18,8 @@ services:
       SHELFDROP_SEND_CHECK_SECONDS: "1"
       # The events of one batch of the journal wait 2 seconds for the others instead of 30.
       SHELFDROP_JOURNAL_BATCH_SECONDS: "2"
+      # A round of the waiting searches every second instead of every minute.
+      SHELFDROP_WAITING_EVERY_SECONDS: "1"
       # The journal links its messages there.
       SHELFDROP_PUBLIC_URL: http://shelfdrop.test
       # Prowlarr is played by the fake sources too, with the answers of

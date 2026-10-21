@@ -4,7 +4,7 @@ the sources propose for them, their fields and their image set and locked, the s
 ADR 0016)."""
 
 import logging
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import PurePosixPath
@@ -34,6 +34,7 @@ from shelfdrop.library.types import (
     SourceSummary,
     VolumeImage,
 )
+from shelfdrop.placement.naming import file_volume
 from shelfdrop.placement.paths import library_of
 from shelfdrop.placement.repository import PlacementRepository
 from shelfdrop.utils.pictures import picture_of
@@ -136,8 +137,8 @@ def changed_item(
 
 
 def jellyfin_down[**P, T](
-    method: Callable[P, Awaitable[T]],
-) -> Callable[P, Awaitable[T]]:
+    method: Callable[P, Coroutine[Any, Any, T]],
+) -> Callable[P, Coroutine[Any, Any, T]]:
     """A method whose errors of Jellyfin raise LibraryUnavailableError."""
 
     @wraps(method)
@@ -150,22 +151,12 @@ def jellyfin_down[**P, T](
     return call
 
 
-class LibraryService:
-    def __init__(
-        self,
-        jellyfin: JellyfinClient,
-        settings: LibrarySettings,
-        works: WorkFinder,
-        images: ImageReader,
-        placement: PlacementRepositoryFactory,
-        clock: Clock,
-    ) -> None:
+class LibraryReader:
+    """The series of the libraries of books of Jellyfin, read alone (a singleton)."""
+
+    def __init__(self, jellyfin: JellyfinClient, settings: LibrarySettings) -> None:
         self.jellyfin = jellyfin
         self.settings = settings
-        self.works = works
-        self.images = images
-        self.placement = placement
-        self.clock = clock
 
     async def kinds(self) -> list[Shelf]:
         """The library of Jellyfin of each kind, and its folder; a kind without one is left."""
@@ -241,6 +232,43 @@ class LibraryService:
                 if found.id == series_id:
                     return found, books
         raise SeriesNotFoundError(series_id)
+
+    @jellyfin_down
+    async def volumes_of(self, kind: Kind, name: str) -> set[int]:
+        """The numbers of the volumes of the series `name` (by its folder, whatever its case) in
+        the library of `kind`: their number in Jellyfin, else in their name."""
+        url, key = await self.settings.jellyfin()
+        for shelf in await self.kinds():
+            if shelf.kind != kind:
+                continue
+            items = await self.jellyfin.items(url, key, shelf.item_id, ITEM_TYPES)
+            for found, books in self.grouped(items, shelf.location, kind):
+                if found.name.casefold() == name.casefold():
+                    numbers = (
+                        b.index_number
+                        if b.index_number is not None
+                        else file_volume(PurePosixPath(b.path).stem)
+                        for b in books
+                    )
+                    return {n for n in numbers if n is not None}
+        return set()
+
+
+class LibraryService(LibraryReader):
+    def __init__(
+        self,
+        jellyfin: JellyfinClient,
+        settings: LibrarySettings,
+        works: WorkFinder,
+        images: ImageReader,
+        placement: PlacementRepositoryFactory,
+        clock: Clock,
+    ) -> None:
+        super().__init__(jellyfin, settings)
+        self.works = works
+        self.images = images
+        self.placement = placement
+        self.clock = clock
 
     @jellyfin_down
     async def proposals(self, series_id: str) -> SeriesProposals:

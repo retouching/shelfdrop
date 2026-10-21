@@ -42,6 +42,8 @@ LIBRARIES: Final[dict[Kind, str]] = {
     "audiobook": "/data/files/audiobooks",
 }
 PATH_MAX_LENGTH: Final = 500
+# Hours between two searches of the waiting list (plan section 3, point 11).
+WAITING_HOURS: Final = (1, 3, 6, 12, 24)
 ADDRESS: Final = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d+)?(/\S*)?$")
 SECRET_MAX_LENGTH: Final = 1000
 
@@ -57,6 +59,7 @@ VALUES: Final[Mapping[str, Entry]] = {
         for kind, path in LIBRARIES.items()
     },
     "placement.merge_mp3": Entry(kind="switch", default=True),
+    "waiting.interval_hours": Entry(kind="number", default=6, choices=WAITING_HOURS),
     "placement.covers": Entry(kind="switch", default=True),
     "placement.lock_jellyfin": Entry(kind="switch", default=True),
 }

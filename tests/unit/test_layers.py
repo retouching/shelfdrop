@@ -26,6 +26,7 @@ DOMAIN: Final = (
     "shelfdrop/journal/",
     "shelfdrop/placement/",
     "shelfdrop/library/",
+    "shelfdrop/waiting/",
     "shelfdrop/settings/",
     "shelfdrop/utils/",
     "shelfdrop/db/",

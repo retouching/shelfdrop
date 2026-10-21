@@ -20,6 +20,7 @@ TEST_STACK_SETTINGS: Final = frozenset(
         "send_check_seconds",
         "journal_batch_seconds",
         "placement_every_seconds",
+        "waiting_every_seconds",
     }
 )
 # The address of a service: http(s), a host, a port, a path.
@@ -113,6 +114,8 @@ class Settings(BaseSettings):
     journal_batch_seconds: int = Field(default=30, ge=0, le=600)
     # Seconds between two rounds of the placement worker.
     placement_every_seconds: float = Field(default=30.0, ge=0.1, le=3600)
+    # Seconds between two rounds of the waiting searches: each searches those due.
+    waiting_every_seconds: float = Field(default=60.0, ge=0.1, le=3600)
 
     @field_validator(
         "secret_key",

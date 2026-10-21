@@ -215,3 +215,15 @@ The fields of a series set in Jellyfin (`name`, `original_title`, `authors`, `ye
 
 ## POST /api/v1/library/scan, GET /api/v1/library/scan
 `POST {"mode": "new" | "missing" | "all", "kind": null, "series_id": null}` asks Jellyfin for a scan of a series, of the library of a kind, or of every library (`202`); `new` the new and changed files, `missing` the missing metadata and images, `all` everything replaced. Both answer the progress of the scan of each library, from 0 to 100, `null` when idle: `{"progress": {"manga": 42.5, "ebook": null}}`.
+
+## GET /api/v1/waiting
+The searches kept waiting ([ADR 0017](adr/0017-waiting.md)), the newest first, and the hours between two searches: `{"searches": [...], "every_hours": 6}`. Each: `id`, `work_id`, `title`, `author`, `kind`, `names`, `wanted` (`target` `any`, `volume` with `volume`, or `chapters` with `chapter_from` and `chapter_to`, `null` for every one after), `label` (« T03 », « Ch. 233 et suivants », « Toute release »), `state` (`waiting` or `found`, with `releases`), `attempts`, `created_at`, `created_by`, `searched_at`, `next_search_at` (Unix seconds).
+
+## POST /api/v1/waiting
+`{"work_id", "title", "author", "kind", "names": [...], "wanted": [{"target": "volume", "volume": 3}, ...]}`: one search for each thing wanted, but those already waiting for the same work. Answers `{"added": [...], "skipped": 1}`. `422 validation_failed` for a volume without its number or chapters without their first.
+
+## POST /api/v1/waiting/{id}/search, DELETE /api/v1/waiting/{id}
+A search now (answers the search), or a removal (`204`). `404 waiting_not_found`.
+
+## GET /api/v1/waiting/owned?kind=manga&title=Chainsaw%20Man&work_id=...
+The volumes of a work already placed or in the library of its kind in Jellyfin: `{"volumes": [1, 2, 3]}`.

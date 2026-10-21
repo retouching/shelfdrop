@@ -36,6 +36,7 @@ PARTS: Final = {
     "test_placement_comics.py": "placement",
     "test_placement_audio.py": "placement",
     "test_library.py": "library",
+    "test_waiting.py": "waiting",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",

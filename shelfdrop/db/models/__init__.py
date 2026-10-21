@@ -13,6 +13,7 @@ from shelfdrop.db.models.setting import Setting
 from shelfdrop.db.models.shelf_file import ShelfFile
 from shelfdrop.db.models.source_answer import SourceAnswer
 from shelfdrop.db.models.tracker import Tracker
+from shelfdrop.db.models.waiting_search import WaitingSearch
 
 __all__ = [
     "AuditEntry",
@@ -28,4 +29,5 @@ __all__ = [
     "ShelfFile",
     "SourceAnswer",
     "Tracker",
+    "WaitingSearch",
 ]
