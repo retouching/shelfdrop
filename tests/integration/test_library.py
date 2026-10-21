@@ -43,6 +43,8 @@ def test_a_series_is_read_changed_locked_and_its_cover_written(
     fake_sources.load(
         [
             *jellyfin_library_stubs("comics", library_items()),
+            *jellyfin_library_stubs("ebooks", []),
+            *jellyfin_library_stubs("audiobooks", []),
             {
                 "priority": 1,
                 "request": {"method": "POST", "urlPath": "/Items/lib-series/Images/Primary"},
