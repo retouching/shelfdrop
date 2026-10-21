@@ -1,6 +1,6 @@
 """shelfdrop.works.merge."""
 
-from shelfdrop.works.merge import merge
+from shelfdrop.works.merge import french_edition_names, merge
 from shelfdrop.works.types import Candidate, Name, SourceName
 
 
@@ -153,3 +153,54 @@ def test_a_guessed_language_comes_after_a_given_one() -> None:
     checked = [n.title for n in work.names if n.checked]
     assert checked[:2] == ["Witch Hat Atelier", "Tongari Boushi no Atelier"]
     assert len(checked) == 6
+
+
+def test_the_bnf_is_asked_again_under_a_name_of_the_work() -> None:
+    """'Battle Angel Alita' finds Gunnm; the BnF knows its French edition as 'Gunnm'."""
+    gunnm, _ = merge(
+        [
+            candidate_of(
+                "kitsu",
+                "1",
+                "Battle Angel Alita",
+                names=(
+                    Name(title="Battle Angel Alita", language="en"),
+                    Name(title="Gunnm", language="ja-ro"),
+                ),
+            )
+        ]
+    )[0]
+    assert french_edition_names([gunnm], "Battle Angel Alita") == ["Gunnm"]
+
+
+def test_a_french_name_is_asked_first_and_a_work_the_bnf_found_is_not() -> None:
+    [(found, _)] = merge(
+        [
+            candidate_of(
+                "kitsu",
+                "1",
+                "Witch Hat Atelier",
+                names=(Name(title="L'atelier des sorciers", language="fr"),),
+                authors=("Kamome Shirahama",),
+            ),
+            candidate_of(
+                "bnf", "ark", "L'atelier des sorciers", authors=("Kamome Shirahama",), volumes_fr=15
+            ),
+        ]
+    )
+    [(other, _)] = merge(
+        [
+            candidate_of(
+                "mangadex",
+                "2",
+                "Tongari Boushi no Atelier",
+                names=(
+                    Name(title="Witch Hat Atelier", language="en"),
+                    Name(title="L'Atelier des sorcières", language="fr"),
+                ),
+            )
+        ]
+    )
+    assert "bnf" in found.sources
+    assert french_edition_names([found, other], "Witch Hat") == ["L'Atelier des sorcières"]
+    assert french_edition_names([other], "L'atelier des sorcières") == ["Witch Hat Atelier"]

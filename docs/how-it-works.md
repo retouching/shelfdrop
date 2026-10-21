@@ -19,6 +19,7 @@ A request goes through, from the outside in:
    - a source that failed in the last 5 minutes is skipped;
    - a source that has not answered after 5 seconds, or answers an error, is left out, named in `unavailable` and rests 5 minutes.
    When every source of the family is left out, the search fails (`sources_unavailable`).
+   After the merge, the BnF is asked again for the 3 best works it did not find, under a name of each (French, else romaji, else English, never the text already asked): "Battle Angel Alita" finds Gunnm at the other sources, and "Gunnm" its French edition at the BnF. These answers are cached the same way.
 4. **The merge** (`shelfdrop.works.merge`). Every source gives candidates; two candidates are the same work when they share:
    - an id: a source and its id, or the id another source gives (Kitsu, AniList and MangaDex give the MyAnimeList id), or an ISBN;
    - or a name of 4 characters or more (abbreviations aside, a leading article ignored), with compatible authors (one shared word of 3 letters or more, since the sources disagree on the order of Japanese names) and years at most 2 apart (but for the BnF, which dates the French edition).

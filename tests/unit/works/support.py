@@ -34,13 +34,21 @@ def request_key(request: httpx.Request) -> str:
 
 
 class RecordingTransport(httpx.AsyncBaseTransport):
-    def __init__(self) -> None:
+    """Sends every request to the real source and keeps the exchange; with `kept`, the
+    exchanges already recorded are replayed instead, and only the others are asked. The
+    exchanges of the search alone are kept: a recorded one no request asks again goes."""
+
+    def __init__(self, kept: dict[str, dict[str, Any]] | None = None) -> None:
         self.inner = httpx.AsyncHTTPTransport(retries=0)
         self.exchanges: dict[str, dict[str, Any]] = {}
+        self.kept = ReplayTransport(dict(kept or {}))
 
     @override
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         key = request_key(request)
+        if key in self.kept.exchanges:
+            self.exchanges[key] = self.kept.exchanges[key]
+            return await self.kept.handle_async_request(request)
         try:
             response = await self.inner.handle_async_request(request)
             content = await response.aread()
@@ -119,9 +127,9 @@ class FakeWorkRepository(WorkRepository):
 
     @override
     def save_answers(
-        self, answers: Mapping[SourceName, tuple[Candidate, ...]], query: str, expires_at: int
+        self, answers: Mapping[tuple[SourceName, str], tuple[Candidate, ...]], expires_at: int
     ) -> None:
-        for source, candidates in answers.items():
+        for (source, query), candidates in answers.items():
             self.answers[source, query] = (candidates, expires_at)
 
     @override

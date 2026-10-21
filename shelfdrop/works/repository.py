@@ -36,9 +36,10 @@ class WorkRepository:
         return found
 
     def save_answers(
-        self, answers: Mapping[SourceName, tuple[Candidate, ...]], query: str, expires_at: int
+        self, answers: Mapping[tuple[SourceName, str], tuple[Candidate, ...]], expires_at: int
     ) -> None:
-        for source, candidates in answers.items():
+        """The answers by source and query."""
+        for (source, query), candidates in answers.items():
             self.session.merge(
                 SourceAnswer(
                     source=source,

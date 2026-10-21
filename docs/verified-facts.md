@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F13.
+Next fact ID: F14.
 
 ## Metadata sources
 
@@ -29,6 +29,11 @@ Next fact ID: F13.
 - **F04** A translated book's record does not give its original title: "Ne cède jamais" (Goggins, *Never Finished*) is found, but nothing ties it to the English work.
   - Evidence: the searches of "Never Finished" and "Ne cède jamais" in the BnF, Open Library and Wikidata on 2026-10-21.
   - Pinned by: none
+  - Re-verify: on recording.
+
+- **F13** `bib.title all` matches the title of the French edition alone: "Battle Angel Alita" finds no record of Gunnm, "Gunnm" finds its 9 French volumes.
+  - Evidence: the fixture `battle-angel-alita.json` (recorded 2026-10-21 with `--missing`, a few requests to MangaUpdates, Kitsu, MangaDex, Wikidata and the BnF).
+  - Pinned by: `tests/unit/works/test_service.py::test_recorded_search`
   - Re-verify: on recording.
 
 ### Open Library (openlibrary.org)

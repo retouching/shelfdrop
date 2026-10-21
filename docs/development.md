@@ -30,9 +30,9 @@ The two routes of the work search are `async`: the search waits on every source 
 Two tables, both caches: `source_answers` (the candidates a source gave for a family and a normalized text, a day) and `cached_works` (a merged work by its id, a week). Their rows are JSON written and read by `WorkRepository` through Pydantic `TypeAdapter`s of the types of `shelfdrop.works.types`.
 
 ## Tests
-- `tests/unit/works/test_service.py`: the 9 recorded searches of `tests/unit/works/cases.py`, replayed from `tests/unit/works/fixtures/` (recorded on 2026-10-21 without a MyAnimeList Client ID, when AniList did not answer: its exchanges replay as failures), and the rules of the service with fake sources (`CountingClient`): the cache, the rest of a failed source, one run for two searches, the refusals.
+- `tests/unit/works/test_service.py`: the 10 recorded searches of `tests/unit/works/cases.py`, replayed from `tests/unit/works/fixtures/` (recorded on 2026-10-21 without a MyAnimeList Client ID, when AniList did not answer: its exchanges replay as failures), and the rules of the service with fake sources (`CountingClient`): the cache, the rest of a failed source, one run for two searches, the refusals.
 - `tests/unit/works/support.py`: `RecordingTransport`, `ReplayTransport`, `FakeWorkRepository`, `FixedClock`, `new_service`.
-- `tests/unit/works/record.py`: records the fixtures again (`uv run python -m tests.unit.works.record [slug ...]`).
+- `tests/unit/works/record.py`: records the fixtures again (`uv run python -m tests.unit.works.record [--missing] [slug ...]`; `--missing` keeps the exchanges recorded and asks only those no fixture holds).
 - `tests/unit/test_main.py`: the application through `httpx.ASGITransport`.
 - `tests/unit/test_naming.py`, `tests/unit/test_layers.py`, `tests/unit/db/test_migrate.py` (the chain of the revisions and the digest of each), `tests/unit/test_integration_parts.py` (the markers of the integration suite).
 

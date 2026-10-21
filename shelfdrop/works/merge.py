@@ -254,3 +254,37 @@ def build_work(members: list[Candidate]) -> Work:
 
 def merge(candidates: list[Candidate]) -> list[tuple[Work, list[Candidate]]]:
     return [(build_work(members), members) for members in group(candidates)]
+
+
+# The BnF is asked again for the best works it did not find, at most this many times.
+FRENCH_EDITION_QUERIES = 3
+# The language of the name the BnF is asked under, by preference: a French edition goes by a
+# French name, else often by the romaji one ("Gunnm"), else the English one.
+FRENCH_EDITION_LANGUAGES = ("fr", "ja-ro", "en")
+
+
+def french_edition_names(works: list[Work], asked: str) -> list[str]:
+    """The names to ask the BnF again under, one for each of the best works it did not find:
+    the first name searched by default in FRENCH_EDITION_LANGUAGES, but the text already asked
+    ("Battle Angel Alita" finds Gunnm, whose name finds its French edition)."""
+    asked_key = match_key(asked)
+    found: list[str] = []
+    for work in works[:FRENCH_EDITION_QUERIES]:
+        if "bnf" in work.sources:
+            continue
+        for language in FRENCH_EDITION_LANGUAGES:
+            name = next(
+                (
+                    n.title
+                    for n in work.names
+                    if n.checked
+                    and n.language == language
+                    and match_key(n.title) != asked_key
+                    and all(match_key(f) != match_key(n.title) for f in found)
+                ),
+                None,
+            )
+            if name is not None:
+                found.append(name)
+                break
+    return found

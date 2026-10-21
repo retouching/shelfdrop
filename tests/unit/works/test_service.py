@@ -1,5 +1,7 @@
 """WorkService: the recorded searches of real titles, replayed without network."""
 
+from typing import override
+
 import anyio
 import httpx
 import pytest
@@ -12,7 +14,7 @@ from shelfdrop.works.exceptions import (
 )
 from shelfdrop.works.flights import SearchFlights
 from shelfdrop.works.service import WorkSources
-from shelfdrop.works.types import Candidate, Family, SearchOptions, SourceName, WorkSearch
+from shelfdrop.works.types import Candidate, Family, Name, SearchOptions, SourceName, WorkSearch
 from tests.unit.works.cases import CASES, Case
 from tests.unit.works.support import (
     FakeWorkRepository,
@@ -193,3 +195,87 @@ async def test_a_work_found_is_read_by_its_id_until_it_expires() -> None:
     clock.at += SearchOptions().work_seconds
     with pytest.raises(WorkNotFoundError):
         await service.read_work(work.id)
+
+
+class BnfClient(CountingClient):
+    """The BnF of the tests: it knows one French edition, 'Gunnm', and nothing else."""
+
+    families: frozenset[Family] = frozenset({"manga", "book"})
+
+    def __init__(self) -> None:
+        super().__init__("bnf")
+        self.asked: list[str] = []
+
+    @override
+    async def search(self, query: str, family: Family) -> list[Candidate]:
+        self.asked.append(query)
+        if query != "Gunnm":
+            return []
+        return [
+            Candidate(
+                source="bnf",
+                source_id="ark:/gunnm",
+                title="Gunnm",
+                names=(Name(title="Gunnm", language="fr"),),
+                authors=("Yukito Kishiro",),
+                volumes_fr=9,
+            )
+        ]
+
+
+class AlitaClient(CountingClient):
+    @override
+    async def search(self, query: str, family: Family) -> list[Candidate]:
+        return [
+            Candidate(
+                source="kitsu",
+                source_id="1",
+                title="Battle Angel Alita",
+                names=(
+                    Name(title="Battle Angel Alita", language="en"),
+                    Name(title="Gunnm", language="ja-ro"),
+                ),
+                authors=("Kishiro Yukito",),
+                volumes=9,
+            )
+        ]
+
+
+@pytest.mark.anyio
+async def test_the_bnf_is_asked_again_under_the_names_of_the_work() -> None:
+    bnf = BnfClient()
+    repository = FakeWorkRepository()
+    service = new_service(WorkSources(clients=(AlitaClient("kitsu"), bnf)), repository=repository)
+
+    result = await service.search("Battle Angel Alita", "manga")
+
+    assert bnf.asked == ["Battle Angel Alita", "Gunnm"]
+    assert result.works[0].shelf_name == "Gunnm"
+    assert result.works[0].volumes_fr == 9
+    assert ("bnf", "manga|gunnm") in repository.answers
+
+
+@pytest.mark.anyio
+async def test_the_bnf_asked_again_reads_its_cache_too() -> None:
+    bnf = BnfClient()
+    service = new_service(
+        WorkSources(clients=(AlitaClient("kitsu"), bnf)), repository=FakeWorkRepository()
+    )
+    await service.search("Battle Angel Alita", "manga")
+
+    again = await service.search("Alita battle angel", "manga")
+
+    assert bnf.asked == ["Battle Angel Alita", "Gunnm", "Alita battle angel"]
+    assert again.works[0].volumes_fr == 9
+
+
+@pytest.mark.anyio
+async def test_a_down_bnf_is_not_asked_again() -> None:
+    bnf = CountingClient("bnf", fails=True)
+    service = new_service(WorkSources(clients=(AlitaClient("kitsu"), bnf)))
+
+    result = await service.search("Battle Angel Alita", "manga")
+
+    assert bnf.searches == 1
+    assert result.unavailable == ("bnf",)
+    assert result.works[0].shelf_name == "Battle Angel Alita"

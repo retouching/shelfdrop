@@ -84,6 +84,14 @@ CASES = (
         author="Kentaro Miura",
     ),
     Case(
+        "battle-angel-alita",
+        "Battle Angel Alita",
+        "manga",
+        "Gunnm",
+        author="Yukito Kishiro",
+        volumes_fr=9,
+    ),
+    Case(
         "can-t-hurt-me",
         "Can't Hurt Me",
         "ebook",
