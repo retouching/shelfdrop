@@ -10,11 +10,13 @@ type VolumesBody = {
 };
 
 type ProgressRead = {
-  readonly state: "downloading" | "waiting" | "placing" | "to_place" | "failed";
+  readonly state: "downloading" | "waiting" | "placing" | "placed" | "to_place" | "failed";
   readonly percent: number | null;
   readonly speed: number | null;
   readonly eta: number | null;
   readonly reason: "not_received" | "duplicate" | null;
+  /** Rangé : la bibliothèque et la série. */
+  readonly destination: string | null;
 };
 
 type DownloadRead = {
@@ -70,6 +72,8 @@ function stateOf(read: ProgressRead): DownloadState {
       return { kind: "waiting" };
     case "placing":
       return { kind: "placing" };
+    case "placed":
+      return { kind: "placed", library: read.destination ?? "" };
     case "to_place":
       return { kind: "toPlace" };
     case "failed":

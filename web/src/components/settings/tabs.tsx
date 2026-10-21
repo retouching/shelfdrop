@@ -1,5 +1,5 @@
-// Rubriques Services, Sources, Recherche, Rangement et Journal Discord. Services, sources, recherche
-// et journal : lus et enregistrés par l'API ; Rangement : valeurs fictives jusqu'à son étape.
+// Rubriques Services, Sources, Recherche, Rangement et Journal Discord, lues et enregistrées par l'API ;
+// le dossier des envois, l'heure du scan et la durée des envois viennent avec Ranger.
 import { useEffect, useState, type ReactElement } from "react";
 
 import { testConnection, type SettingValue, type Tracker } from "../../api/settings";
@@ -424,30 +424,53 @@ export function SearchTab(): ReactElement {
   );
 }
 
+function PathField({ label, settingKey }: { readonly label: string; readonly settingKey: string }): ReactElement {
+  const settings = useSettings();
+  return (
+    <Field label={label}>
+      <input
+        value={textOf(valueOf(settings, settingKey))}
+        onChange={(event) => {
+          setValue(settingKey, event.target.value.trim());
+        }}
+        className={input}
+      />
+    </Field>
+  );
+}
+
+function SwitchField({ label, settingKey }: { readonly label: string; readonly settingKey: string }): ReactElement {
+  const settings = useSettings();
+  return (
+    <Toggle
+      label={label}
+      checked={valueOf(settings, settingKey) !== false}
+      onChange={(checked) => {
+        setValue(settingKey, checked);
+      }}
+    />
+  );
+}
+
+/** Dossiers et options du rangement : enregistrés ; l'envoi de fichiers et le scan viennent avec Ranger. */
 export function PlacementTab(): ReactElement {
-  const [merge, setMerge] = useState(true);
-  const [covers, setCovers] = useState(true);
-  const [lock, setLock] = useState(true);
   return (
     <div className="space-y-4">
       <Card title={texts.settings.libraries}>
-        <Field label={texts.settings.libraryPath(texts.libraries.manga)}>
-          <input defaultValue="/data/media/comics" className={input} />
-        </Field>
-        <Field label={texts.settings.libraryPath(texts.libraries.ebook)}>
-          <input defaultValue="/data/media/ebooks" className={input} />
-        </Field>
-        <Field label={texts.settings.libraryPath(texts.libraries.audiobook)}>
-          <input defaultValue="/data/media/audiobooks" className={input} />
-        </Field>
+        <PathField label={texts.settings.libraryPath(texts.libraries.manga)} settingKey="placement.library.manga" />
+        <PathField label={texts.settings.libraryPath(texts.libraries.ebook)} settingKey="placement.library.ebook" />
+        <PathField
+          label={texts.settings.libraryPath(texts.libraries.audiobook)}
+          settingKey="placement.library.audiobook"
+        />
         <Field label={texts.settings.uploadsPath}>
           <input defaultValue="/data/shelfdrop/envois" className={input} />
         </Field>
       </Card>
       <Card title={texts.nav.place}>
-        <Toggle label={texts.settings.mergeMp3} checked={merge} onChange={setMerge} />
-        <Toggle label={texts.settings.covers} checked={covers} onChange={setCovers} />
-        <Toggle label={texts.settings.lockJellyfin} checked={lock} onChange={setLock} />
+        <SwitchField label={texts.settings.mergeMp3} settingKey="placement.merge_mp3" />
+        <SwitchField label={texts.settings.covers} settingKey="placement.covers" />
+        <SwitchField label={texts.settings.lockJellyfin} settingKey="placement.lock_jellyfin" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={texts.settings.scanHour}>
             <input type="time" defaultValue="04:30" className={input} />
