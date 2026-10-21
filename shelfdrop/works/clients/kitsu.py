@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from shelfdrop.utils.text import is_latin, script_of
+from shelfdrop.utils.text import is_latin, plain, script_of
 from shelfdrop.works.clients.http import get_json, year_of
 from shelfdrop.works.exceptions import SourceError
 from shelfdrop.works.types import Candidate, Family, Form, Name, SourceName
@@ -86,4 +86,5 @@ class KitsuClient:
             external_ids=external,
             popularity=min(users / 50_000, 1.0),
             url=f"https://kitsu.app/manga/{attrs.get('slug') or item['id']}",
+            summary=plain(str(attrs.get("synopsis") or "")),
         )

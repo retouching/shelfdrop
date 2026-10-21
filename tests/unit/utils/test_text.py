@@ -2,7 +2,7 @@
 
 import pytest
 
-from shelfdrop.utils.text import compact, normalize, script_of
+from shelfdrop.utils.text import compact, normalize, plain, script_of
 
 
 def test_normalize() -> None:
@@ -27,3 +27,10 @@ def test_compact() -> None:
 )
 def test_script_of(text: str, script: str) -> None:
     assert script_of(text) == script
+
+
+def test_a_summary_loses_its_markup_and_keeps_its_paragraphs() -> None:
+    assert (
+        plain("Guts&#039;s <b>sword</b><br />  <br><br>next   line") == "Guts's sword\n\nnext line"
+    )
+    assert plain("x" * 10, limit=4) == "xxxx"

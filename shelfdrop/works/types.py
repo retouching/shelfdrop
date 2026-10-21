@@ -50,6 +50,8 @@ class Candidate:
     popularity: float = 0.0
     """0 to 1, only to break ties between equally good matches."""
     url: str | None = None
+    summary: str = ""
+    """Its summary at the source, without markup."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -79,6 +81,10 @@ class Work:
     isbns: tuple[str, ...]
     links: Mapping[str, str]
     """Page of the work at each source, by source name."""
+    covers: Mapping[str, str] = field(default_factory=dict)
+    """The cover at each source that has one, by source name."""
+    summaries: Mapping[str, str] = field(default_factory=dict)
+    """The summary at each source that has one, by source name."""
 
 
 @dataclass(frozen=True, kw_only=True)

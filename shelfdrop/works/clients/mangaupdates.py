@@ -12,7 +12,7 @@ from typing import Any
 import anyio
 import httpx
 
-from shelfdrop.utils.text import is_latin, script_of
+from shelfdrop.utils.text import is_latin, plain, script_of
 from shelfdrop.works.clients.http import get_json, post_json, year_of
 from shelfdrop.works.exceptions import SourceError
 from shelfdrop.works.names import person_name
@@ -98,4 +98,5 @@ class MangaUpdatesClient:
             cover_url=image.get("original"),
             popularity=min(rating / 10, 1.0),
             url=record.get("url"),
+            summary=plain(str(full.get("description") or "")),
         )

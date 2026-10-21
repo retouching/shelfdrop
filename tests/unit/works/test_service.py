@@ -77,6 +77,19 @@ async def test_dusk_maiden_is_not_amnesia() -> None:
 
 
 @pytest.mark.anyio
+async def test_a_work_keeps_the_cover_and_the_summary_of_each_source() -> None:
+    """The proposals of the page Métadonnées: every source that serves a cover or a summary."""
+    case = next(c for c in CASES if c.slug == "berserk")
+    result, _ = await run_search(case)
+    berserk = result.works[0]
+
+    assert {"mangaupdates", "kitsu"} <= set(berserk.covers)
+    assert berserk.summaries["kitsu"].startswith("His name is Guts, the Black Swordsman")
+    assert berserk.summaries["mangaupdates"].startswith("From Dark Horse:\nHis name is Guts")
+    assert all("<" not in text for text in berserk.summaries.values())
+
+
+@pytest.mark.anyio
 async def test_down_sources_are_named() -> None:
     case = next(c for c in CASES if c.slug == "chainsaw-man")
     result, _ = await run_search(case)

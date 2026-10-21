@@ -249,6 +249,8 @@ def build_work(members: list[Candidate]) -> Work:
         cover_url=cover,
         isbns=tuple(sorted({i for m in members for i in m.isbns})),
         links={m.source: m.url for m in members if m.url},
+        covers={m.source: m.cover_url for m in members if m.cover_url},
+        summaries={m.source: m.summary for m in members if m.summary},
     )
 
 

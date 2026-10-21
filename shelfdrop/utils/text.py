@@ -1,5 +1,6 @@
 """Generic text helpers: comparison forms of a text and the script it is written in."""
 
+import html
 import re
 import unicodedata
 from typing import Final
@@ -56,3 +57,13 @@ def is_latin(text: str) -> bool:
 def compact(text: str) -> str:
     """'Chain saw man', 'Chainsawman' and 'Chainsaw Man' give the same compact form."""
     return normalize(text).replace(" ", "")
+
+
+def plain(text: str, limit: int = 4000) -> str:
+    """A summary without its markup: tags removed, entities read, blank lines kept single,
+    spaces reduced, `limit` characters at most."""
+    text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
+    text = html.unescape(re.sub(r"<[^>]+>", "", text))
+    lines = [" ".join(line.split()) for line in text.splitlines()]
+    joined = "\n".join(lines)
+    return re.sub(r"\n{3,}", "\n\n", joined).strip()[:limit]

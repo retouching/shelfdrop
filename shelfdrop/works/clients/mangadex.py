@@ -4,7 +4,7 @@ from typing import Any, Final
 
 import httpx
 
-from shelfdrop.utils.text import is_latin, script_of
+from shelfdrop.utils.text import is_latin, plain, script_of
 from shelfdrop.works.clients.http import get_json, year_of
 from shelfdrop.works.exceptions import SourceError
 from shelfdrop.works.types import Candidate, Family, Name, SourceName
@@ -58,6 +58,12 @@ class MangaDexClient:
         if links.get("al"):
             external["anilist"] = str(links["al"])
         last = str(attrs.get("lastVolume") or "")
+        descriptions = attrs.get("description") or {}
+        summary = (
+            next((descriptions[lang] for lang in ("fr", "en") if descriptions.get(lang)), "")
+            if isinstance(descriptions, dict)
+            else ""
+        )
         return Candidate(
             source="mangadex",
             source_id=str(item["id"]),
@@ -69,4 +75,5 @@ class MangaDexClient:
             form="manga",
             external_ids=external,
             url=f"https://mangadex.org/title/{item['id']}",
+            summary=plain(str(summary)),
         )
