@@ -158,6 +158,13 @@ Next fact ID: F33.
   - Pinned by: `tests/unit/settings/test_cipher.py::test_another_key_another_name_or_a_change_cannot_open`
   - Re-verify: on version change.
 
+### fastapi 0.157.0
+
+- **F34** A route parameter `Annotated[bytes, Body(media_type="application/octet-stream")]`, the one body parameter of its route, receives the raw body when the content type of the request is not JSON: FastAPI reads `request.body()` and parses JSON only for `application/json` (or no content type). The chunks of an upload come this way (`shelfdrop.modules.uploads.router.receive_chunk`); the whole chunk is in memory (50 MiB).
+  - Evidence: Source: `fastapi/routing.py` `get_request_handler` (`body_bytes = await request.body()`, `json_body` only when the subtype is `json`); a run of `tests/integration/test_uploads.py` on 2026-10-21.
+  - Pinned by: `tests/integration/test_uploads.py::test_a_file_sent_in_chunks_is_resumed_checked_taken_into_ranger_and_placed`
+  - Re-verify: on version change.
+
 ### wireup 2.13.0
 
 - **F08** With `create_async_container` and `setup(..., middleware_mode=True)`, the scope of a request closes on the event loop after the response: a session closed there would block it. `release_session`, a sync dependency of every route, closes the session in the threadpool first.

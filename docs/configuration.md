@@ -39,6 +39,8 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `placement.covers` | on | The cover of a series written when it has none (the first page of its first volume). |
 | `placement.scan_time` | `04:30` | The time of the day (`HH:MM`, local time of the worker) of the scan of the files misplaced ([ADR 0018](adr/0018-ranger.md)). |
 | `placement.lock_jellyfin` | on | The name, the series, the number and the authors of a file placed set and locked in Jellyfin. |
+| `uploads.folder` | `/data/envois` | The folder the files sent from the page Manuel wait in until they are placed, as the placement worker sees it: on the mount of the libraries, writable by the worker ([ADR 0019](adr/0019-uploads.md)). |
+| `uploads.keep_days` | 7 | The days a file sent stays in Ranger without being placed, and an upload stopped is kept; then they are removed. |
 | `discord.events.<event>` | on | The events of the journal sent to Discord: `sent`, `downloaded`, `placed`, `to_place`, `uploaded`, `retry`, `failed`, `misplaced`, `login`, `found` ([ADR 0015](adr/0015-journal.md)). Without the secret `discord.webhook`, nothing is posted. |
 
 The secrets: `prowlarr.api_key`, `qbittorrent.api_key`, `jellyfin.api_key`, `sources.myanimelist.client_id`, `discord.webhook`. Sealed with AES-GCM under `SHELFDROP_SECRET_KEY`, opened in memory at the time of a call, never logged nor shown.

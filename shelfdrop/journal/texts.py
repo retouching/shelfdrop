@@ -21,6 +21,7 @@ VOLUMES: Final = "Tomes"
 ALREADY: Final = "Déjà présents"
 TRACKERS: Final = "Trackers"
 SIZE: Final = "Taille"
+TYPE: Final = "Type"
 MODE: Final = "Mode"
 MODES: Final = {"auto": "Automatique", "manual": "Manuel"}
 BY: Final = "Par"
@@ -54,9 +55,11 @@ FAILURES: Final = {
     "not_received": "qBittorrent n'a pas reçu le torrent",
     "link_refused": "Rangement impossible",
     "merge_failed": "Fusion des MP3 en M4B impossible",
+    "upload_corrupt": "Envoi corrompu",
 }
 ACTIONS: Final = {
     "not_received": "Rien d'envoyé. Réessayer depuis Téléchargements.",
     "link_refused": "Rien d'écrasé, fichiers laissés en place.",
     "merge_failed": "Rien d'écrasé, pistes MP3 laissées en place.",
+    "upload_corrupt": "Fichier supprimé, à envoyer de nouveau.",
 }

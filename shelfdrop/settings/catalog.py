@@ -66,6 +66,10 @@ VALUES: Final[Mapping[str, Entry]] = {
     "placement.lock_jellyfin": Entry(kind="switch", default=True),
     # The time of the day of the scan of the files misplaced (plan section 3, point 5).
     "placement.scan_time": Entry(kind="time", default="04:30"),
+    # The folder the files sent from the page wait in, as the placement worker sees it: on the
+    # file system of the libraries (plan section 3, point 6).
+    "uploads.folder": Entry(kind="path", default="/data/envois"),
+    "uploads.keep_days": Entry(kind="number", default=7, minimum=1, maximum=365),
 }
 SECRETS: Final = frozenset(
     {

@@ -4,7 +4,7 @@ asked done (a volume, a file of chapters, a release in chapters linked to its vo
 scan of the libraries for the files misplaced, every day and when the page asks."""
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -42,7 +42,11 @@ from shelfdrop.placement.types import (
     PlaceItem,
     VolumeRequest,
 )
+from shelfdrop.placement.uploads import lay_upload, remove_empty, remove_upload, upload_items
 from shelfdrop.releases.types import Volumes
+from shelfdrop.uploads.repository import UploadRepository, UploadRepositoryFactory
+from shelfdrop.uploads.store import UploadStore
+from shelfdrop.uploads.types import UploadState
 from shelfdrop.works.types import Kind
 
 logger = logging.getLogger(__name__)
@@ -54,6 +58,10 @@ class HandSettings(Protocol):
     """The settings the files of Ranger read at each round."""
 
     async def scan_time(self) -> tuple[int, int]: ...
+
+    async def uploads_folder(self) -> str: ...
+
+    async def upload_keep_days(self) -> int: ...
 
 
 def sized(paths: Sequence[Path]) -> list[tuple[str, int]]:
@@ -104,6 +112,12 @@ def set_shelf(
     repository.set_item_shelf(item_id, existing, loose)
 
 
+def mark_upload(
+    repository: UploadRepository, *, upload_id: int, state: UploadState, now: int
+) -> None:
+    repository.mark(upload_id, state, now)
+
+
 def mark_done(repository: PlacementRepository, *, task_id: int, now: int) -> None:
     repository.mark_task(task_id, "done", now)
 
@@ -116,15 +130,102 @@ def scan_slot(now: float, hour: int, minute: int) -> float:
 
 
 class HandPlacement:
-    def __init__(self, placement: PlacementService, settings: HandSettings) -> None:
+    def __init__(
+        self,
+        placement: PlacementService,
+        settings: HandSettings,
+        uploads: UploadRepositoryFactory,
+        store: UploadStore,
+    ) -> None:
         self.placement = placement
         self.settings = settings
+        self.uploads = uploads
+        self.store = store
 
     async def round(self) -> None:
         await self.collect()
+        await self.take_uploads()
         await self.refresh_shelf()
         await self.run_requests()
+        await self.tidy_uploads()
         await self.scan_when_due()
+
+    async def on_uploads[T](
+        self, use: Callable[[UploadRepository], T], *, commit: bool = True
+    ) -> T:
+        def run() -> T:
+            repository = self.uploads()
+            try:
+                result = use(repository)
+                if commit:
+                    repository.commit()
+                return result
+            finally:
+                repository.close()
+
+        return await anyio.to_thread.run_sync(run)
+
+    async def take_uploads(self) -> int:
+        """The files sent and checked, moved into the folder of the uploads and listed in
+        Ranger, a ZIP opened. Returns how many."""
+        verified = await self.on_uploads(lambda r: r.read_in(("verified",)), commit=False)
+        if not verified:
+            return 0
+        root = Path(await self.settings.uploads_folder())
+        for upload in verified:
+            source = self.store.file(upload.id, upload.name)
+            now = int(self.placement.clock.now())
+            try:
+                files = await anyio.to_thread.run_sync(lay_upload, source, root / str(upload.id))
+            except OSError as exc:
+                logger.info(
+                    "Upload not taken", extra={"upload": upload.id, "error": type(exc).__name__}
+                )
+                await self.on_uploads(
+                    partial(mark_upload, upload_id=upload.id, state="lost", now=now)
+                )
+                continue
+            items = upload_items(upload.name, files)
+            await self.placement.on_shelf(partial(add_items, items=items, now=now))
+            await self.on_uploads(
+                partial(mark_upload, upload_id=upload.id, state="listed", now=now)
+            )
+            await anyio.to_thread.run_sync(self.store.remove, upload.id)
+            logger.info("Upload listed in Ranger", extra={"upload": upload.id, "files": len(items)})
+        return len(verified)
+
+    async def tidy_uploads(self) -> None:
+        """The files sent left in Ranger longer than `uploads.keep_days`, and the uploads that
+        stopped as long ago, removed; the folders of the uploads left empty too."""
+        days = await self.settings.upload_keep_days()
+        before = int(self.placement.clock.now()) - days * DAY
+        root = Path(await self.settings.uploads_folder())
+        old = [
+            i
+            for i in await self.placement.on_shelf(lambda r: r.read_open_of("upload"), commit=False)
+            if i.created_at < before and i.request is None
+        ]
+        for item in old:
+            await anyio.to_thread.run_sync(remove_upload, [*item.files, item.path], root)
+        if old:
+            await self.placement.on_shelf(lambda r: r.delete_items([i.id for i in old]))
+            logger.info("Uploads left in Ranger removed", extra={"files": len(old)})
+        stopped = [
+            u
+            for u in await self.on_uploads(
+                lambda r: r.read_in(("receiving", "corrupt", "lost", "listed")), commit=False
+            )
+            if u.updated_at < before
+        ]
+        for upload in stopped:
+            await anyio.to_thread.run_sync(self.store.remove, upload.id)
+        if stopped:
+            await self.on_uploads(lambda r: r.delete([u.id for u in stopped]))
+        known = await self.on_uploads(lambda r: r.read_ids(), commit=False)
+        for upload_id in await anyio.to_thread.run_sync(self.store.upload_ids):
+            if upload_id not in known:
+                await anyio.to_thread.run_sync(self.store.remove, upload_id)
+        await anyio.to_thread.run_sync(remove_empty, root)
 
     async def collect(self) -> int:
         """The downloads Ranger takes, not listed yet: their files read in the torrent. Returns

@@ -162,3 +162,51 @@ async def test_a_release_in_chapters_counts_the_chapters_loose_on_the_shelf_as_t
     await bench.hand.round()
     assert (folder / "Chainsaw Man - T23.cbz").is_file()
     assert not (folder / "Chainsaw Man - Ch. 209.cbz").exists()
+
+
+@pytest.mark.anyio
+async def test_a_file_sent_is_taken_into_ranger_placed_from_there_and_one_left_goes(
+    tmp_path: Path,
+) -> None:
+    bench = new_bench(tmp_path)
+    sent = bench.uploads.add("Berserk T41.cbz", 3, 10, 0)
+    bench.store.write_chunk(sent.id, 0, b"abc")
+    bench.store.put_together(sent.id, sent.name, 1)
+    bench.uploads.mark(sent.id, "verified", 0)
+    old = bench.uploads.add("Old.epub", 3, 10, 0)
+    bench.store.write_chunk(old.id, 0, b"abc")
+    await bench.hand.round()
+
+    [item] = [i for i in bench.shelf.items.values() if i.origin == "upload"]
+    envois = tmp_path / "files" / "envois"
+    assert (item.name, item.kind, item.path) == (
+        "Berserk T41.cbz",
+        "manga",
+        str(envois / str(sent.id) / "Berserk T41.cbz"),
+    )
+    assert bench.uploads.rows[sent.id].state == "listed"
+    assert not bench.store.folder(sent.id).exists()
+    asked = VolumeRequest(
+        kind="manga", work_id=None, series="Berserk", author="Kentaro Miura", volume=41
+    )
+    assert bench.shelf.ask(item.id, asked, 0)
+    await bench.hand.round()
+
+    assert (bench.roots["manga"] / "Berserk" / "Berserk - T41.cbz").read_bytes() == b"abc"
+    assert bench.shelf.items[item.id].state == "placed"
+    assert not envois.exists() or list(envois.iterdir()) == []
+
+    left = bench.uploads.add("Left.epub", 3, 10, 0)
+    bench.store.write_chunk(left.id, 0, b"abc")
+    bench.store.put_together(left.id, left.name, 1)
+    bench.uploads.mark(left.id, "verified", 0)
+    await bench.hand.round()
+    [kept] = [i for i in bench.shelf.items.values() if i.name == "Left.epub"]
+    bench.clock.at += 8 * 24 * 3600
+    await bench.hand.round()
+
+    assert kept.id not in bench.shelf.items
+    assert kept.path == str(envois / str(left.id) / "Left.epub")
+    assert not (envois / str(left.id)).exists()
+    assert old.id not in bench.uploads.rows
+    assert not bench.store.folder(old.id).exists()

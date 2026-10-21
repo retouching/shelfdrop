@@ -125,3 +125,31 @@ def test_the_files_misplaced_are_counted_by_library() -> None:
         ("BD & Mangas", "3"),
         ("Livres", "1"),
     ]
+
+
+def test_a_file_sent_gives_its_name_its_size_and_its_type() -> None:
+    embed = embed_of(
+        [event("uploaded", file="Berserk T41.cbz", size=850_000_000, type="CBZ")], None, None
+    )
+
+    assert embed["title"] == "Fichier envoyé"
+    assert embed["description"] == "Berserk T41.cbz"
+    assert embed["fields"] == [
+        {"name": "Taille", "value": "850 Mo", "inline": True},
+        {"name": "Type", "value": "CBZ", "inline": True},
+    ]
+
+
+def test_a_corrupt_file_sent_is_a_failure_that_says_what_was_done() -> None:
+    embed = embed_of(
+        [event("failed", what="upload_corrupt", release="Berserk T41.cbz", error="SHA-256")],
+        None,
+        None,
+    )
+
+    assert embed["title"] == "Échec : Envoi corrompu"
+    assert {
+        "name": "Ce que shelfdrop a fait",
+        "value": "Fichier supprimé, à envoyer de nouveau.",
+        "inline": False,
+    } in (embed["fields"])

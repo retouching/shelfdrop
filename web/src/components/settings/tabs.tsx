@@ -470,7 +470,7 @@ function SwitchField({ label, settingKey }: { readonly label: string; readonly s
   );
 }
 
-/** Dossiers et options du rangement, heure du scan : enregistrés ; l'envoi de fichiers vient ensuite. */
+/** Dossiers et options du rangement, heure du scan, dossier et durée des envois. */
 export function PlacementTab(): ReactElement {
   return (
     <div className="space-y-4">
@@ -481,9 +481,7 @@ export function PlacementTab(): ReactElement {
           label={texts.settings.libraryPath(texts.libraries.audiobook)}
           settingKey="placement.library.audiobook"
         />
-        <Field label={texts.settings.uploadsPath}>
-          <input defaultValue="/data/shelfdrop/envois" className={input} />
-        </Field>
+        <PathField label={texts.settings.uploadsPath} settingKey="uploads.folder" />
       </Card>
       <Card title={texts.nav.place}>
         <SwitchField label={texts.settings.mergeMp3} settingKey="placement.merge_mp3" />
@@ -491,9 +489,7 @@ export function PlacementTab(): ReactElement {
         <SwitchField label={texts.settings.lockJellyfin} settingKey="placement.lock_jellyfin" />
         <div className="grid gap-4 sm:grid-cols-2">
           <TimeField label={texts.settings.scanHour} settingKey="placement.scan_time" />
-          <Field label={texts.settings.uploadRetention}>
-            <input type="number" min={1} defaultValue={7} className={input} />
-          </Field>
+          <NumberField label={texts.settings.uploadRetention} settingKey="uploads.keep_days" min={1} max={365} />
         </div>
       </Card>
     </div>

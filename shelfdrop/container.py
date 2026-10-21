@@ -53,6 +53,10 @@ from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.settings.reader import SettingsReader
 from shelfdrop.settings.repository import SettingsRepository, settings_repository_factory
 from shelfdrop.settings.service import Probes, SettingsService
+from shelfdrop.uploads.repository import UploadRepository, upload_repository_factory
+from shelfdrop.uploads.service import UploadEvents, UploadService
+from shelfdrop.uploads.store import UploadStore
+from shelfdrop.uploads.types import UploadOptions
 from shelfdrop.waiting.repository import waiting_repository_factory
 from shelfdrop.waiting.service import (
     LibraryVolumes,
@@ -240,6 +244,23 @@ async def run_placement(settings: Settings) -> None:
 
 def as_hand_settings(reader: SettingsReader) -> HandSettings:
     return reader
+
+
+def new_hand_placement(
+    placement: PlacementService, settings: HandSettings, store: UploadStore, engine: Engine
+) -> HandPlacement:
+    """The files of Ranger in the worker, the uploads it takes on sessions of their own."""
+    return HandPlacement(placement, settings, upload_repository_factory(engine), store)
+
+
+def new_upload_store(settings: Settings) -> UploadStore:
+    """The chunks and the files sent, in `uploads/` of the data directory: the API writes them,
+    the placement worker reads them (the same volume, under another path)."""
+    return UploadStore(settings.data_dir / "uploads")
+
+
+def as_upload_events(journal: Journal) -> UploadEvents:
+    return journal
 
 
 def new_ranger_service(engine: Engine, clock: Clock) -> RangerService:
@@ -470,6 +491,7 @@ def injectables(settings: Settings) -> list[object]:
         wireup.instance(
             WaitingOptions(every_seconds=settings.waiting_every_seconds), as_type=WaitingOptions
         ),
+        wireup.instance(UploadOptions(), as_type=UploadOptions),
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.instance(LoginThrottle(), as_type=LoginThrottle),
@@ -501,7 +523,9 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(as_placement_events),
         wireup.injectable(new_placement_service),
         wireup.injectable(as_hand_settings),
-        wireup.injectable(HandPlacement),
+        wireup.injectable(new_upload_store),
+        wireup.injectable(as_upload_events),
+        wireup.injectable(new_hand_placement),
         wireup.injectable(PlacementWorker),
         wireup.injectable(new_ranger_service),
         wireup.injectable(as_library_settings),
@@ -527,4 +551,6 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(SettingsService, lifetime="scoped"),
         wireup.injectable(SessionRepository, lifetime="scoped"),
         wireup.injectable(AuthService, lifetime="scoped"),
+        wireup.injectable(UploadRepository, lifetime="scoped"),
+        wireup.injectable(UploadService, lifetime="scoped"),
     ]

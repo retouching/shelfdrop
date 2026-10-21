@@ -128,6 +128,16 @@ class SettingsReader:
     async def lock_jellyfin(self) -> bool:
         return await self.switch("placement.lock_jellyfin")
 
+    async def uploads_folder(self) -> str:
+        """The folder of the files sent, as the placement worker sees it."""
+        key = "uploads.folder"
+        values, _ = await anyio.to_thread.run_sync(self.read, (key,), ())
+        value = values[key]
+        return value if isinstance(value, str) else "/data/envois"
+
+    async def upload_keep_days(self) -> int:
+        return await self.number("uploads.keep_days")
+
     async def scan_time(self) -> tuple[int, int]:
         """The hour and the minute of the day of the scan of the files misplaced."""
         key = "placement.scan_time"

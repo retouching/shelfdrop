@@ -82,6 +82,21 @@ class ErrorCode(StrEnum):
     # release in chapters (or a volume for one), volumes repeated, ranges of chapters upside
     # down or that overlap, nothing to place; data = null.
     PLACE_REQUEST_REFUSED = "place_request_refused"
+    # 422: a file the page Manuel cannot send; data = {"reason": "type"} (not an EPUB, PDF,
+    # CBZ, CBR, M4B, MP3 or ZIP), {"reason": "size"} (empty, or over 5 GiB) or
+    # {"reason": "name"} (empty, hidden or over 200 characters).
+    UPLOAD_REFUSED = "upload_refused"
+    # 404: no upload with this id; data = null.
+    UPLOAD_NOT_FOUND = "upload_not_found"
+    # 409: the upload is whole already (checked, or in Ranger), or was refused as corrupt;
+    # data = null.
+    UPLOAD_DONE = "upload_done"
+    # 422: a chunk out of the file, or of another length than its place asks (50 MiB, the last
+    # one the rest); at the end, chunks still missing; data = null.
+    CHUNK_REFUSED = "chunk_refused"
+    # 422: the file put together has another SHA-256 than the one given: it is removed, and is
+    # to send again; data = null.
+    UPLOAD_CORRUPT = "upload_corrupt"
     # 422: the image chosen for a series is not a JPEG, a PNG or a WebP of 5 MB at most, or its
     # address did not answer one; data = null.
     IMAGE_REFUSED = "image_refused"

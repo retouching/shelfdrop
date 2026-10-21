@@ -126,14 +126,17 @@ def webhook_saved(client: httpx.Client) -> Iterator[None]:
 
 @pytest.fixture(scope="session")
 def media(stack: Stack) -> None:
-    """The torrents and the libraries of the tests, in the volume of the placement worker:
+    """The torrents, the libraries and the folder of the uploads of the tests, in the volume of
+    the placement worker:
     owned by its user and the group of the library, group-writable."""
-    folders = "/data/torrents /data/files/comics /data/files/ebooks /data/files/audiobooks"
+    folders = (
+        "/data/torrents /data/files/comics /data/files/ebooks /data/files/audiobooks /data/envois"
+    )
     stack.exec_placement(
         "sh",
         "-c",
-        f"mkdir -p {folders} && chown -R 10001:1000 /data/torrents /data/files"
-        " && chmod -R 2775 /data/torrents /data/files",
+        f"mkdir -p {folders} && chown -R 10001:1000 /data/torrents /data/files /data/envois"
+        " && chmod -R 2775 /data/torrents /data/files /data/envois",
         root=True,
     )
 

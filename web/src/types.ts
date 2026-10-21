@@ -80,6 +80,7 @@ export type FileOrigin = "upload" | "library" | "download";
 
 export type FileState =
   | { readonly kind: "uploading"; readonly percent: number }
+  | { readonly kind: "uploadFailed"; readonly reason: "interrupted" | "corrupt" | "type" | "size" }
   | { readonly kind: "unlinked" }
   | { readonly kind: "chapters" }
   | { readonly kind: "misplaced"; readonly reason: string }

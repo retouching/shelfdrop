@@ -362,6 +362,12 @@ export const texts = {
     state: "État",
     origins: { upload: "Envoyé", library: "Bibliothèque", download: "Téléchargement" },
     uploading: (percent: number): string => `Envoi ${String(percent)} %`,
+    uploadFailed: {
+      interrupted: "Envoi interrompu.",
+      corrupt: "Envoi corrompu : fichier supprimé.",
+      type: "Type de fichier refusé.",
+      size: "Fichier refusé : 5 Go au plus.",
+    },
     unlinked: "À associer",
     misplaced: (reason: string): string => `Mal rangé : ${reason}`,
     placing: "Rangement en cours",

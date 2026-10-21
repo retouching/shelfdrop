@@ -33,6 +33,8 @@ function stateText(state: FileState, kind: Kind | null): string {
   switch (state.kind) {
     case "uploading":
       return texts.place.uploading(state.percent);
+    case "uploadFailed":
+      return texts.place.uploadFailed[state.reason];
     case "unlinked":
       return texts.place.unlinked;
     case "chapters":
@@ -55,6 +57,7 @@ function stateTone(state: FileState): string {
     case "chapters":
       return "bg-amber-50 text-amber-800 ring-amber-200";
     case "misplaced":
+    case "uploadFailed":
       return "bg-rose-50 text-rose-700 ring-rose-200";
     case "placed":
       return "bg-emerald-50 text-emerald-700 ring-emerald-200";

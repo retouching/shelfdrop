@@ -32,6 +32,7 @@ import { retryDownload } from "./api/downloads";
 import { splitWorks } from "./api/works";
 import { useDownloads } from "./api/useDownloads";
 import { usePlace } from "./api/place";
+import { UploadError, uploadFile } from "./api/uploads";
 import { guessKind } from "./utils/files";
 import { texts } from "./texts";
 import type { Download, Kind, ShelfFile, Work } from "./types";
@@ -72,7 +73,7 @@ export function App(): ReactElement | null {
   const [work, setWork] = useState<Work | null>(null);
   const [merging, setMerging] = useState<Work | null>(null);
   const [names, setNames] = useState<ReadonlySet<string>>(() => new Set());
-  // Les envois de fichiers de la page Manuel, en cours dans cette page.
+  // Les envois de fichiers de la page Manuel : en cours, refusés, ou vérifiés en attente de Ranger.
   const [uploads, setUploads] = useState<readonly ShelfFile[]>([]);
   const [placeText, setPlaceText] = useState("");
 
@@ -131,29 +132,14 @@ export function App(): ReactElement | null {
   ).length;
 
   const place = usePlace(username !== null, page === "place", placeText);
-  const files = [...uploads, ...place.files];
-
-  // Envoi de fichiers simulé : il fait avancer les envois en cours.
-  const uploading = uploads.some((file) => file.state.kind === "uploading");
-  useEffect(() => {
-    if (!uploading) {
-      return undefined;
-    }
-    const timer = window.setInterval(() => {
-      setUploads((current) =>
-        current.map((file) => {
-          if (file.state.kind !== "uploading") {
-            return file;
-          }
-          const percent = Math.min(100, file.state.percent + 17);
-          return { ...file, state: percent >= 100 ? { kind: "unlinked" } : { kind: "uploading", percent } };
-        }),
-      );
-    }, 400);
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [uploading]);
+  // Un envoi vérifié reste affiché ici jusqu'à ce que Ranger liste le fichier.
+  const listed = new Set(place.files.filter((file) => file.origin === "upload").map((file) => file.name));
+  const files = [
+    ...uploads.filter(
+      (file) => !(file.state.kind === "uploading" && file.state.percent === 100 && listed.has(file.name)),
+    ),
+    ...place.files,
+  ];
 
   useEffect(() => {
     whenSignedOut(() => {
@@ -264,7 +250,12 @@ export function App(): ReactElement | null {
     });
   }
 
-  function upload(list: readonly File[]): void {
+  function setUploadState(id: string, state: ShelfFile["state"]): void {
+    setUploads((current) => current.map((file) => (file.id === id ? { ...file, state } : file)));
+  }
+
+  /** Les fichiers envoyés l'un après l'autre ; chacun vérifié arrive ensuite dans Ranger. */
+  async function upload(list: readonly File[]): Promise<void> {
     const added: ShelfFile[] = list.map((file, index) => ({
       id: `up-${String(Date.now())}-${String(index)}`,
       name: file.name,
@@ -275,7 +266,25 @@ export function App(): ReactElement | null {
       state: { kind: "uploading", percent: 0 },
     }));
     setUploads((current) => [...added, ...current]);
-    setNotice(texts.place.sentToPlace(added.length));
+    let sent = 0;
+    for (const [index, entry] of added.entries()) {
+      const file = list[index];
+      if (file === undefined) {
+        continue;
+      }
+      try {
+        await uploadFile(file, (percent) => {
+          setUploadState(entry.id, { kind: "uploading", percent });
+        });
+        sent += 1;
+        setNotice(texts.place.sentToPlace(sent));
+      } catch (error) {
+        setUploadState(entry.id, {
+          kind: "uploadFailed",
+          reason: error instanceof UploadError ? error.reason : "interrupted",
+        });
+      }
+    }
   }
 
   function toggle(id: string): void {
@@ -329,7 +338,13 @@ export function App(): ReactElement | null {
                 busy={manual ? releasesLoading : worksLoading}
                 onSearch={search}
               />
-              {manual ? <UploadZone onFiles={upload} /> : null}
+              {manual ? (
+                <UploadZone
+                  onFiles={(list) => {
+                    void upload(list);
+                  }}
+                />
+              ) : null}
               {notice === null ? null : (
                 <p
                   role="status"

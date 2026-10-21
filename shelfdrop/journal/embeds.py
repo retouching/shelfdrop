@@ -151,7 +151,11 @@ def fields_of(events: Sequence[Event]) -> tuple[str, str, list[dict[str, Any]]]:
                 fields,
             )
         case "uploaded":
-            return text(first.facts.get("work")), lines([text(f.get("file")) for f in facts]), []
+            fields = [field(texts.SIZE, size_label(sum(number(f.get("size")) for f in facts)))]
+            types = unique([text(f.get("type")) for f in facts])
+            if types:
+                fields.append(field(texts.TYPE, ", ".join(types)))
+            return "", lines([text(f.get("file")) for f in facts]), fields
         case "misplaced":
             counts: dict[str, int] = {}
             for f in facts:

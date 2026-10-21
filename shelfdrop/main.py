@@ -42,6 +42,7 @@ from shelfdrop.modules.searches.router import router as searches_router
 from shelfdrop.modules.session.router import router as session_router
 from shelfdrop.modules.settings.router import router as settings_router
 from shelfdrop.modules.trackers.router import router as trackers_router
+from shelfdrop.modules.uploads.router import router as uploads_router
 from shelfdrop.modules.waiting.router import router as waiting_router
 from shelfdrop.modules.web.router import web_router
 from shelfdrop.modules.works.router import router as works_router
@@ -137,6 +138,7 @@ def build_app(settings: Settings) -> FastAPI:
         library_router,
         waiting_router,
         place_router,
+        uploads_router,
     ):
         app.include_router(router, prefix=prefix, dependencies=signed_in)
     # The front-end, last: its route answers every path the others leave.

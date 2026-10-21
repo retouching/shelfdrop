@@ -32,10 +32,12 @@ from shelfdrop.placement.types import (
     TaskKind,
 )
 from shelfdrop.releases.types import Volumes
+from shelfdrop.uploads.store import UploadStore
 from shelfdrop.works.types import Kind
 from tests.unit.clients.support import API_KEY, FakeJellyfin, FakeQui
 from tests.unit.downloads.support import URL, FakeDownloadRepository
 from tests.unit.support import FakeJournal, no_session
+from tests.unit.uploads.support import FakeUploadRepository
 from tests.unit.works.support import FixedClock
 
 JELLYFIN_URL = "http://jellyfin.test"
@@ -305,6 +307,8 @@ class FakePlacementSettings:
     covers_on: bool = True
     lock_on: bool = True
     scan_at: tuple[int, int] = (4, 30)
+    uploads_at: str = "/nowhere/envois"
+    keep_days: int = 7
 
     async def qbittorrent(self) -> tuple[str | None, str | None]:
         return URL, FakeQui.KEY
@@ -326,6 +330,12 @@ class FakePlacementSettings:
 
     async def scan_time(self) -> tuple[int, int]:
         return self.scan_at
+
+    async def uploads_folder(self) -> str:
+        return self.uploads_at
+
+    async def upload_keep_days(self) -> int:
+        return self.keep_days
 
 
 def libraries_of(roots: dict[Kind, str]) -> list[dict[str, object]]:
@@ -354,6 +364,8 @@ class Bench:
     clock: FixedClock
     roots: dict[Kind, Path]
     hand: HandPlacement
+    uploads: FakeUploadRepository
+    store: UploadStore
 
 
 def new_bench(
@@ -370,7 +382,11 @@ def new_bench(
     }
     for root in roots.values():
         root.mkdir(parents=True)
-    settings = FakePlacementSettings({k: str(v) for k, v in roots.items()}, merge=merge)
+    settings = FakePlacementSettings(
+        {k: str(v) for k, v in roots.items()},
+        merge=merge,
+        uploads_at=str(tmp_path / "files" / "envois"),
+    )
     shelf = FakePlacementRepository()
     downloads = FakeDownloadRepository()
     qui = FakeQui()
@@ -393,8 +409,12 @@ def new_bench(
         clock,
         PlacementOptions(every_seconds=0),
     )
-    hand = HandPlacement(service, settings)
-    return Bench(service, shelf, downloads, qui, jellyfin, journal, tools, clock, roots, hand)
+    uploads = FakeUploadRepository()
+    store = UploadStore(tmp_path / "data" / "uploads")
+    hand = HandPlacement(service, settings, lambda: uploads, store)
+    return Bench(
+        service, shelf, downloads, qui, jellyfin, journal, tools, clock, roots, hand, uploads, store
+    )
 
 
 def completed(
