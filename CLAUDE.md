@@ -18,9 +18,9 @@ Details per file and symbol: [docs/development.md](docs/development.md#module-ma
 - `shelfdrop/works/`: the work search: `service.py` (`WorkService`), `repository.py` (the cache), `flights.py` (the searches running and the sources at rest, shared by the requests), the pure rules `merge.py`, `ranking.py` and `names.py`, `types.py`, `exceptions.py`, and `clients/`, one module per metadata source plus `http.py`, their requests.
 - `shelfdrop/http/`: global HTTP layer: errors, middlewares, `release_session`; `shelfdrop/logging/`: logging shared by the API and the CLI; `shelfdrop/utils/`: generic pure helpers.
 - `shelfdrop/modules/<feature>/`: one package per HTTP feature (`health`, `works`, `web`: the pages of the front-end).
-- `shelfdrop/cli/`: the `shelfdrop` command (`shelfdrop db upgrade`).
+- `shelfdrop/cli/`: the `shelfdrop` command (`shelfdrop db upgrade`, `shelfdrop db check`).
 - `web/`: the front-end; its visible texts are in `web/src/texts.ts` and follow [docs/writing.md](docs/writing.md).
-- `tests/unit/`: see Testing rules. `docker/`: `api.Dockerfile` and `compose.yaml`. `.githooks/pre-push`: the gates before each push.
+- `tests/unit/`, `tests/integration/`: see Testing rules. `docker/`: `api.Dockerfile`, `compose.yaml` (the stack) and `compose.test.yaml` (the test stack, over it). `.githooks/pre-push`: the gates before each push.
 - `docs/`: the pages, the ADRs and the verified facts (see Documentation); `README.md`: what shelfdrop is and where each page is.
 
 ## Structure rules
@@ -43,6 +43,9 @@ Quality gates (all must pass before work is done):
 - `uv run ruff format .`, `uv run ruff check .` (add `--fix` for safe autofixes), `uv run mypy`, `uv run pytest tests/unit`
 - `cd web && pnpm check` (types, ESLint, Prettier) and `pnpm exec vite build`
 - The hook `.githooks/pre-push` runs them before each push (enable it once per clone: `git config core.hooksPath .githooks`).
+- The hook never runs the integration tests. `uv run pytest tests/integration` (the whole suite: on the request of the user alone, never before a push): builds the image, starts an isolated stack `shelfdrop-test-<random>` (the API and `fake-sources`, a WireMock that replays the recorded exchanges of `tests/unit/works/fixtures/`, on a network with no way out), sends real HTTP requests, runs commands in the container, then `down --volumes`. Requires Docker; it fails (never skips) without it.
+- `uv run pytest tests/integration -m "<block>"`: the blocks of the integration suite, run once each, at the end of a big point: the blocks whose code the change touched and the block of every integration test it changed, one block per command, one after another; a whole part (`-m "<part>"`) only when every one of its blocks is called for. The path is always `tests/integration`, never a list of files. The parts, their blocks and the code that calls for each: [docs/development.md](docs/development.md#parts-of-the-integration-suite).
+- Every run of the integration suite by an agent is verbose and goes to a file outside the repository, whose path is given to the user when the run starts: `uv run pytest tests/integration -m "<block>" -v -p no:cacheprovider > <file>.log 2>&1`. After the fix of a failed test, run that test by its id, not its part again.
 - `uv run python -m tests.unit.works.record [slug ...]`: records the fixtures of the work search again from the real sources (network); only when a source changed its answers, and the diff of the fixtures is read before the commit.
 
 Run:
@@ -68,15 +71,19 @@ Dependencies: `uv add <pkg>`, `uv add --dev <pkg>`; never `pip install`. Commit 
 - Services are tested with fakes that subclass the real repositories with `@typing.override`, built on `tests.unit.support.no_session()` (`FakeWorkRepository` records its commits). The metadata clients are tested through the recorded exchanges of `tests/unit/works/fixtures/` (`ReplayTransport`) or an `httpx.MockTransport`; no unit test opens a connection.
 - What a recorded search must find comes from the decisions of the user (the name on the shelf, the names searched, `tests/unit/works/cases.py`), never from what the code happens to return: when they disagree, the disagreement is reported, the case is not bent.
 - In-process HTTP goes through `httpx.ASGITransport` on `build_app()`, never `TestClient`. Tests that call `create_app()`, the CLI `main()` or `configure_logging()` use the `isolated_logging` fixture and read logs from `capsys`.
+- Integration tests (`tests/integration/`) talk to the real image over HTTP, run commands in its container (`stack.exec_api`) and read its logs (`stack.log_records(request_id, expected=n)`, filtered on a unique `X-Request-ID`, read again without sleeping); never a call of the application code in-process, never a mock of the database. The sources are played by `fake-sources` alone (`SHELFDROP_SOURCES_ORIGIN`, a setting of the test stack); a test that needs another answer loads its own stub, on a text of its own. What they check comes from the agreed contract (the plan, the decisions of the user, `tests/unit/works/cases.py`), never from what the code happens to do.
+- Every file of `tests/integration/` carries the marker of its part, and, in a part of several files, the marker of its block (`pytestmark = [pytest.mark.<part>, pytest.mark.<block>]`); a new file joins a part and a block of the tables or brings new ones: its markers in `pyproject.toml`, its lines in `tests/unit/test_integration_parts.py` and in [docs/development.md](docs/development.md#parts-of-the-integration-suite).
+- The settings reserved for the test stack (`TEST_STACK_SETTINGS` of `shelfdrop/config.py`) are set by `docker/compose.test.yaml` alone, never in `.env.example`, `docker/compose.yaml` nor a `.env` file.
 - Tests are independent: each builds its own data. No `sleep` but the delays of a fake source. Warnings are errors; a `filterwarnings` ignore is acceptable only for a third-party warning, scoped, with a comment.
 
 ## Database and migrations
 - Schema changes go through Alembic only. A change edits the models in `shelfdrop/db/models/` (and the registry), then adds one revision generated on a database at head (`SHELFDROP_DATA_DIR=<empty dir> uv run alembic upgrade head`, then `uv run alembic revision --autogenerate -m "<what changes>"`), reviewed, formatted, with its sha256 added to `DIGESTS` of `tests/unit/db/test_migrate.py` in the same commit.
 - A pushed revision is never edited, renamed nor deleted: a mistake is fixed by a new revision. A revision carries the existing rows itself, in SQL, and imports no model.
-- Migrations apply when the container starts (`shelfdrop db upgrade`). Revision files are excluded from mypy.
+- Migrations apply when the container starts (`shelfdrop db upgrade`); `shelfdrop db check` reports no difference between the database at head and the models (`tests/integration/test_migrations.py`). Revision files are excluded from mypy.
 
 ## Docker hygiene
-- This project owns only the image `shelfdrop-api:local`, the Compose project `docker` of `docker/compose.yaml` and its volume, and the containers an agent starts for a check (named `shelfdrop-check-*`), which it removes as soon as the check ends.
+- This project owns only the image `shelfdrop-api:local`, the Compose project `docker` of `docker/compose.yaml` and its volume, the test projects `shelfdrop-test-*` (their stacks and volumes), and the containers an agent starts for a check (named `shelfdrop-check-*`), which it removes as soon as the check ends.
+- Leftover test stacks (after killing pytest): `docker compose ls --all --filter name=shelfdrop-test`, then `docker compose -p <name> -f docker/compose.yaml -f docker/compose.test.yaml down --volumes --remove-orphans`; an agent removes only the stacks it started and reports the others.
 - Never run `docker system prune`, `docker image prune -a` or `docker volume prune`, never `docker compose config` without `--quiet`, and never remove what this project did not create.
 
 ## Git
@@ -94,7 +101,7 @@ Dependencies: `uv add <pkg>`, `uv add --dev <pkg>`; never `pip install`. Commit 
 
 ## Definition of done
 1. `uv run ruff format .`, `uv run ruff check .` and `uv run mypy` are clean; `pnpm check` is clean when `web/` changed.
-2. `uv run pytest tests/unit` passes.
+2. `uv run pytest tests/unit` passes; the blocks of the integration suite the change calls for pass, each run once, at its end; the whole `uv run pytest` runs on the request of the user alone.
 3. New behaviour is covered by tests at the right level (see Testing rules).
 4. The docs follow the change in the same commit (see Documentation); `.env.example` follows the variables.
 5. No container, image or volume of a check is left; other leftovers are reported, never removed.

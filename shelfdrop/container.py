@@ -19,6 +19,7 @@ from shelfdrop.works.clients.mangadex import MangaDexClient
 from shelfdrop.works.clients.mangaupdates import MangaUpdatesClient
 from shelfdrop.works.clients.myanimelist import MyAnimeListClient
 from shelfdrop.works.clients.openlibrary import OpenLibraryClient
+from shelfdrop.works.clients.redirect import RedirectTransport
 from shelfdrop.works.clients.wikidata import WikidataClient
 from shelfdrop.works.flights import SearchFlights, SourceHealth
 from shelfdrop.works.repository import WorkRepository
@@ -37,7 +38,11 @@ def user_agent(settings: Settings) -> str:
 
 async def open_http(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
     """The HTTP client of the metadata sources (a singleton), closed with the container."""
+    transport = (
+        None if settings.sources_origin is None else RedirectTransport(settings.sources_origin)
+    )
     async with httpx.AsyncClient(
+        transport=transport,
         headers={"User-Agent": user_agent(settings)},
         timeout=httpx.Timeout(REQUEST_TIMEOUT_SECONDS),
         follow_redirects=True,
@@ -65,7 +70,9 @@ def injectables(settings: Settings) -> list[object]:
     """Values and singletons, then the scoped session, repositories and services."""
     return [
         wireup.instance(settings, as_type=Settings),
-        wireup.instance(SearchOptions(), as_type=SearchOptions),
+        wireup.instance(
+            SearchOptions(source_rest_seconds=settings.source_rest_seconds), as_type=SearchOptions
+        ),
         wireup.instance(Clock(), as_type=Clock),
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),

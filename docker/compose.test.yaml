@@ -1,0 +1,51 @@
+# The test stack, over docker/compose.yaml; tests/integration alone starts it, one throwaway
+# project `shelfdrop-test-<hex>` per pytest session:
+#   docker compose -p <project> -f docker/compose.yaml -f docker/compose.test.yaml up -d --build --wait
+# It reads no .env: tests/integration gives every variable Compose requires.
+services:
+  api:
+    restart: "no"
+    environment:
+      SHELFDROP_LOG_LEVEL: INFO
+      SHELFDROP_LOG_FORMAT: json
+      # The settings reserved for the test stack (shelfdrop.config.TEST_STACK_SETTINGS): every
+      # request to a metadata source goes to the fake sources, and a source that failed is not
+      # skipped, so that no test disturbs the next one.
+      SHELFDROP_SOURCES_ORIGIN: http://fake-sources:8080
+      SHELFDROP_SOURCE_REST_SECONDS: "0"
+    ports: !override
+      - "127.0.0.1::8000"
+    networks:
+      - default
+      - sources
+    depends_on:
+      fake-sources:
+        condition: service_healthy
+
+  # The fake metadata sources: WireMock by digest, as its image ships it, in clear HTTP on 8080,
+  # with no privilege, no capability and no volume. The tests load the recorded exchanges of
+  # tests/unit/works/fixtures through its administration, which it publishes on the loopback.
+  fake-sources:
+    image: wiremock/wiremock@sha256:0d4ecb3e4dc8213fd7a4d37d6a78f6e6b553a6d2e15bd51b0999781282ac61b3
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    command: ["--port", "8080", "--disable-banner"]
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - default
+      - sources
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "curl -fsS -o /dev/null http://localhost:8080/__admin/health"
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
+networks:
+  # Between the API and the fake sources alone, with no way out.
+  sources:
+    internal: true
