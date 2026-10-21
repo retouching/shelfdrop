@@ -216,6 +216,8 @@ class SearchBoard:
             await self.slot_freed.wait()
         self.waiting.remove(name_query)
         self.active += 1
+        # The next one in the queue may have looked while this one was first: it looks again.
+        self.wake()
         self.queue_moved()
 
     def free_slot(self) -> None:

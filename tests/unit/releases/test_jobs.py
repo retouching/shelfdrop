@@ -2,7 +2,7 @@
 (plan 2.6)."""
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import anyio
 import pytest
@@ -66,6 +66,14 @@ async def settle() -> None:
         await asyncio.sleep(0)
 
 
+async def until(job: SearchJob, condition: Callable[[], bool]) -> None:
+    """Wait on the changes of `job` until `condition` holds: a request reads the cache in the
+    threadpool first, so how many turns of the loop it takes is not known."""
+    with anyio.fail_after(2):
+        while not condition():
+            await job.changed.wait()
+
+
 @pytest.mark.anyio
 async def test_the_same_search_twice_is_one_search_and_one_request_per_name() -> None:
     source = GatedSource()
@@ -109,14 +117,13 @@ async def test_two_requests_at_most_and_the_others_wait_in_the_queue() -> None:
     second = start(board, "Pluto")
     # In the queue as soon as it starts, behind the names of the first one.
     assert board.progress(second).queued_ahead == 1
-    await settle()
+    await until(first, lambda: sorted(source.asked) == ["Berserk", "Monster"])
 
-    assert sorted(source.asked) == ["Berserk", "Monster"]
     assert board.progress(first).state == "running"
     assert board.progress(second).state == "queued"
     assert board.progress(second).queued_ahead == 1
     source.gate("Berserk").set()
-    await settle()
+    await until(second, lambda: "Pluto" in source.asked)
     assert source.asked[-1] == "Pluto"
     assert board.progress(second).state == "running"
     source.gate("Monster").set()
@@ -191,14 +198,14 @@ async def test_the_progress_comes_at_each_change_until_the_end() -> None:
         async for progress in board.watch(job):
             seen.append(progress)
 
+    def states() -> list[str]:
+        return [n.state for n in board.progress(job).names]
+
     async with anyio.create_task_group() as group:
         group.start_soon(watch)
-        await settle()
+        await until(job, lambda: states() == ["running", "running"])
         source.gate("Berserk").set()
-        with anyio.fail_after(2):
-            while not any(n.state == "done" for n in board.progress(job).names):
-                await job.changed.wait()
-            await settle()
+        await until(job, lambda: states() == ["done", "running"])
         source.gate("Monster").set()
 
     assert seen[-1].state == "done"
