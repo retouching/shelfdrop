@@ -110,7 +110,7 @@ The progress and the releases found so far, scored and ranked with the filters a
 - In the order of the page: packs and complete editions first, then volume by volume; for one volume, the score, the order of the trackers, the seeds. No release without seeds; one found twice once.
 - `volumes.kind`: `single`, `range`, `complete` or `unknown`.
 - `rejected`: `relevance` (its title misses a word of its name), `score` (under `minimum`), or `null`.
-- `automatic`: kept, and from a tracker whose `auto` is on: a download of a work may take it.
+- `automatic`: kept, and from a tracker whose `auto` is on: a [download](#post-apiv1downloads) of a work may take it.
 - The download link of Prowlarr is never in the answer: it carries its key.
 
 Errors: `404 search_not_found`.
@@ -120,6 +120,38 @@ The torrent of a release of a search kept, asked to Prowlarr: `200` with the `.t
 
 ## GET /api/v1/searches/{id}/events
 Server-Sent Events: a `progress` event (the object of `POST`) now and at each change, then an `end` event. `404 search_not_found`.
+
+## POST /api/v1/downloads
+Sends releases of a search kept to qBittorrent ([ADR 0014](adr/0014-downloads.md)):
+
+```json
+{"search_id": "Xb3...", "work_id": "mangaupdates:75336092483", "author": "Tatsuki Fujimoto", "series": "Chainsaw Man",
+ "releases": [{"id": "3f1c...", "volumes": {"kind": "range", "first": 1, "last": 11}}]}
+```
+
+- The search decides the mode: the search of a work gives automatic downloads, into the category of qBittorrent of its kind (`manga`, `ebook`, `audiobook`), with `work_id`, `author` and `series` (200 characters at most each); a manual search gives manual ones, into `shelfdrop-manual`, without them.
+- `volumes`: as the page gives them (`single`, `range`, `complete`, `unknown`; `first`, `last` 0 to 9999). A release given twice is sent once; 100 releases at most.
+
+`200 {"downloads": [...]}`, the downloads created, each `waiting`: the send goes on after the answer. Errors: `404 search_not_found` (a search ended more than 10 minutes ago), `422 release_not_in_search` (`data.ids`: releases the search does not hold, or without a download link), `422 release_not_automatic` (`data.ids`: releases of the search of a work set aside or from a tracker whose `auto` is off), `422 validation_failed`. Nothing is sent on an error.
+
+## GET /api/v1/downloads
+The 200 newest downloads, the newest first, each as qBittorrent has it now:
+
+```json
+{"downloads": [{"id": 4, "title": "Chainsaw.Man.T01-T11.FRENCH.CBZ.eBook-PapriKa+", "indexer": "Nyaa.si", "size": 1073741824,
+  "info_hash": "c12fe1c0...", "mode": "auto", "kind": "manga", "category": "manga", "work_id": "mangaupdates:75336092483",
+  "work_name": "Chainsaw Man", "author": "Tatsuki Fujimoto", "series": "Chainsaw Man",
+  "volumes": {"kind": "range", "first": 1, "last": 11},
+  "progress": {"state": "downloading", "percent": 77, "speed": 4404019, "eta": 96, "reason": null},
+  "attempts": 1, "created_at": 1792598400, "created_by": "Sylvain"}]}
+```
+
+- `progress.state`: `waiting` (being sent, or waiting in qBittorrent: queued, fetching its metadata, stopped, or not listed), `downloading` (with `percent` 0 to 100, `speed` in bytes a second, `eta` in seconds, 0 when unknown), `placing` (an automatic download complete), `to_place` (a manual one complete: placed by hand), `failed` (`reason`: `not_received`, or `duplicate`, a torrent qBittorrent already had).
+- `work_name`: the name of the work, or the text of a manual search. `created_by`: the account that sent it.
+- qBittorrent down: the downloads sent show as `waiting`.
+
+## POST /api/v1/downloads/{id}/retry
+Sends a torrent qBittorrent did not receive again: the same torrent, into the same category, one more attempt. `200`, the download, `waiting`. Errors: `404 download_not_found`, `409 download_not_retryable` (a duplicate, or a download not failed).
 
 ## GET /api/v1/trackers, POST /api/v1/trackers/refresh, PUT /api/v1/trackers
 The indexers of Prowlarr, in their order: `{"trackers": [{"indexer_id": 1, "name": "Nyaa.si", "language": "en-US", "prowlarr_enabled": true, "used": true, "auto": true}]}`. `refresh` reads `GET /api/v1/indexer` of Prowlarr again (`503 prowlarr_unavailable`). `PUT` takes `{"trackers": [{"indexer_id", "used", "auto"}]}` in the new order; a tracker left out keeps its choices and comes after; a tracker not asked is never automatic.

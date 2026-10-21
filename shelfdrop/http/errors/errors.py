@@ -31,6 +31,11 @@ def not_signed_in() -> ApiError:
     return unauthorized(ErrorCode.NOT_SIGNED_IN, "Not signed in")
 
 
+def conflict(code: ErrorCode, detail: str) -> ApiError:
+    """409: the request is valid, the state of what it names refuses it."""
+    return ApiError(status.HTTP_409_CONFLICT, code=code, detail=detail)
+
+
 def not_found(code: ErrorCode, detail: str) -> ApiError:
     return ApiError(status.HTTP_404_NOT_FOUND, code=code, detail=detail)
 

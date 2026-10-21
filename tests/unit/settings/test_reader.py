@@ -18,18 +18,25 @@ async def test_the_defaults_hold_until_a_value_is_saved() -> None:
     assert await reader.release_answer_seconds() == 600
     assert await reader.work_answer_seconds() == 86400
     assert await reader.prowlarr() == (None, None)
+    assert await reader.qbittorrent() == (None, None)
 
 
 @pytest.mark.anyio
 async def test_the_values_saved_are_read() -> None:
     reader = FakeSettingsReader(
-        {"search.max_names": 3, "search.work_cache_hours": 2, "prowlarr.url": "http://p:9696"},
-        {"prowlarr.api_key": "key"},
+        {
+            "search.max_names": 3,
+            "search.work_cache_hours": 2,
+            "prowlarr.url": "http://p:9696",
+            "qbittorrent.url": "http://qui:7476",
+        },
+        {"prowlarr.api_key": "key", "qbittorrent.api_key": "client-key"},
     )
 
     assert await reader.max_names() == 3
     assert await reader.work_answer_seconds() == 7200
     assert await reader.prowlarr() == ("http://p:9696", "key")
+    assert await reader.qbittorrent() == ("http://qui:7476", "client-key")
 
 
 @pytest.mark.anyio

@@ -22,6 +22,7 @@ DOMAIN: Final = (
     "shelfdrop/clients/",
     "shelfdrop/works/",
     "shelfdrop/releases/",
+    "shelfdrop/downloads/",
     "shelfdrop/settings/",
     "shelfdrop/utils/",
     "shelfdrop/db/",
@@ -142,22 +143,26 @@ def test_only_the_releases_and_the_composition_import_the_prowlarr_client() -> N
     )
 
 
-def test_the_works_and_the_releases_never_import_the_settings() -> None:
+def test_the_works_the_releases_and_the_downloads_never_import_the_settings() -> None:
     assert (
         offenders(
-            lambda path: path.startswith(("shelfdrop/works/", "shelfdrop/releases/")),
+            lambda path: path.startswith(
+                ("shelfdrop/works/", "shelfdrop/releases/", "shelfdrop/downloads/")
+            ),
             lambda module: module.startswith("shelfdrop.settings"),
         )
         == []
     )
 
 
-def test_only_the_sign_in_and_the_composition_import_the_service_clients() -> None:
+def test_only_the_sign_in_the_downloads_and_the_composition_import_the_service_clients() -> None:
     assert (
         offenders(
             lambda path: (
                 path not in ("shelfdrop/container.py", PROBES)
-                and not path.startswith(("shelfdrop/auth/", "shelfdrop/clients/"))
+                and not path.startswith(
+                    ("shelfdrop/auth/", "shelfdrop/downloads/", "shelfdrop/clients/")
+                )
             ),
             lambda module: module.startswith("shelfdrop.clients"),
         )

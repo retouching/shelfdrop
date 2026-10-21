@@ -13,7 +13,9 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, Settings
 DEFAULT_STATIC_DIR: Final = Path(__file__).resolve().parent / "static"
 # The settings reserved for the test stack: `docker/compose.test.yaml` alone sets them, through
 # the environment of the process, and a `.env` file never does (ADR 0010).
-TEST_STACK_SETTINGS: Final = frozenset({"sources_origin", "source_rest_seconds"})
+TEST_STACK_SETTINGS: Final = frozenset(
+    {"sources_origin", "source_rest_seconds", "send_check_seconds"}
+)
 # The address of a service: http(s), a host, a port, a path.
 ADDRESS_PATTERN: Final = r"^https?://[A-Za-z0-9.-]+(:\d+)?(/.*)?$"
 
@@ -88,12 +90,14 @@ class Settings(BaseSettings):
     prowlarr_api_key: SecretStr | None = Field(default=None, repr=False)
     # The address of Jellyfin (http://host:8096): the accounts sign in there.
     jellyfin_url: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
-    # The two settings below are reserved for the test stack (TEST_STACK_SETTINGS).
+    # The three settings below are reserved for the test stack (TEST_STACK_SETTINGS).
     # Every request to a metadata source goes to this origin instead, its own origin in the
     # header X-Original-Origin: the fake sources of the test stack answer it.
     sources_origin: str | None = Field(default=None, pattern=r"^https?://[A-Za-z0-9.-]+(:\d+)?$")
     # Seconds a source that failed is skipped.
     source_rest_seconds: int = Field(default=300, ge=0, le=86400)
+    # Seconds between two looks for a torrent sent to qBittorrent (ADR 0014).
+    send_check_seconds: float = Field(default=8.0, ge=0, le=60)
 
     @field_validator(
         "secret_key",

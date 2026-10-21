@@ -35,25 +35,30 @@ def test_a_env_file_never_sets_a_test_stack_setting(
         "SHELFDROP_CONTACT=test@example.org\n"
         "SHELFDROP_SOURCES_ORIGIN=http://elsewhere:8080\n"
         "SHELFDROP_SOURCE_REST_SECONDS=0\n"
+        "SHELFDROP_SEND_CHECK_SECONDS=1\n"
     )
     monkeypatch.delenv("SHELFDROP_SOURCES_ORIGIN", raising=False)
     monkeypatch.delenv("SHELFDROP_SOURCE_REST_SECONDS", raising=False)
+    monkeypatch.delenv("SHELFDROP_SEND_CHECK_SECONDS", raising=False)
 
     settings = Settings(_env_file=env_file)
 
     assert settings.contact == "test@example.org"
     assert settings.sources_origin is None
     assert settings.source_rest_seconds == 300
+    assert settings.send_check_seconds == 8
 
 
 def test_the_environment_sets_the_test_stack_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SHELFDROP_SOURCES_ORIGIN", "http://fake-sources:8080")
     monkeypatch.setenv("SHELFDROP_SOURCE_REST_SECONDS", "0")
+    monkeypatch.setenv("SHELFDROP_SEND_CHECK_SECONDS", "0.5")
 
     settings = Settings(_env_file=None, contact="test@example.org")
 
     assert settings.sources_origin == "http://fake-sources:8080"
     assert settings.source_rest_seconds == 0
+    assert settings.send_check_seconds == 0.5
 
 
 @pytest.mark.parametrize("name", sorted(TEST_STACK_SETTINGS))

@@ -28,6 +28,8 @@ class ErrorCode(StrEnum):
     # 404: no release with this id in the searches kept (10 minutes after their end), or one
     # Prowlarr gave no download link for; data = null.
     RELEASE_NOT_FOUND = "release_not_found"
+    # 404: no download with this id; data = null.
+    DOWNLOAD_NOT_FOUND = "download_not_found"
     # 405: the path exists, the method does not; the Allow header lists the methods.
     METHOD_NOT_ALLOWED = "method_not_allowed"
     # Any other HTTP error raised by the framework itself, with its own status.
@@ -45,6 +47,16 @@ class ErrorCode(StrEnum):
     # 422: a filter rule whose words or regular expression are empty or invalid;
     # data = {"positions": [index of each such rule in the list sent]}.
     INVALID_FILTER_RULE = "invalid_filter_rule"
+    # 422: releases to download that the search does not hold (unknown, or Prowlarr gave no
+    # download link); data = {"ids": [each id refused]}; nothing is sent.
+    RELEASE_NOT_IN_SEARCH = "release_not_in_search"
+    # 422: releases of the search of a work an automatic download may not take: set aside (a
+    # missing word, a score under the minimum) or from a tracker not allowed for the automatic
+    # downloads; data = {"ids": [each id refused]}; nothing is sent.
+    RELEASE_NOT_AUTOMATIC = "release_not_automatic"
+    # 409: a download that cannot be sent again: only a torrent qBittorrent did not receive is,
+    # never a duplicate nor a download sent; data = null.
+    DOWNLOAD_NOT_RETRYABLE = "download_not_retryable"
     # 429: too many sign-in attempts: 5 a minute from one address, 30 an hour in all;
     # data = null.
     TOO_MANY_ATTEMPTS = "too_many_attempts"

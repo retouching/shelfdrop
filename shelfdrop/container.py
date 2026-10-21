@@ -18,6 +18,10 @@ from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.config import Settings
 from shelfdrop.db.engine import open_engine, open_session
+from shelfdrop.downloads.repository import DownloadRepository, download_repository_factory
+from shelfdrop.downloads.sender import DownloadSender, QbittorrentAddress
+from shelfdrop.downloads.service import DownloadService, ReleaseFinder
+from shelfdrop.downloads.types import DownloadOptions
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository, repository_factory
@@ -164,6 +168,29 @@ def new_search_board(
     return SearchBoard(prowlarr, repository_factory(engine), options, clock, reader)
 
 
+def as_qbittorrent_address(reader: SettingsReader) -> QbittorrentAddress:
+    return reader
+
+
+def as_release_finder(service: ReleaseService) -> ReleaseFinder:
+    return service
+
+
+def new_download_sender(
+    prowlarr: ProwlarrClient,
+    qbittorrent: QBittorrentClient,
+    reader: SettingsReader,
+    engine: Engine,
+    options: DownloadOptions,
+    clock: Clock,
+) -> DownloadSender:
+    """The sends to qBittorrent of every request (a singleton, resumed by the lifespan); its
+    downloads on sessions of their own, since a send outlives its request."""
+    return DownloadSender(
+        prowlarr, qbittorrent, reader, download_repository_factory(engine), options, clock
+    )
+
+
 def new_work_sources(http: httpx.AsyncClient, reader: SettingsReader) -> WorkSources:
     """Every metadata client, in the order of the list of the sources that did not answer;
     MyAnimeList reads its Client ID at each search, and is asked only with it."""
@@ -190,6 +217,9 @@ def injectables(settings: Settings) -> list[object]:
         ),
         wireup.instance(Clock(), as_type=Clock),
         wireup.instance(ReleaseOptions(), as_type=ReleaseOptions),
+        wireup.instance(
+            DownloadOptions(check_seconds=settings.send_check_seconds), as_type=DownloadOptions
+        ),
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.instance(LoginThrottle(), as_type=LoginThrottle),
@@ -207,12 +237,17 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(new_work_sources),
         wireup.injectable(open_prowlarr),
         wireup.injectable(new_search_board),
+        wireup.injectable(as_qbittorrent_address),
+        wireup.injectable(new_download_sender),
         wireup.injectable(open_engine),
         wireup.injectable(open_session, lifetime="scoped"),
         wireup.injectable(WorkRepository, lifetime="scoped"),
         wireup.injectable(WorkService, lifetime="scoped"),
         wireup.injectable(ReleaseRepository, lifetime="scoped"),
         wireup.injectable(ReleaseService, lifetime="scoped"),
+        wireup.injectable(as_release_finder, lifetime="scoped"),
+        wireup.injectable(DownloadRepository, lifetime="scoped"),
+        wireup.injectable(DownloadService, lifetime="scoped"),
         wireup.injectable(SettingsRepository, lifetime="scoped"),
         wireup.injectable(SettingsService, lifetime="scoped"),
         wireup.injectable(SessionRepository, lifetime="scoped"),

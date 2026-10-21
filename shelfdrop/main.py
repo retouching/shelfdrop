@@ -18,6 +18,7 @@ from wireup.integration.fastapi import get_app_container, setup
 
 from shelfdrop.config import Settings
 from shelfdrop.container import environment_values, injectables
+from shelfdrop.downloads.sender import DownloadSender
 from shelfdrop.http.dependencies import release_session, require_session
 from shelfdrop.http.errors.handlers import (
     handle_http_exception,
@@ -30,6 +31,7 @@ from shelfdrop.http.middleware.request_id import RequestIdMiddleware
 from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
 from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from shelfdrop.logging.setup import configure_logging
+from shelfdrop.modules.downloads.router import router as downloads_router
 from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
 from shelfdrop.modules.releases.router import router as releases_router
@@ -62,13 +64,16 @@ def build_app(settings: Settings) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """At start: the settings of the environment imported once into the database
-        (ADR 0012), then the tests of the services every 5 minutes, until the end."""
+        (ADR 0012), the sends a stop left unfinished (ADR 0014), then the tests of the services
+        every 5 minutes, until the end."""
         container = get_app_container(app)
         async with container.enter_scope() as scope:
             service = await scope.get(SettingsService)
             imported = await service.import_environment(environment_values(settings))
         if imported:
             logger.info("Settings imported from the environment", extra={"keys": imported})
+        sender = await container.get(DownloadSender)
+        await sender.resume()
         monitor = await container.get(ConnectionMonitor)
         checks = asyncio.create_task(monitor.run())
         try:
@@ -77,6 +82,7 @@ def build_app(settings: Settings) -> FastAPI:
             checks.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await checks
+            await sender.close()
 
     app = FastAPI(
         lifespan=lifespan,
@@ -110,6 +116,7 @@ def build_app(settings: Settings) -> FastAPI:
         works_router,
         searches_router,
         releases_router,
+        downloads_router,
         trackers_router,
         filters_router,
         settings_router,

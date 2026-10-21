@@ -124,6 +124,9 @@ async def test_without_a_build_no_page_is_served(tmp_path: Path) -> None:
         ("GET", "/api/v1/searches/x/events"),
         ("GET", "/api/v1/trackers"),
         ("GET", "/api/v1/releases/0123456789abcdef/torrent"),
+        ("GET", "/api/v1/downloads"),
+        ("POST", "/api/v1/downloads"),
+        ("POST", "/api/v1/downloads/1/retry"),
         ("PUT", "/api/v1/filters"),
         ("GET", "/api/v1/session"),
         ("DELETE", "/api/v1/session"),
@@ -190,3 +193,18 @@ async def test_the_torrent_of_a_release_no_search_holds_is_a_404(tmp_path: Path)
 
     assert response.status_code == 404
     assert response.json()["code"] == "release_not_found"
+
+
+@pytest.mark.anyio
+async def test_a_download_of_a_search_no_longer_kept_is_a_404(tmp_path: Path) -> None:
+    body = {
+        "search_id": "gone",
+        "releases": [{"id": "0123456789abcdef", "volumes": {"kind": "single", "first": 1}}],
+    }
+    async with client_for(settings_for(tmp_path)) as client:
+        response = await client.post(
+            "/api/v1/downloads", json=body, headers={"Origin": "http://test"}
+        )
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "search_not_found"

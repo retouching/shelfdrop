@@ -57,6 +57,10 @@ class SettingsReader:
     async def prowlarr(self) -> tuple[str | None, str | None]:
         return await self.connection("prowlarr")
 
+    async def qbittorrent(self) -> tuple[str | None, str | None]:
+        """The address of qui and the key of its client proxy."""
+        return await self.connection("qbittorrent")
+
     async def jellyfin_url(self) -> str | None:
         url, _ = await self.connection("jellyfin")
         return url
