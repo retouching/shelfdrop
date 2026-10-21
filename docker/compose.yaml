@@ -1,0 +1,27 @@
+# Every command runs from the repository root:
+#   docker compose --env-file .env -f docker/compose.yaml up -d --build --wait
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    image: shelfdrop-api:local
+    restart: unless-stopped
+    environment:
+      SHELFDROP_CONTACT: ${SHELFDROP_CONTACT:?set SHELFDROP_CONTACT in .env}
+      SHELFDROP_LOG_LEVEL: ${SHELFDROP_LOG_LEVEL:-INFO}
+      # The address of the reverse proxy, whose X-Forwarded-For uvicorn trusts.
+      FORWARDED_ALLOW_IPS: ${SHELFDROP_PROXY_ADDRESS:-127.0.0.1}
+    volumes:
+      - data:/data/shelfdrop
+    ports:
+      - "127.0.0.1:${SHELFDROP_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  data:

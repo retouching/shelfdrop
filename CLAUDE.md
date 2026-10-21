@@ -1,0 +1,100 @@
+# shelfdrop
+
+Finds, downloads and shelves manga, books and audiobooks into Jellyfin. Today: the search of a work in the metadata sources, its HTTP route, and the front-end (`web/`), served by the API.
+
+## Stack
+- Python 3.13 (`requires-python = ">=3.13"`), dependencies managed by uv; `uv.lock` is committed. Flat layout (`[tool.uv.build-backend] module-root = ""`).
+- FastAPI + uvicorn; configuration via pydantic-settings; dependency injection with wireup (ADR 0004); httpx asks the metadata sources, defusedxml reads the records of the BnF.
+- SQLAlchemy 2 (synchronous) on SQLite; Alembic migrations (ADR 0005).
+- ruff (lint + format), mypy (strict + pydantic plugin), pytest 9 (strict mode, warnings are errors).
+- The front-end: React, Vite, Tailwind, TypeScript strict, ESLint and Prettier, built by pnpm (ADR 0008).
+
+## Repository map
+Details per file and symbol: [docs/development.md](docs/development.md#module-map).
+- `shelfdrop/main.py`: `create_app()` and `build_app()`, the HTTP composition root; the only place that registers routers and middlewares and calls wireup `setup()`.
+- `shelfdrop/config.py`: `Settings`, the only place that reads configuration (`SHELFDROP_*` env vars, optional `.env`).
+- `shelfdrop/container.py`: `injectables(settings)`, the one list of wireup registrations, and the HTTP client and the metadata clients it builds.
+- `shelfdrop/db/`: engine and sessions, ORM models (registry `shelfdrop/db/models/__init__.py`), Alembic migrations.
+- `shelfdrop/works/`: the work search: `service.py` (`WorkService`), `repository.py` (the cache), `flights.py` (the searches running and the sources at rest, shared by the requests), the pure rules `merge.py`, `ranking.py` and `names.py`, `types.py`, `exceptions.py`, and `clients/`, one module per metadata source plus `http.py`, their requests.
+- `shelfdrop/http/`: global HTTP layer: errors, middlewares, `release_session`; `shelfdrop/logging/`: logging shared by the API and the CLI; `shelfdrop/utils/`: generic pure helpers.
+- `shelfdrop/modules/<feature>/`: one package per HTTP feature (`health`, `works`, `web`: the pages of the front-end).
+- `shelfdrop/cli/`: the `shelfdrop` command (`shelfdrop db upgrade`).
+- `web/`: the front-end; its visible texts are in `web/src/texts.ts` and follow [docs/writing.md](docs/writing.md).
+- `tests/unit/`: see Testing rules. `docker/`: `api.Dockerfile` and `compose.yaml`. `.githooks/pre-push`: the gates before each push.
+- `docs/`: the pages, the ADRs and the verified facts (see Documentation); `README.md`: what shelfdrop is and where each page is.
+
+## Structure rules
+- HTTP features live in `shelfdrop/modules/<feature>/`. Everything else (CLI, configuration, database, domains, global HTTP layer, utilities) is a module or a package directly under `shelfdrop/`, never under `modules/`.
+- A concern stays a single module while it holds one kind of content (`shelfdrop/config.py`); it becomes a package as soon as it holds several kinds (`shelfdrop/works/`).
+- One file = one kind of content:
+  - `router.py` (`APIRouter(route_class=WireupRoute)` and thin endpoints: call a service received as `Injected[...]`, turn its domain exceptions into the errors of `errors.py`, return a schema; no `Session`, no commit, no rule, no SQL), `schemas.py` (Pydantic request/response models only), `errors.py` (one HTTP error factory per code of the feature).
+  - `service.py` (one service class holding the rules; its repository, clients and values come through its constructor; a use case that writes commits last through its repository; never imports FastAPI, wireup nor SQLAlchemy), `repository.py` (one repository class built on the `Session`: the only place for queries and `commit()`).
+  - `types.py` (dataclasses, enums and type aliases; no Pydantic HTTP schema, no ORM model), `exceptions.py` (exception classes), `shelfdrop/db/models/<entity>.py` (one ORM model, also added to the registry), `shelfdrop/http/middleware/<name>.py` (one pure ASGI middleware, no `BaseHTTPMiddleware`).
+  - Pure rule modules (`merge.py`, `ranking.py`, `names.py`) do no I/O. A `Protocol` stays in the file that consumes it (`MetadataClient` in `shelfdrop/works/service.py`). Helpers and constants used by a single file stay in that file. `__init__.py` files stay empty, except the model registry.
+- Utilities: a generic, pure helper goes in `shelfdrop/utils/<topic>.py`: it names no domain of this project, imports only the standard library, raises nothing and writes no message (`normalize`, `parse_isbn`).
+- Every Dockerfile (`docker/<image>.Dockerfile`) and Compose file (`docker/compose*.yaml`) lives in `docker/`; the build context is the repository root, with its single `.dockerignore`. Every `docker compose` command runs from the repository root with `--env-file .env -f docker/compose.yaml`.
+- Dependencies point one way (`tests/unit/test_layers.py`): `main` → `container`, `modules`, `http`, `logging`, `config`; `modules` → `works` (services, types, exceptions), `http`; `container` → `works`, `db`, `config`; `works` → `db` (its `repository.py` alone), `utils`. `works`, `db`, `utils` and `logging` never import FastAPI, Starlette, wireup or `shelfdrop.http`; only `container.py`, `main.py`, `http/dependencies.py` and the routers import wireup; only `container.py` and `shelfdrop/works/` import the metadata clients.
+- Never run a package file as a script (`python shelfdrop/...py`): `shelfdrop/http` and `shelfdrop/logging` would shadow the standard library. Use `uv run shelfdrop`, `python -m` or uvicorn `--factory`.
+
+## Commands
+Setup: `uv sync`, `cp .env.example .env`, then set `SHELFDROP_CONTACT`; `cd web && pnpm install`.
+
+Quality gates (all must pass before work is done):
+- `uv run ruff format .`, `uv run ruff check .` (add `--fix` for safe autofixes), `uv run mypy`, `uv run pytest tests/unit`
+- `cd web && pnpm check` (types, ESLint, Prettier) and `pnpm exec vite build`
+- The hook `.githooks/pre-push` runs them before each push (enable it once per clone: `git config core.hooksPath .githooks`).
+- `uv run python -m tests.unit.works.record [slug ...]`: records the fixtures of the work search again from the real sources (network); only when a source changed its answers, and the diff of the fixtures is read before the commit.
+
+Run:
+- `uv run shelfdrop db upgrade`, then `uv run uvicorn --factory shelfdrop.main:create_app --reload`: the API on 127.0.0.1:8000, its database in `.data/`.
+- `cd web && pnpm dev`: the front-end alone.
+- `docker compose --env-file .env -f docker/compose.yaml up -d --build --wait`, `... logs -f api`, `... down` (`--volumes` also wipes the database).
+
+Dependencies: `uv add <pkg>`, `uv add --dev <pkg>`; never `pip install`. Commit `uv.lock` with the change.
+
+## Code conventions
+- Everything in English: code, comments, docs, API messages, logs. Every text the front-end shows is French and follows [docs/writing.md](docs/writing.md), and lives in `web/src/texts.ts` alone.
+- Type everything; mypy and TypeScript run in strict mode. No `# type: ignore`, `# noqa` or ESLint disable without an explanation on the same line.
+- No name starts with an underscore (`tests/unit/test_naming.py`), but `_` alone, dunders and what a library imposes (`Settings(_env_file=None)`).
+- Read configuration only through `Settings`, never `os.environ`. A new setting gets a `SHELFDROP_` variable, an entry in `.env.example` and, if the container needs it, in `docker/compose.yaml`.
+- Endpoints are sync `def` (SQLAlchemy is synchronous), but the routes of the work search, `async` because a search waits on every source at once; their service runs the repository in the threadpool (`anyio.to_thread`) and `release_session` closes the session there after the response (ADR 0007).
+- Raise an `ApiError` for every HTTP error, built by the factories of `shelfdrop/http/errors/errors.py` alone, through the `errors.py` of the feature. Every error body is `{"code", "detail", "data"}` ([contract](docs/api.md#errors)). `ErrorCode` (`shelfdrop/http/errors/types.py`) is the single list of codes, each member commented with its status, meaning and `data`. `422` bodies never echo input values.
+- No `print` in `shelfdrop/`; log with `logging.getLogger(__name__)`, configured by `configure_logging()` alone. Expected failures log the exception class only; never log `Settings`, URLs, headers, bodies or query strings: the address of a source may carry a key.
+- Every route but `/health` and the pages is served under `Settings.api_prefix` (`/api`), applied by `build_app()` alone; every router prefix starts with its version (`/v1/works`). Client IP = `request.client.host` as resolved by uvicorn (`FORWARDED_ALLOW_IPS` set to the proxy).
+- Response headers come only from the middlewares in `shelfdrop/http/middleware/`; uvicorn runs with `--no-server-header`.
+
+## Testing rules
+- Unit tests (`tests/unit/`) need no Docker, network or database. They mirror the packages, with an `__init__.py` in every folder: `shelfdrop/<package>/<module>.py` → `tests/unit/<package>/test_<module>.py`, `shelfdrop/<module>.py` → `tests/unit/test_<module>.py`.
+- Services are tested with fakes that subclass the real repositories with `@typing.override`, built on `tests.unit.support.no_session()` (`FakeWorkRepository` records its commits). The metadata clients are tested through the recorded exchanges of `tests/unit/works/fixtures/` (`ReplayTransport`) or an `httpx.MockTransport`; no unit test opens a connection.
+- What a recorded search must find comes from the decisions of the user (the name on the shelf, the names searched, `tests/unit/works/cases.py`), never from what the code happens to return: when they disagree, the disagreement is reported, the case is not bent.
+- In-process HTTP goes through `httpx.ASGITransport` on `build_app()`, never `TestClient`. Tests that call `create_app()`, the CLI `main()` or `configure_logging()` use the `isolated_logging` fixture and read logs from `capsys`.
+- Tests are independent: each builds its own data. No `sleep` but the delays of a fake source. Warnings are errors; a `filterwarnings` ignore is acceptable only for a third-party warning, scoped, with a comment.
+
+## Database and migrations
+- Schema changes go through Alembic only. A change edits the models in `shelfdrop/db/models/` (and the registry), then adds one revision generated on a database at head (`SHELFDROP_DATA_DIR=<empty dir> uv run alembic upgrade head`, then `uv run alembic revision --autogenerate -m "<what changes>"`), reviewed, formatted, with its sha256 added to `DIGESTS` of `tests/unit/db/test_migrate.py` in the same commit.
+- A pushed revision is never edited, renamed nor deleted: a mistake is fixed by a new revision. A revision carries the existing rows itself, in SQL, and imports no model.
+- Migrations apply when the container starts (`shelfdrop db upgrade`). Revision files are excluded from mypy.
+
+## Docker hygiene
+- This project owns only the image `shelfdrop-api:local`, the Compose project `docker` of `docker/compose.yaml` and its volume, and the containers an agent starts for a check (named `shelfdrop-check-*`), which it removes as soon as the check ends.
+- Never run `docker system prune`, `docker image prune -a` or `docker volume prune`, never `docker compose config` without `--quiet`, and never remove what this project did not create.
+
+## Git
+- Default branch `master`. Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `build:`, `chore:`), in English, small focused commits, each passing the gates; authored by the owner of the repository alone: no `Co-authored-by`, no `Signed-off-by`, no mention of a tool.
+- The version of `pyproject.toml` (`X.Y.Z` from `0.1.0`) rises in the last commit of a push that changes the code since the last tag: the patch for fixes alone, the minor otherwise.
+- Never commit `.env`, tokens, secrets, `CLAUDE.local.md` or caches.
+
+## Documentation
+- Reference documents, in English but `docs/writing.md`, whose examples are French. Every agent and developer reads them before analysing, planning, coding or reviewing; when the code contradicts them, the code wins: fix the docs in the same change, or report the bug.
+  - `README.md`; the pages of `docs/`: `installation.md`, `configuration.md`, `api.md`, `how-it-works.md` (for the operator), `development.md` (module map, layers, database, tests), `writing.md` (the visible texts); `docs/adr/NNNN-<slug>.md` (one living ADR per subject); `docs/verified-facts.md` (behaviours of the sources and libraries this code relies on, each with its evidence, its pinning test and its re-verification trigger).
+- A rule or a command lives here; a description or a contract lives in `docs/`; code-level detail in docstrings and `ErrorCode` comments. Each description has one home: link to it, never copy it.
+- The docs change with the code, in the same commit: what a change adds is described, what it modifies is updated, what it removes is deleted, every reference included.
+- An ADR is `# NNNN. Subject`, then `Status: Accepted`, `Date:` (last change of the decision) lines, then `## Context` (who decided, why), `## Decision`, `## Rejected alternatives`, `## Consequences` and, when something no longer holds, `## Replaced`. It states only what the code implements; a decision no code implements yet waits outside the repository, with the plan of its feature, and enters its ADR in the commit that implements it. ADR numbers and fact IDs are never reused.
+- Cite code by repository path or qualified symbol and tests as `path::test_name`, never by line number; never cite agent artifacts (plans, analyses kept outside the repository).
+
+## Definition of done
+1. `uv run ruff format .`, `uv run ruff check .` and `uv run mypy` are clean; `pnpm check` is clean when `web/` changed.
+2. `uv run pytest tests/unit` passes.
+3. New behaviour is covered by tests at the right level (see Testing rules).
+4. The docs follow the change in the same commit (see Documentation); `.env.example` follows the variables.
+5. No container, image or volume of a check is left; other leftovers are reported, never removed.
