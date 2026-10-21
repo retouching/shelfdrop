@@ -16,6 +16,8 @@ def settings_for(tmp_path: Path, *, pages: bool = True) -> Settings:
         (static / "index.html").write_text("<!doctype html><title>shelfdrop</title>")
         (static / "favicon.svg").write_text("<svg/>")
         (static / "assets" / "app.js").write_text("void 0")
+        (static / "fonts").mkdir()
+        (static / "fonts" / "outfit.woff2").write_bytes(b"wOF2")
     return Settings(data_dir=tmp_path / "data", static_dir=static, contact="test@example.org")
 
 
@@ -76,6 +78,7 @@ async def test_the_pages_fall_back_to_the_index(tmp_path: Path) -> None:
         icon = await client.get("/favicon.svg")
         page = await client.get("/telechargements")
         escape = await client.get("/..%2Fpyproject.toml")
+        font = await client.get("/fonts/outfit.woff2")
 
     assert asset.status_code == 200
     assert icon.text == "<svg/>"
@@ -83,6 +86,7 @@ async def test_the_pages_fall_back_to_the_index(tmp_path: Path) -> None:
     assert page.headers["cache-control"] == "no-cache"
     assert page.headers["content-security-policy"].startswith("default-src 'self'")
     assert "<title>shelfdrop</title>" in escape.text
+    assert font.headers["content-type"] == "font/woff2"
 
 
 @pytest.mark.anyio
