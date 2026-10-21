@@ -91,4 +91,6 @@ def test_a_torrent_lost_is_not_received_then_sent_again_as_it_is(
     # Prowlarr asked once: the torrent read the first time is sent again.
     assert sum("retry-5" in r["url"] for r in fake_sources.requests("GET", "/1/download")) == 1
     fake_sources.post(f"/tests/complete/{digest}")
-    wait_for_download(client, created["id"], lambda d: d["progress"]["state"] == "placing")
+    wait_for_download(
+        client, created["id"], lambda d: d["progress"]["state"] in ("placing", "to_place")
+    )

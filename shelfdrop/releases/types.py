@@ -31,6 +31,15 @@ class Volumes:
 
 
 @dataclass(frozen=True, kw_only=True)
+class Chapters:
+    """The chapters a name holds: one (`last` is None) or a range; `.5` chapters are numbers
+    too."""
+
+    first: float
+    last: float | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class FoundRelease:
     """One release as Prowlarr answers it, without its download link (it carries a key)."""
 

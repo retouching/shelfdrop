@@ -2,8 +2,8 @@
 
 import pytest
 
-from shelfdrop.releases.guess import clean_query, is_relevant, volumes_of
-from shelfdrop.releases.types import Volumes
+from shelfdrop.releases.guess import chapters_of, clean_query, is_relevant, volumes_of
+from shelfdrop.releases.types import Chapters, Volumes
 
 
 def single(n: int) -> Volumes:
@@ -76,3 +76,22 @@ def test_dusk_maiden_is_not_amnesia() -> None:
     )
     # Stop words and words of 2 letters are not needed.
     assert is_relevant("Atelier.des.sorciers.T01.FRENCH", "L'Atelier des Sorciers")
+
+
+@pytest.mark.parametrize(
+    ("name", "chapters"),
+    [
+        ("Chainsaw Man - Ch. 233", Chapters(first=233)),
+        ("Chainsaw.Man.Chapitre.233.FRENCH", Chapters(first=233)),
+        ("Chainsaw Man Ch.233-236 [Scan]", Chapters(first=233, last=236)),
+        ("Kaguya-sama c012.5", Chapters(first=12.5)),
+        ("Chainsaw Man #233", Chapters(first=233)),
+        ("Berserk Chapter 380", Chapters(first=380)),
+        ("Chainsaw.Man.T01.FRENCH.CBZ", None),
+        ("Chainsaw Man C411", None),
+    ],
+)
+def test_the_chapters_of_a_name_are_read_with_their_ranges_and_halves(
+    name: str, chapters: Chapters | None
+) -> None:
+    assert chapters_of(name) == chapters

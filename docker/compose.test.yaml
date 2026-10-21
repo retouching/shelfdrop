@@ -36,6 +36,22 @@ services:
       fake-sources:
         condition: service_healthy
 
+  placement:
+    restart: "no"
+    environment:
+      SHELFDROP_LOG_FORMAT: json
+      # A round of the placement every second instead of 30.
+      SHELFDROP_PLACEMENT_EVERY_SECONDS: "1"
+      # The covers of the sources through the fake sources too.
+      SHELFDROP_SOURCES_ORIGIN: http://fake-sources:8080
+    # The torrents and the libraries of the tests: a volume of their own, made by the tests.
+    volumes: !override
+      - data:/var/lib/shelfdrop
+      - media:/data
+    networks:
+      - default
+      - sources
+
   # The fake metadata sources, Prowlarr and Jellyfin: WireMock by digest, as its image ships it, in clear HTTP on 8080,
   # with no privilege, no capability and no volume. The tests load the recorded exchanges of
   # tests/unit/works/fixtures through its administration, which it publishes on the loopback.
@@ -58,6 +74,9 @@ services:
       retries: 5
       start_period: 30s
       start_interval: 1s
+
+volumes:
+  media:
 
 networks:
   # Between the API and the fake sources alone, with no way out.

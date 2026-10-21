@@ -142,11 +142,11 @@ The 200 newest downloads, the newest first, each as qBittorrent has it now:
   "info_hash": "c12fe1c0...", "mode": "auto", "kind": "manga", "category": "manga", "work_id": "mangaupdates:75336092483",
   "work_name": "Chainsaw Man", "author": "Tatsuki Fujimoto", "series": "Chainsaw Man",
   "volumes": {"kind": "range", "first": 1, "last": 11},
-  "progress": {"state": "downloading", "percent": 77, "speed": 4404019, "eta": 96, "reason": null},
+  "progress": {"state": "downloading", "percent": 77, "speed": 4404019, "eta": 96, "reason": null, "destination": null, "unplaced": null},
   "attempts": 1, "created_at": 1792598400, "created_by": "Sylvain"}]}
 ```
 
-- `progress.state`: `waiting` (being sent, or waiting in qBittorrent: queued, fetching its metadata, stopped, or not listed), `downloading` (with `percent` 0 to 100, `speed` in bytes a second, `eta` in seconds, 0 when unknown), `placing` (an automatic download complete), `to_place` (a manual one complete: placed by hand), `failed` (`reason`: `not_received`, or `duplicate`, a torrent qBittorrent already had).
+- `progress.state`: `waiting` (being sent, or waiting in qBittorrent: queued, fetching its metadata, stopped, or not listed), `downloading` (with `percent` 0 to 100, `speed` in bytes a second, `eta` in seconds, 0 when unknown), `placing` (an automatic download complete, being placed; `percent` while its MP3 tracks are merged), `placed` (`destination`: the library and the series, « BD & Mangas › Berserk »), `to_place` (placed by hand, `unplaced` says why: `manual`, a manual download; `chapters`, `no_volume`, `unknown_author`, `no_files`, `missing_files`, `link_refused`, `merge_failed`: what the placement could not do alone), `failed` (`reason`: `not_received`, or `duplicate`, a torrent qBittorrent already had).
 - `work_name`: the name of the work, or the text of a manual search. `created_by`: the account that sent it.
 - qBittorrent down: the downloads sent show as `waiting`.
 

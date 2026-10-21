@@ -8,11 +8,12 @@ from typing import Final
 import anyio
 import anyio.to_thread
 
-from shelfdrop.settings.catalog import EVENTS, SOURCES, VALUES
+from shelfdrop.settings.catalog import EVENTS, LIBRARIES, SOURCES, VALUES
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.exceptions import SecretUnreadableError
 from shelfdrop.settings.repository import SettingsRepositoryFactory
 from shelfdrop.settings.types import SettingValue
+from shelfdrop.works.types import Kind
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,28 @@ class SettingsReader:
     async def jellyfin(self) -> tuple[str | None, str | None]:
         """The address of Jellyfin and its API key."""
         return await self.connection("jellyfin")
+
+    async def switch(self, key: str) -> bool:
+        values, _ = await anyio.to_thread.run_sync(self.read, (key,), ())
+        return values[key] is True
+
+    async def libraries(self) -> dict[Kind, str]:
+        """The folder of each library, as the container sees it."""
+        keys = tuple(f"placement.library.{kind}" for kind in LIBRARIES)
+        values, _ = await anyio.to_thread.run_sync(self.read, keys, ())
+        return {
+            kind: value if isinstance(value := values[key], str) else default
+            for (kind, default), key in zip(LIBRARIES.items(), keys, strict=True)
+        }
+
+    async def merge_mp3(self) -> bool:
+        return await self.switch("placement.merge_mp3")
+
+    async def covers(self) -> bool:
+        return await self.switch("placement.covers")
+
+    async def lock_jellyfin(self) -> bool:
+        return await self.switch("placement.lock_jellyfin")
 
     async def discord(self) -> tuple[str | None, frozenset[str]]:
         """The webhook of the journal and the events switched on."""

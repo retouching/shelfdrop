@@ -73,15 +73,22 @@ def test_a_download_shows_the_figures_of_qbittorrent_then_completes(
         "speed": 4404019,
         "eta": 96,
         "reason": None,
+        "destination": None,
+        "unplaced": None,
     }
     fake_sources.post(f"/tests/complete/{digest}")
+    # Complete: its placement takes it (the worker of the test stack); its torrent lists no
+    # file there, so it ends to place by hand.
     done = wait_for_download(
-        client, created["id"], lambda d: d["progress"]["state"] != "downloading"
+        client, created["id"], lambda d: d["progress"]["state"] not in ("downloading", "placing")
     )
-    assert done["progress"]["state"] == "placing"
-    # Completed: the next reads do not ask qBittorrent for it.
+    assert (done["progress"]["state"], done["progress"]["unplaced"]) == (
+        "to_place",
+        "missing_files",
+    )
+    # Ended: the next reads do not ask qBittorrent for it.
     fake_sources.reset_journal()
     again = client.get("/api/v1/downloads").json()["downloads"]
-    assert next(d for d in again if d["id"] == created["id"])["progress"]["state"] == "placing"
+    assert next(d for d in again if d["id"] == created["id"])["progress"]["state"] == "to_place"
     asked = fake_sources.requests("GET", f"{QUI_PROXY}/torrents/info")
     assert all(digest not in r["url"] for r in asked)

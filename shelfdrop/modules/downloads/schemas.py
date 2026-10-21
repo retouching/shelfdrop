@@ -42,14 +42,20 @@ class ProgressRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     # "downloading", "waiting" (being sent, or waiting in qBittorrent), "placing" (an automatic
-    # download complete), "to_place" (a manual one complete), "failed".
+    # download complete, being placed), "placed", "to_place" (a manual one complete, or one the
+    # placement left to Ranger), "failed".
     state: Shown
-    # While it downloads: from 0 to 100, bytes a second, seconds left (0 when unknown).
+    # While it downloads: from 0 to 100, bytes a second, seconds left (0 when unknown); while
+    # its MP3 tracks are merged: the percent of the merge.
     percent: int | None
     speed: int | None
     eta: int | None
     # A failure: "not_received" (it may be sent again) or "duplicate".
     reason: Failure | None
+    # Placed: where (the library, then the series).
+    destination: str | None
+    # To place: why ("manual", "chapters", "no_volume", "missing_files", "link_refused"...).
+    unplaced: str | None
 
 
 class DownloadRead(BaseModel):

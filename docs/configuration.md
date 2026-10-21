@@ -33,6 +33,10 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `search.max_names` | 6 | The names of a work searched in Prowlarr, 1 to 10. |
 | `search.release_cache_minutes` | 10 | How long an answer of Prowlarr is reused, 0 to 1440. |
 | `search.work_cache_hours` | 24 | How long an answer of a metadata source is reused, 0 to 720. |
+| `placement.library.manga`, `.ebook`, `.audiobook` | `/data/files/comics`, `/data/files/ebooks`, `/data/files/audiobooks` | The folder of each library, as the placement worker sees it: an absolute path. Its library in Jellyfin is the one with a folder of the same name ([ADR 0016](adr/0016-placement.md)). |
+| `placement.merge_mp3` | on | The MP3 tracks of an audiobook merged into one M4B. |
+| `placement.covers` | on | The cover of a series written when it has none (the first page of its first volume). |
+| `placement.lock_jellyfin` | on | The name, the series, the number and the authors of a file placed set and locked in Jellyfin. |
 | `discord.events.<event>` | on | The events of the journal sent to Discord: `sent`, `downloaded`, `placed`, `to_place`, `uploaded`, `retry`, `failed`, `misplaced`, `login`, `found` ([ADR 0015](adr/0015-journal.md)). Without the secret `discord.webhook`, nothing is posted. |
 
 The secrets: `prowlarr.api_key`, `qbittorrent.api_key`, `jellyfin.api_key`, `sources.myanimelist.client_id`, `discord.webhook`. Sealed with AES-GCM under `SHELFDROP_SECRET_KEY`, opened in memory at the time of a call, never logged nor shown.
@@ -43,3 +47,5 @@ Read by Compose alone (`docker/compose.yaml`):
 | --- | --- | --- |
 | `SHELFDROP_API_PORT` | `8000` | The loopback port of the API on the machine. |
 | `SHELFDROP_PROXY_ADDRESS` | `127.0.0.1` | The address of the reverse proxy, given to uvicorn as `FORWARDED_ALLOW_IPS`. |
+| `SHELFDROP_MEDIA_DIR` | `../.data/media` | The folder of the torrents and of the libraries the placement worker mounts on `/data` (NAMI: `/mnt/storage/data`). |
+| `SHELFDROP_LIBRARY_GID` | `1000` | The group of the placement worker: the group of the files of qBittorrent and of the libraries. |

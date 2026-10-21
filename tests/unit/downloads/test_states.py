@@ -93,10 +93,24 @@ def test_a_download_not_sent_or_completed_shows_its_stage(stage: Stage, expected
 def test_a_manual_download_completed_is_to_place_and_a_duplicate_says_so() -> None:
     manual = dataclasses.replace(SENT, mode="manual", category="shelfdrop-manual")
 
-    assert progress_of(manual, torrent("uploading", 1)) == Progress(state="to_place")
+    assert progress_of(manual, torrent("uploading", 1)) == Progress(
+        state="to_place", unplaced="manual"
+    )
     assert progress_of(dataclasses.replace(manual, stage="completed"), None).state == "to_place"
     duplicate = dataclasses.replace(SENT, stage="failed", failure="duplicate")
     assert progress_of(duplicate, None) == Progress(state="failed", reason="duplicate")
+
+
+def test_a_download_placed_shows_where_and_one_left_to_ranger_why() -> None:
+    placed = dataclasses.replace(SENT, stage="placed", destination="BD & Mangas \u203a Berserk")
+    left = dataclasses.replace(SENT, stage="unplaced", unplaced="chapters")
+    merging = dataclasses.replace(SENT, stage="completed", placing_percent=40)
+
+    assert progress_of(placed, None) == Progress(
+        state="placed", destination="BD & Mangas \u203a Berserk"
+    )
+    assert progress_of(left, None) == Progress(state="to_place", unplaced="chapters")
+    assert progress_of(merging, None) == Progress(state="placing", percent=40)
 
 
 def test_the_category_is_the_kind_or_the_one_of_the_manual_downloads() -> None:

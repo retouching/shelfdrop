@@ -8,9 +8,9 @@ from shelfdrop.releases.types import Volumes
 from shelfdrop.works.types import Kind
 
 type DownloadMode = Literal["auto", "manual"]
-type Stage = Literal["sending", "sent", "completed", "failed"]
+type Stage = Literal["sending", "sent", "completed", "placed", "unplaced", "failed"]
 type Failure = Literal["not_received", "duplicate"]
-type Shown = Literal["downloading", "waiting", "placing", "to_place", "failed"]
+type Shown = Literal["downloading", "waiting", "placing", "placed", "to_place", "failed"]
 
 # The categories of qBittorrent shelfdrop downloads into: one per kind, and one for the manual
 # downloads, placed by hand.
@@ -62,7 +62,8 @@ class Download:
     category: str
     stage: Stage
     """`sending`: being fetched, added and looked for; `sent`: found in qBittorrent by its hash;
-    `completed`: qBittorrent has it all; `failed`: see `failure`."""
+    `completed`: qBittorrent has it all; `placed`: on the shelf; `unplaced`: to place in
+    Ranger; `failed`: see `failure`."""
     failure: Failure | None
     attempts: int
     created_at: int
@@ -70,6 +71,13 @@ class Download:
     added_at: int | None
     """The first time qBittorrent took it: found there after, it is this download, not a
     duplicate."""
+    completed_at: int | None = None
+    destination: str | None = None
+    """Where its placement put it: the name of its library, then its series."""
+    unplaced: str | None = None
+    """Why it was not placed alone (`shelfdrop.placement.types.Unplaced`)."""
+    placing_percent: int | None = None
+    """The merge of its MP3 tracks, while it runs."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -84,6 +92,10 @@ class Progress:
     eta: int | None = None
     """Seconds left, 0 when qBittorrent cannot tell."""
     reason: Failure | None = None
+    destination: str | None = None
+    """Placed: where."""
+    unplaced: str | None = None
+    """To place: why the placement left it."""
 
 
 @dataclass(frozen=True, kw_only=True)

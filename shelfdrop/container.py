@@ -26,6 +26,16 @@ from shelfdrop.downloads.types import DownloadOptions
 from shelfdrop.journal.repository import event_repository_factory
 from shelfdrop.journal.service import DiscordSettings, Journal, JournalSender
 from shelfdrop.journal.types import JournalOptions
+from shelfdrop.placement.audio import AudioTools
+from shelfdrop.placement.repository import placement_repository_factory
+from shelfdrop.placement.service import (
+    CoverSource,
+    PlacementEvents,
+    PlacementService,
+    PlacementSettings,
+)
+from shelfdrop.placement.types import PlacementOptions
+from shelfdrop.placement.worker import PlacementWorker
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository, repository_factory
@@ -46,8 +56,9 @@ from shelfdrop.works.clients.myanimelist import MyAnimeListClient
 from shelfdrop.works.clients.openlibrary import OpenLibraryClient
 from shelfdrop.works.clients.redirect import RedirectTransport
 from shelfdrop.works.clients.wikidata import WikidataClient
+from shelfdrop.works.covers import WorkCovers
 from shelfdrop.works.flights import SearchFlights, SourceHealth
-from shelfdrop.works.repository import WorkRepository
+from shelfdrop.works.repository import WorkRepository, work_repository_factory
 from shelfdrop.works.service import WorkService, WorkSettings, WorkSources
 from shelfdrop.works.types import Clock, SearchOptions
 
@@ -155,6 +166,60 @@ def as_auth_events(journal: Journal) -> AuthEvents:
 
 def as_download_events(journal: Journal) -> DownloadEvents:
     return journal
+
+
+def new_work_covers(http: httpx.AsyncClient, engine: Engine, clock: Clock) -> WorkCovers:
+    """The covers of the works kept from a search, read through the client of the sources."""
+    return WorkCovers(work_repository_factory(engine), http, clock)
+
+
+def as_cover_source(covers: WorkCovers) -> CoverSource:
+    return covers
+
+
+def as_placement_settings(reader: SettingsReader) -> PlacementSettings:
+    return reader
+
+
+def as_placement_events(journal: Journal) -> PlacementEvents:
+    return journal
+
+
+def new_placement_service(
+    engine: Engine,
+    qbittorrent: QBittorrentClient,
+    jellyfin: JellyfinClient,
+    settings: PlacementSettings,
+    covers: CoverSource,
+    events: PlacementEvents,
+    clock: Clock,
+    options: PlacementOptions,
+) -> PlacementService:
+    """The placement (a singleton of the worker alone): its repositories on sessions of their
+    own."""
+    return PlacementService(
+        placement_repository_factory(engine),
+        download_repository_factory(engine),
+        qbittorrent,
+        jellyfin,
+        settings,
+        AudioTools(),
+        covers,
+        events,
+        clock,
+        options,
+    )
+
+
+async def run_placement(settings: Settings) -> None:
+    """The placement worker, until stopped: the composition root of the process `shelfdrop
+    placement run`, on the registrations of the API."""
+    container = wireup.create_async_container(injectables=injectables(settings))
+    try:
+        worker = await container.get(PlacementWorker)
+        await worker.run()
+    finally:
+        await container.close()
 
 
 def as_probes(probes: ConnectionProbes) -> Probes:
@@ -273,6 +338,10 @@ def injectables(settings: Settings) -> list[object]:
         wireup.instance(
             DownloadOptions(check_seconds=settings.send_check_seconds), as_type=DownloadOptions
         ),
+        wireup.instance(
+            PlacementOptions(every_seconds=settings.placement_every_seconds),
+            as_type=PlacementOptions,
+        ),
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.instance(LoginThrottle(), as_type=LoginThrottle),
@@ -298,6 +367,12 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(new_journal_sender),
         wireup.injectable(as_auth_events),
         wireup.injectable(as_download_events),
+        wireup.injectable(new_work_covers),
+        wireup.injectable(as_cover_source),
+        wireup.injectable(as_placement_settings),
+        wireup.injectable(as_placement_events),
+        wireup.injectable(new_placement_service),
+        wireup.injectable(PlacementWorker),
         wireup.injectable(open_engine),
         wireup.injectable(open_session, lifetime="scoped"),
         wireup.injectable(WorkRepository, lifetime="scoped"),

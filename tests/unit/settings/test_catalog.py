@@ -2,7 +2,7 @@
 
 import pytest
 
-from shelfdrop.settings.catalog import SECRETS, VALUES, invalid_keys
+from shelfdrop.settings.catalog import SECRETS, VALUES, invalid_keys, is_valid
 from shelfdrop.settings.types import SettingValue
 
 
@@ -67,3 +67,13 @@ def test_an_invalid_secret_is_refused(secret: str) -> None:
 def test_a_secret_is_cleared_with_none_and_an_unknown_one_refused() -> None:
     assert invalid_keys({}, {"prowlarr.api_key": None}) == []
     assert invalid_keys({}, {"prowlarr.url": "x"}) == ["prowlarr.url"]
+
+
+def test_a_library_is_an_absolute_path_of_the_container() -> None:
+    entry = VALUES["placement.library.manga"]
+
+    assert is_valid(entry, "/data/files/comics")
+    assert not is_valid(entry, "data/files/comics")
+    assert not is_valid(entry, "/data/../etc")
+    assert not is_valid(entry, "/data/files/")
+    assert not is_valid(entry, 3)

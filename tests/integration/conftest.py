@@ -8,6 +8,7 @@ import pytest
 
 from tests.integration.support import (
     FAKE_ORIGIN,
+    JELLYFIN_API_KEY,
     QUI_KEY,
     UP_TIMEOUT_SECONDS,
     WEBHOOK,
@@ -121,3 +122,26 @@ def webhook_saved(client: httpx.Client) -> Iterator[None]:
     ).raise_for_status()
     yield
     client.put("/api/v1/settings", json={"secrets": {"discord.webhook": None}}).raise_for_status()
+
+
+@pytest.fixture(scope="session")
+def media(stack: Stack) -> None:
+    """The torrents and the libraries of the tests, in the volume of the placement worker:
+    owned by its user and the group of the library, group-writable."""
+    folders = "/data/torrents /data/files/comics /data/files/ebooks /data/files/audiobooks"
+    stack.exec_placement(
+        "sh",
+        "-c",
+        f"mkdir -p {folders} && chown -R 10001:1000 /data/torrents /data/files"
+        " && chmod -R 2775 /data/torrents /data/files",
+        root=True,
+    )
+
+
+@pytest.fixture
+def jellyfin_saved(client: httpx.Client) -> Iterator[None]:
+    """The API key of the fake Jellyfin saved (its address comes from the environment)."""
+    saved = {"secrets": {"jellyfin.api_key": JELLYFIN_API_KEY}}
+    client.put("/api/v1/settings", json=saved).raise_for_status()
+    yield
+    client.put("/api/v1/settings", json={"secrets": {"jellyfin.api_key": None}}).raise_for_status()

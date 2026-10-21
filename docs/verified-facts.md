@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F30.
+Next fact ID: F33.
 
 ## Metadata sources
 
@@ -94,6 +94,11 @@ Next fact ID: F30.
   - Pinned by: `tests/unit/clients/test_jellyfin.py::test_the_libraries_give_their_item_their_folders_and_their_scan`
   - Re-verify: before the first scan against the Jellyfin of the user.
 
+- **F30** `LockedFields` of a `BaseItemDto` takes the values of `MetadataField`: `Cast`, `Genres`, `ProductionLocations`, `Studios`, `Tags`, `Name`, `Overview`, `Runtime`, `OfficialRating`; `SeriesName`, `IndexNumber`, `SortName` and `ForcedSortName` are fields of the item, none of them lockable alone.
+  - Evidence: the OpenAPI document of Jellyfin 12.2.0 (`components.schemas.MetadataField`, `BaseItemDto`), read on 2026-10-21.
+  - Pinned by: `tests/unit/placement/test_metadata.py::test_a_volume_gets_its_name_its_series_its_number_and_its_author_locked`, `tests/integration/test_placement_comics.py::test_the_volumes_missing_are_linked_tagged_scanned_locked_and_journaled`
+  - Re-verify: before the first placement against the Jellyfin of the user.
+
 ### qBittorrent (WebUI API v2), behind qui
 
 - **F21** `GET /api/v2/app/version` answers the version as text (`v4.1.3`); `GET /api/v2/torrents/categories` a JSON object by name (`{"name", "savePath"}`). Every method but the sign-in needs the cookie `SID`.
@@ -125,6 +130,17 @@ Next fact ID: F30.
   - Evidence: the documentation of Discord, "Execute Webhook", "Uploading Files" and "Rate Limits" (read on 2026-10-21). No real webhook posted to; `FakeDiscord` answers in this shape.
   - Pinned by: `tests/unit/clients/test_discord.py::test_a_picture_goes_with_the_payload_in_a_multipart_body`, `tests/unit/clients/test_discord.py::test_a_429_gives_the_seconds_to_wait_and_an_error_its_status`
   - Re-verify: before the first message on the webhook of the user.
+
+### The kernel and ffmpeg of the image
+
+- **F31** With `fs.protected_hardlinks=1` (the default of Debian), a process may hardlink a file it does not own only when it can read and write it; a hardlink across two mount points fails with `EXDEV`, even on one file system. The placement worker runs in the group of the files and mounts the torrents and the libraries once.
+  - Evidence: the documentation of the kernel, `Documentation/admin-guide/sysctl/fs.rst` (`protected_hardlinks`), and `link(2)` (`EXDEV`: "oldpath and newpath are not on the same mounted filesystem"), read on 2026-10-21.
+  - Pinned by: `tests/integration/test_placement_comics.py::test_the_volumes_missing_are_linked_tagged_scanned_locked_and_journaled` (the inode and its 2 links), `tests/unit/placement/test_layout.py::test_the_volumes_missing_are_linked_and_the_others_left`
+  - Re-verify: before the first placement on NAMI (its sysctl, the owner and the mode of the files of qBittorrent).
+- **F32** The ffmpeg of Debian trixie concatenates MP3 tracks (`-f concat -safe 0`), encodes AAC (`-c:a aac`), takes the chapters of an `FFMETADATA1` file (`-map_chapters 1`) and attaches a JPEG as the cover of an MP4 (`-c:v copy -disposition:v attached_pic`); `-progress pipe:1` writes `out_time_us=` lines.
+  - Evidence: the run of `tests/integration/test_placement_audio.py` in the image (ffprobe reads 3 chapters, 6 seconds, `aac`, a video stream `attached_pic`).
+  - Pinned by: `tests/integration/test_placement_audio.py::test_mp3_tracks_become_one_m4b_with_its_chapters_its_length_and_its_cover`
+  - Re-verify: when the base image of `docker/api.Dockerfile` changes.
 
 ## Pinned components
 

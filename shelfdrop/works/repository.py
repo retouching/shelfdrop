@@ -1,10 +1,10 @@
 """WorkRepository: the cache of the answers of the metadata sources and of the merged works."""
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import Final
 
 from pydantic import TypeAdapter
-from sqlalchemy import delete, select
+from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
 from shelfdrop.db.models import CachedWork, SourceAnswer
@@ -67,3 +67,18 @@ class WorkRepository:
 
     def commit(self) -> None:
         self.session.commit()
+
+    def close(self) -> None:
+        self.session.close()
+
+
+type WorkRepositoryFactory = Callable[[], WorkRepository]
+
+
+def work_repository_factory(engine: Engine) -> WorkRepositoryFactory:
+    """Repositories on sessions of their own, for the covers read outside a request."""
+
+    def new() -> WorkRepository:
+        return WorkRepository(Session(engine, expire_on_commit=False))
+
+    return new

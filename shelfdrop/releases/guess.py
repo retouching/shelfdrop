@@ -4,7 +4,7 @@ found it. And the text sent to Prowlarr for a name."""
 import re
 from typing import Final
 
-from shelfdrop.releases.types import Volumes
+from shelfdrop.releases.types import Chapters, Volumes
 from shelfdrop.utils.text import words
 from shelfdrop.works.names import significant_words
 
@@ -33,6 +33,38 @@ COMPLETE: Final = re.compile(
     r"(?<![A-Za-z])(INT[ÉE]GRALE|Complete|Complet|Collection\s+compl[eè]te)(?![A-Za-z])",
     re.IGNORECASE,
 )
+# Chapters: "Ch. 233", "Ch.233-236", "Chapitre 233", "Chapter 12.5", "c233", "#233".
+CHAPTER_NUMBER: Final = r"(\d{1,4}(?:[.,]\d)?)"
+CHAPTERS: Final = (
+    re.compile(
+        r"(?<![A-Za-z0-9])(?:Ch(?:apitre|apter|ap)?s?\.?|#)\s?"
+        + CHAPTER_NUMBER
+        + r"(?:\s?(?:-|\u2013|à|to)\s?(?:(?:Ch\.?|#)\s?)?"
+        + CHAPTER_NUMBER
+        + r")?(?![0-9])",
+        re.IGNORECASE,
+    ),
+    re.compile(r"(?<![A-Za-z0-9])c" + CHAPTER_NUMBER + r"(?:-c?" + CHAPTER_NUMBER + r")?(?![0-9])"),
+)
+
+
+def chapter_number(text: str) -> float:
+    return float(text.replace(",", "."))
+
+
+def chapters_of(name: str) -> Chapters | None:
+    """'Chainsaw Man - Ch. 233' -> 233; 'Ch.233-236' -> 233 to 236; 'c012.5' -> 12.5;
+    '#233' -> 233; no chapter -> None."""
+    for pattern in CHAPTERS:
+        found = pattern.search(name)
+        if found is None:
+            continue
+        first = chapter_number(found.group(1))
+        last = None if found.group(2) is None else chapter_number(found.group(2))
+        if last is not None and last <= first:
+            last = None
+        return Chapters(first=first, last=last)
+    return None
 
 
 def volumes_of(title: str) -> Volumes:

@@ -48,6 +48,10 @@ def download_of(row: DownloadRow) -> Download:
         created_at=row.created_at,
         created_by=row.created_by,
         added_at=row.added_at,
+        completed_at=row.completed_at,
+        destination=row.destination,
+        unplaced=row.unplaced,
+        placing_percent=row.placing_percent,
     )
 
 
@@ -149,6 +153,44 @@ class DownloadRepository:
                 .values(stage="completed", completed_at=now)
                 .returning(DownloadRow.id)
             )
+        )
+
+    def read_sent(self) -> list[Download]:
+        """The downloads qBittorrent has, not complete yet."""
+        rows = self.session.scalars(
+            select(DownloadRow).where(
+                DownloadRow.stage == "sent", DownloadRow.info_hash.is_not(None)
+            )
+        )
+        return [download_of(row) for row in rows]
+
+    def read_to_place(self) -> list[Download]:
+        """The automatic downloads complete, waiting for their placement, the oldest first."""
+        rows = self.session.scalars(
+            select(DownloadRow)
+            .where(DownloadRow.stage == "completed", DownloadRow.mode == "auto")
+            .order_by(DownloadRow.completed_at, DownloadRow.id)
+        )
+        return [download_of(row) for row in rows]
+
+    def mark_placed(self, download_id: int, destination: str, now: int) -> None:
+        self.session.execute(
+            update(DownloadRow)
+            .where(DownloadRow.id == download_id)
+            .values(stage="placed", destination=destination, placing_percent=None, placed_at=now)
+        )
+
+    def mark_unplaced(self, download_id: int, reason: str, now: int) -> None:
+        """Left to Ranger: placed by hand."""
+        self.session.execute(
+            update(DownloadRow)
+            .where(DownloadRow.id == download_id)
+            .values(stage="unplaced", unplaced=reason, placing_percent=None, placed_at=now)
+        )
+
+    def mark_placing(self, download_id: int, percent: int) -> None:
+        self.session.execute(
+            update(DownloadRow).where(DownloadRow.id == download_id).values(placing_percent=percent)
         )
 
     def mark_retried(self, download_id: int) -> None:

@@ -29,6 +29,10 @@ JELLYFIN_ADMIN_TOKEN: Final = "jellyfin-admin-token"
 SESSION_COOKIE: Final = "__Host-shelfdrop"
 JELLYFIN_API_KEY: Final = "jellyfin-api-key-of-the-tests"
 QUI_KEY: Final = "qui-client-key-of-the-tests"
+# The libraries of the fake Jellyfin: their name, and their folder, `/files/<folder>` there and
+# `/data/files/<folder>` for the placement worker.
+LIBRARIES: Final = (("BD & Mangas", "comics"), ("Livres", "ebooks"), ("Livres audio", "audiobooks"))
+SEPARATOR: Final = " \u203a "
 FAKE_ORIGIN: Final = "http://fake-sources:8080"
 UP_TIMEOUT_SECONDS: Final = 900
 COMMAND_TIMEOUT_SECONDS: Final = 120
@@ -120,6 +124,14 @@ class Stack:
     def exec_api(self, *command: str) -> subprocess.CompletedProcess[str]:
         """Run `command` in the container of the API."""
         return compose(self.project, "exec", "-T", "api", *command)
+
+    def exec_placement(self, *command: str, root: bool = False) -> subprocess.CompletedProcess[str]:
+        """Run `command` in the container of the placement worker (as root with `root`), which
+        sees the torrents and the libraries of the tests under /data."""
+        user = ["--user", "0:0"] if root else []
+        result = compose(self.project, "exec", "-T", *user, "placement", *command)
+        assert result.returncode == 0, result.stderr
+        return result
 
 
 def stub_of(key: str, exchange: dict[str, Any]) -> dict[str, Any]:
@@ -293,11 +305,22 @@ def jellyfin_stubs() -> list[dict[str, Any]]:
     ]
     key = {"Authorization": {"contains": f'Token="{JELLYFIN_API_KEY}"'}}
     libraries = [
-        {"Name": "BD & Mangas", "CollectionType": "books", "Locations": ["/data/media/comics"]},
-        {"Name": "Livres", "CollectionType": "books", "Locations": ["/data/media/ebooks"]},
-        {"Name": "Livres audio", "CollectionType": "books", "Locations": ["/data/media/audio"]},
-        {"Name": "Films", "CollectionType": "movies", "Locations": ["/data/media/movies"]},
+        {
+            "Name": name,
+            "CollectionType": "books",
+            "ItemId": f"lib-{folder}",
+            "Locations": [f"/files/{folder}"],
+        }
+        for name, folder in LIBRARIES
     ]
+    libraries.append(
+        {
+            "Name": "Films",
+            "CollectionType": "movies",
+            "ItemId": "lib-movies",
+            "Locations": ["/movies"],
+        }
+    )
     stubs += [
         {
             "priority": 1,
@@ -608,6 +631,59 @@ WEBHOOK_PATH: Final = "/api/webhooks/1/token-of-the-tests"
 WEBHOOK: Final = f"{FAKE_ORIGIN}{WEBHOOK_PATH}"
 
 
+def jellyfin_library_stubs(folder: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The items of the library of `folder` of the fake Jellyfin (`GET /Items?parentId=`), each
+    readable and writable by its id, and the scans of the library."""
+    key = {"Authorization": {"contains": f'Token="{JELLYFIN_API_KEY}"'}}
+    stubs: list[dict[str, Any]] = [
+        {
+            "priority": 1,
+            "request": {
+                "method": "GET",
+                "urlPath": "/Items",
+                "headers": key,
+                "queryParameters": {"parentId": {"equalTo": f"lib-{folder}"}},
+            },
+            "response": json_response({"Items": items, "TotalRecordCount": len(items)}),
+        },
+        {
+            "priority": 1,
+            "request": {
+                "method": "POST",
+                "urlPath": f"/Items/lib-{folder}/Refresh",
+                "headers": key,
+            },
+            "response": {"status": 204},
+        },
+    ]
+    for item in items:
+        stubs += [
+            {
+                "priority": 1,
+                "request": {"method": "GET", "urlPath": f"/Items/{item['Id']}", "headers": key},
+                "response": json_response(item),
+            },
+            {
+                "priority": 1,
+                "request": {"method": "POST", "urlPath": f"/Items/{item['Id']}", "headers": key},
+                "response": {"status": 204},
+            },
+        ]
+    return stubs
+
+
+def wait_for_requests(
+    fake_sources: FakeSources, method: str, path: str, *, seconds: float = 30
+) -> list[dict[str, Any]]:
+    """The requests to `path` the fake received, once there is one; read again without
+    sleeping, `seconds` at most."""
+    deadline = time.monotonic() + seconds
+    found: list[dict[str, Any]] = []
+    while time.monotonic() < deadline and not found:
+        found = fake_sources.requests(method, path)
+    return found
+
+
 def discord_stub() -> dict[str, Any]:
     """The webhook of Discord the journal posts on: every message taken (`200` and its id)."""
     return {
@@ -636,11 +712,8 @@ def wait_for_messages(
     deadline = time.monotonic() + seconds
     found: list[dict[str, Any]] = []
     while time.monotonic() < deadline:
-        found = [
-            payload_of(r)
-            for r in fake_sources.requests("POST", WEBHOOK_PATH)
-            if contains in str(r["body"])
-        ]
+        payloads = [payload_of(r) for r in fake_sources.requests("POST", WEBHOOK_PATH)]
+        found = [p for p in payloads if contains in json.dumps(p, ensure_ascii=False)]
         if len(found) >= count:
             return found
     return found
@@ -677,3 +750,63 @@ def events(client: httpx.Client, search_id: str) -> list[tuple[str, dict[str, An
                 if name == "end":
                     break
     return found
+
+
+def send_completed(
+    client: httpx.Client,
+    fake_sources: FakeSources,
+    *,
+    name: str,
+    kind: str,
+    content_path: str,
+    volumes: dict[str, Any],
+    author: str,
+    title: str | None = None,
+) -> tuple[dict[str, Any], str]:
+    """A release of the work `name` searched, sent, then complete in qBittorrent, its files at
+    `content_path`: the placement worker takes it from there. The download and its hash."""
+    from shelfdrop.utils.torrent import torrent_id
+    from tests.unit.support import torrent_file
+
+    categories = {"manga": [7030], "ebook": [7020], "audiobook": [3030]}[kind]
+    link = name.lower().replace(" ", "-")
+    data = torrent_file(name)
+    digest = torrent_id(data)
+    assert digest is not None
+    fake_sources.load(
+        [
+            prowlarr_search_stub(
+                name,
+                categories,
+                [
+                    prowlarr_release(
+                        f"https://nyaa.test/view/{link}",
+                        title or f"{name.replace(' ', '.')}.FRENCH",
+                        link,
+                    )
+                ],
+            ),
+            prowlarr_download_stub(1, link, data),
+            *torrent_stubs(
+                digest,
+                name,
+                complete={"state": "stalledUP", "progress": 1.0, "content_path": content_path},
+            ),
+        ]
+    )
+    search = run_search(client, {"mode": "work", "kind": kind, "title": name, "names": [name]})
+    sent = client.post(
+        "/api/v1/downloads",
+        json={
+            "search_id": search["progress"]["id"],
+            "work_id": None,
+            "author": author,
+            "series": name,
+            "releases": [{"id": search["releases"][0]["id"], "volumes": volumes}],
+        },
+    )
+    assert sent.status_code == 200, sent.text
+    download: dict[str, Any] = sent.json()["downloads"][0]
+    wait_for_download(client, download["id"], lambda d: d["progress"]["state"] != "waiting")
+    fake_sources.post(f"/tests/complete/{digest}")
+    return download, digest

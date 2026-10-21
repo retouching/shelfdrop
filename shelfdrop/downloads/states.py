@@ -35,9 +35,11 @@ def is_complete(info: TorrentInfo) -> bool:
 
 
 def finished(download: Download) -> Progress:
-    """A download qBittorrent has all of: an automatic one waits for its placement, a manual
-    one is placed by hand."""
-    return Progress(state="placing" if download.mode == "auto" else "to_place")
+    """A download qBittorrent has all of: an automatic one waits for its placement (the percent
+    of its merge of MP3 tracks while it runs), a manual one is placed by hand."""
+    if download.mode == "manual":
+        return Progress(state="to_place", unplaced="manual")
+    return Progress(state="placing", percent=download.placing_percent)
 
 
 def progress_of(download: Download, info: TorrentInfo | None) -> Progress:
@@ -46,6 +48,10 @@ def progress_of(download: Download, info: TorrentInfo | None) -> Progress:
     match download.stage:
         case "failed":
             return Progress(state="failed", reason=download.failure or "not_received")
+        case "placed":
+            return Progress(state="placed", destination=download.destination)
+        case "unplaced":
+            return Progress(state="to_place", unplaced=download.unplaced)
         case "completed":
             return finished(download)
         case "sending":

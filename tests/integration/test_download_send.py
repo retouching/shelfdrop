@@ -103,12 +103,12 @@ def test_a_release_of_a_work_is_sent_with_what_it_is_for_and_found_by_its_hash(
     assert len(adds) == 1
     assert 'name="category"\r\n\r\nmanga\r\n' in adds[0]["body"]
     assert PROWLARR_KEY not in stack.api_logs()
-    # Done: its torrent completes, the download waits for its placement.
+    # Done: its torrent completes, the placement takes it (a torrent of no file here: to place).
     fake_sources.post(f"/tests/complete/{digest}")
     done = wait_for_download(
         client, created["id"], lambda d: d["progress"]["state"] != "downloading"
     )
-    assert done["progress"]["state"] == "placing"
+    assert done["progress"]["state"] in ("placing", "to_place")
 
 
 @pytest.mark.usefixtures("qbittorrent_saved")

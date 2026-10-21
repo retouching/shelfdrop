@@ -36,8 +36,9 @@ class Download(Base):
     # `auto` (shelved alone) or `manual` (to place by hand), and its category of qBittorrent.
     mode: Mapped[str] = mapped_column(String(10))
     category: Mapped[str] = mapped_column(String(64))
-    # `sending`, `sent` (found in qBittorrent by its hash), `completed` or `failed`, with its
-    # reason (`not_received`, `duplicate`).
+    # `sending`, `sent` (found in qBittorrent by its hash), `completed`, `placed` (on the
+    # shelf), `unplaced` (to place in Ranger) or `failed`, with its reason (`not_received`,
+    # `duplicate`).
     stage: Mapped[str] = mapped_column(String(10), index=True)
     failure: Mapped[str | None] = mapped_column(String(20))
     # Sends to qBittorrent, the first one and each retry.
@@ -49,3 +50,10 @@ class Download(Base):
     added_at: Mapped[int | None] = mapped_column(Integer)
     sent_at: Mapped[int | None] = mapped_column(Integer)
     completed_at: Mapped[int | None] = mapped_column(Integer)
+    # The placement of a download complete: where it went (the library, then the series), or why it
+    # was not placed alone (`chapters`, `no_volume`...: placed by hand in Ranger), the percent of
+    # its merge of MP3 tracks while it runs, and when it ended.
+    destination: Mapped[str | None] = mapped_column(String(300))
+    unplaced: Mapped[str | None] = mapped_column(String(20))
+    placing_percent: Mapped[int | None] = mapped_column(Integer)
+    placed_at: Mapped[int | None] = mapped_column(Integer)

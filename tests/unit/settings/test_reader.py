@@ -64,3 +64,23 @@ def test_a_secret_sealed_under_another_key_reads_as_unset() -> None:
 
     assert reader.opened("prowlarr.api_key", sealed) is None
     assert reader.opened("jellyfin.api_key", sealed) == "abc"
+
+
+@pytest.mark.anyio
+async def test_the_placement_reads_its_libraries_and_its_switches() -> None:
+    reader = FakeSettingsReader(
+        {"placement.library.manga": "/data/media/comics", "placement.merge_mp3": False},
+        {"discord.webhook": "https://discord.test/api/webhooks/1/t"},
+    )
+
+    assert await reader.libraries() == {
+        "manga": "/data/media/comics",
+        "ebook": "/data/files/ebooks",
+        "audiobook": "/data/files/audiobooks",
+    }
+    assert await reader.merge_mp3() is False
+    assert await reader.covers() is True
+    assert await reader.lock_jellyfin() is True
+    webhook, events = await reader.discord()
+    assert webhook == "https://discord.test/api/webhooks/1/t"
+    assert "found" in events

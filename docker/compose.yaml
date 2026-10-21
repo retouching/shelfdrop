@@ -32,5 +32,33 @@ services:
       retries: 3
       start_period: 10s
 
+  # The placement worker: the one process that writes in the libraries (ADR 0016). The same
+  # image; the torrents and the libraries in one mount, so that a hardlink stays on one file
+  # system; the database of the API under another path, so that nothing is mounted inside the
+  # libraries.
+  placement:
+    image: shelfdrop-api:local
+    restart: unless-stopped
+    command: ["shelfdrop", "placement", "run"]
+    # The user of the image, in the group that owns the torrents and the libraries: a hardlink
+    # of a file of qBittorrent needs to read and write it (fs.protected_hardlinks).
+    user: "10001:${SHELFDROP_LIBRARY_GID:-1000}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      SHELFDROP_CONTACT: ${SHELFDROP_CONTACT:?set SHELFDROP_CONTACT in .env}
+      SHELFDROP_SECRET_KEY: ${SHELFDROP_SECRET_KEY:?set SHELFDROP_SECRET_KEY in .env}
+      SHELFDROP_LOG_LEVEL: ${SHELFDROP_LOG_LEVEL:-INFO}
+      SHELFDROP_DATA_DIR: /var/lib/shelfdrop
+    volumes:
+      - data:/var/lib/shelfdrop
+      - ${SHELFDROP_MEDIA_DIR:-../.data/media}:/data
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   data:

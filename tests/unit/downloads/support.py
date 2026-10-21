@@ -111,6 +111,26 @@ class FakeDownloadRepository(DownloadRepository):
         return done
 
     @override
+    def read_sent(self) -> list[Download]:
+        return [d for d in self.rows.values() if d.stage == "sent" and d.info_hash]
+
+    @override
+    def read_to_place(self) -> list[Download]:
+        return [d for d in self.rows.values() if d.stage == "completed" and d.mode == "auto"]
+
+    @override
+    def mark_placed(self, download_id: int, destination: str, now: int) -> None:
+        self.change(download_id, stage="placed", destination=destination, placing_percent=None)
+
+    @override
+    def mark_unplaced(self, download_id: int, reason: str, now: int) -> None:
+        self.change(download_id, stage="unplaced", unplaced=reason, placing_percent=None)
+
+    @override
+    def mark_placing(self, download_id: int, percent: int) -> None:
+        self.change(download_id, placing_percent=percent)
+
+    @override
     def mark_retried(self, download_id: int) -> None:
         row = self.rows[download_id]
         self.change(download_id, stage="sending", failure=None, attempts=row.attempts + 1)

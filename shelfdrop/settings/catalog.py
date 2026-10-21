@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from shelfdrop.settings.types import Entry, SettingValue
-from shelfdrop.works.types import SourceName
+from shelfdrop.works.types import Kind, SourceName
 
 # The services shelfdrop calls: an address and an API key each.
 SERVICES: Final = ("prowlarr", "qbittorrent", "jellyfin")
@@ -34,6 +34,14 @@ EVENTS: Final = (
     "login",
     "found",
 )
+# The libraries of each kind, as the container sees them (plan section 4: one mount of
+# /mnt/storage/data on /data, the torrents and the libraries on one file system).
+LIBRARIES: Final[dict[Kind, str]] = {
+    "manga": "/data/files/comics",
+    "ebook": "/data/files/ebooks",
+    "audiobook": "/data/files/audiobooks",
+}
+PATH_MAX_LENGTH: Final = 500
 ADDRESS: Final = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d+)?(/\S*)?$")
 SECRET_MAX_LENGTH: Final = 1000
 
@@ -44,6 +52,13 @@ VALUES: Final[Mapping[str, Entry]] = {
     "search.release_cache_minutes": Entry(kind="number", default=10, minimum=0, maximum=1440),
     "search.work_cache_hours": Entry(kind="number", default=24, minimum=0, maximum=720),
     **{f"discord.events.{event}": Entry(kind="switch", default=True) for event in EVENTS},
+    **{
+        f"placement.library.{kind}": Entry(kind="path", default=path)
+        for kind, path in LIBRARIES.items()
+    },
+    "placement.merge_mp3": Entry(kind="switch", default=True),
+    "placement.covers": Entry(kind="switch", default=True),
+    "placement.lock_jellyfin": Entry(kind="switch", default=True),
 }
 SECRETS: Final = frozenset(
     {
@@ -66,7 +81,22 @@ def is_valid(entry: Entry, value: SettingValue) -> bool:
                 and not isinstance(value, bool)
                 and (entry.minimum is None or value >= entry.minimum)
                 and (entry.maximum is None or value <= entry.maximum)
+                and (entry.choices is None or value in entry.choices)
             )
+        case "path":
+            return isinstance(value, str) and is_path(value)
+
+
+def is_path(value: str) -> bool:
+    """An absolute path of the container: printable, without `..` nor a trailing slash."""
+    parts = value.split("/")
+    return (
+        0 < len(value) <= PATH_MAX_LENGTH
+        and value.startswith("/")
+        and value.isprintable()
+        and ".." not in parts
+        and (value == "/" or not value.endswith("/"))
+    )
 
 
 def invalid_keys(

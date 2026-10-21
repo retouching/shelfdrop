@@ -65,3 +65,14 @@ Every process records its events in `events` as they happen (`shelfdrop.journal.
 2. **The message.** One embed (`shelfdrop.journal.embeds`): the French title of its type and its subject, the color of its type (the Radix palette of the pages), its fields, a link to `SHELFDROP_PUBLIC_URL`, the footer `shelfdrop` and the time of its last event. A cover recorded with an event (JPEG, PNG or WebP, 8 MB at most) is joined to the message (`attachment://cover.jpg`).
 3. **The limits.** 5 messages a look, a look every 5 seconds; a `429` waits the seconds Discord asks (a minute at most) and the batch stays; a message that fails 3 times is dropped and logged. Without a webhook, or with its type switched off (`discord.events.<type>`), a batch is `skipped`.
 4. **What goes there.** Never a secret nor a download link; a sign-in refused names its address and the country Cloudflare gives it (`CF-IPCountry`), never the name typed.
+
+## Placement
+The worker `shelfdrop placement run` ([ADR 0016](adr/0016-placement.md)) runs a round every 30 seconds (`PlacementService.round`):
+
+1. **The end.** The downloads `sent` qBittorrent has all of are `completed`, and each end goes once to the journal (`downloaded`), as when the page reads them.
+2. **The files.** Each automatic download `completed`: its files are the `content_path` of its torrent in qBittorrent; none there: `missing_files`.
+3. **The shelf compared.** A manga: the folder of its series is read, a volume there left (« Déjà présents »); a release in chapters is left to Ranger (`chapters`); a book without a volume read: `no_volume`. A book or an audiobook: a volume whose folder holds one is left; no author: `unknown_author`.
+4. **The links.** Each file missing is hardlinked under its name of the shelf; nothing is replaced. The cover of a series without one: the first page of its first volume. The MP3 tracks of an audiobook: merged by ffmpeg into one M4B, its chapters one a track, its cover (the torrent, the tracks, the sources); the tracks of the shelf removed once merged; the page shows the percent.
+5. **After.** The tag `placé` in qBittorrent, the scan of the library in Jellyfin, the download `placed` with its destination, the event `placed` with the cover; not placed: `to_place` with its reason (`failed` too for a link refused or a merge failed).
+6. **The lock.** Each file placed that Jellyfin lists now (by its path, its library found by the name of its folder): its name, its series, its number and its authors set, `Name` and `Cast` locked.
+7. **The writes asked.** The `cover.jpg` the page chose, written in the folder of its series.

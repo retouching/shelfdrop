@@ -33,6 +33,8 @@ PARTS: Final = {
     "test_download_retry.py": "downloads",
     "test_download_manual.py": "downloads",
     "test_journal.py": "journal",
+    "test_placement_comics.py": "placement",
+    "test_placement_audio.py": "placement",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -56,6 +58,8 @@ FILE_BLOCKS: Final = {
     "test_download_follow.py": "downloads_follow",
     "test_download_retry.py": "downloads_retry",
     "test_download_manual.py": "downloads_manual",
+    "test_placement_comics.py": "placement_comics",
+    "test_placement_audio.py": "placement_audio",
 }
 
 

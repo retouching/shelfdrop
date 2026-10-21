@@ -14,7 +14,13 @@ DEFAULT_STATIC_DIR: Final = Path(__file__).resolve().parent / "static"
 # The settings reserved for the test stack: `docker/compose.test.yaml` alone sets them, through
 # the environment of the process, and a `.env` file never does (ADR 0010).
 TEST_STACK_SETTINGS: Final = frozenset(
-    {"sources_origin", "source_rest_seconds", "send_check_seconds", "journal_batch_seconds"}
+    {
+        "sources_origin",
+        "source_rest_seconds",
+        "send_check_seconds",
+        "journal_batch_seconds",
+        "placement_every_seconds",
+    }
 )
 # The address of a service: http(s), a host, a port, a path.
 ADDRESS_PATTERN: Final = r"^https?://[A-Za-z0-9.-]+(:\d+)?(/.*)?$"
@@ -105,6 +111,8 @@ class Settings(BaseSettings):
     send_check_seconds: float = Field(default=8.0, ge=0, le=60)
     # Seconds the events of one batch of the journal wait for the others (ADR 0015).
     journal_batch_seconds: int = Field(default=30, ge=0, le=600)
+    # Seconds between two rounds of the placement worker.
+    placement_every_seconds: float = Field(default=30.0, ge=0.1, le=3600)
 
     @field_validator(
         "secret_key",
