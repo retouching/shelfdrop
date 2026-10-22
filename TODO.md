@@ -14,6 +14,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] Une page par section, où seule la vue change, pour avoir un vrai historique de navigation (retour / avance du navigateur, liens directs).
 - [ ] Catégories des indexeurs :
   - retirer le filtre sur le nom des releases (`cbz`, etc.) s'il existe ;
+  - si ce n'est pas déjà le cas, prendre les trackers depuis les indexeurs réels de Prowlarr, sans filtre ;
   - pouvoir choisir sur le site, pour chaque indexeur, la ou les catégories à utiliser et à quel type elles correspondent (par exemple Nyaa : « Literature » pour les mangas). Une ou plusieurs catégories par type.
 
 ## Interface
