@@ -35,3 +35,4 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] Faire le front en mobile first.
 - [ ] Les boutons n'ont parfois pas la même taille que les composants à côté.
 - [ ] Paramètres : aligner « Enregistré » et « Tout testé ».
+- [ ] Renommer la section « Métadonnées » en « Jellyfin ».
