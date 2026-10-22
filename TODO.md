@@ -26,6 +26,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 ## Documentation
 
 - [ ] Toute la doc (README, `docs/`, ADR, doc d'API) doit être écrite pour une utilisation générale de shelfdrop, pas pour notre installation : pas de domaine, de machine, d'adresse ou d'agent qui nous sont propres dans les descriptions (aujourd'hui : `docs/installation.md`, `docs/api.md`, `docs/configuration.md`, `docs/verified-facts.md`, `docs/hermes.md`, ADR 0002 et 0008, ainsi que « the user » partout). Nos valeurs vont au mieux en exemple clairement marqué comme tel.
+  - Même chose pour les outils autour : ne pas décrire Cloudflare, nginx, WireGuard, ufw… comme faisant partie de l'installation. **Docker est le seul outil à décrire** ; le reste (proxy, tunnel, pare-feu) se limite à ce que shelfdrop attend (en-têtes, taille des requêtes, délais), sans nommer de produit. Les services que l'app appelle elle-même (Prowlarr, qBittorrent, Jellyfin) restent documentés.
 
 ## Interface
 
