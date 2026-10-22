@@ -23,6 +23,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] Bibliothèque : voir un aperçu des fichiers rangés et pouvoir les télécharger depuis le site.
 - [ ] Pouvoir lire les logs depuis le site.
 - [ ] Prévoir un compte interne (admin propre à shelfdrop) pour se connecter quand Jellyfin n'est pas encore branché, et revoir les textes de la page de connexion en conséquence (aujourd'hui elle ne parle que du compte Jellyfin).
+- [ ] Fichiers non reconnus dans un torrent : quand le rangement ne sait pas à quoi correspond un fichier (tome, chapitre, piste…), pouvoir lui indiquer quoi en faire depuis le site, fichier par fichier, comme l'import manuel de Sonarr (choisir l'œuvre, le tome ou les chapitres, ou ignorer le fichier), puis ranger.
 
 ## Documentation
 
