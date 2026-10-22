@@ -22,6 +22,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] Journal Discord : ne plus mettre d'adresse IP dans les embeds (champ « Adresse IP » du message « Connexion »).
 - [ ] Bibliothèque : voir un aperçu des fichiers rangés et pouvoir les télécharger depuis le site.
 - [ ] Pouvoir lire les logs depuis le site.
+- [ ] Prévoir un compte interne (admin propre à shelfdrop) pour se connecter quand Jellyfin n'est pas encore branché, et revoir les textes de la page de connexion en conséquence (aujourd'hui elle ne parle que du compte Jellyfin).
 
 ## Documentation
 
