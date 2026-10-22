@@ -21,6 +21,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] Servir la vraie doc d'API générée par FastAPI (Swagger UI / ReDoc depuis l'OpenAPI) à la place de la page actuelle de `/api/docs`.
 - [ ] Journal Discord : ne plus mettre d'adresse IP dans les embeds (champ « Adresse IP » du message « Connexion »).
 - [ ] Bibliothèque : voir un aperçu des fichiers rangés et pouvoir les télécharger depuis le site.
+- [ ] Pouvoir lire les logs depuis le site.
 
 ## Interface
 
