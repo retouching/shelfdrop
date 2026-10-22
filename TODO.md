@@ -19,6 +19,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
   - si ce n'est pas déjà le cas, prendre les trackers depuis les indexeurs réels de Prowlarr, sans filtre ;
   - pouvoir choisir sur le site, pour chaque indexeur, la ou les catégories à utiliser et à quel type elles correspondent (par exemple Nyaa : « Literature » pour les mangas). Une ou plusieurs catégories par type.
 - [ ] Servir la vraie doc d'API générée par FastAPI (Swagger UI / ReDoc depuis l'OpenAPI) à la place de la page actuelle de `/api/docs`.
+- [ ] Journal Discord : ne plus mettre d'adresse IP dans les embeds (champ « Adresse IP » du message « Connexion »).
 
 ## Interface
 
