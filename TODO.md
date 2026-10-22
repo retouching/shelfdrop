@@ -8,6 +8,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] La fenêtre de la fiche d'une série a un double scroll.
 - [ ] La recherche ne doit pas partir quand la barre de recherche est vide.
 - [ ] Quand on quitte la page de recherche puis qu'on y revient, ne pas garder la recherche précédente, ou alors la garder sans la relancer.
+- [ ] Pouvoir effacer toute la recherche (texte, filtres et résultats), pas seulement le texte tapé.
 
 ## Fonctionnalités
 
