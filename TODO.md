@@ -36,3 +36,4 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] Les boutons n'ont parfois pas la même taille que les composants à côté.
 - [ ] Paramètres : aligner « Enregistré » et « Tout testé ».
 - [ ] Renommer la section « Métadonnées » en « Jellyfin ».
+- [ ] Catégories : renommer « Manga » en « Manga & BD ».
