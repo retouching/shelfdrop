@@ -23,6 +23,10 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] Bibliothèque : voir un aperçu des fichiers rangés et pouvoir les télécharger depuis le site.
 - [ ] Pouvoir lire les logs depuis le site.
 
+## Documentation
+
+- [ ] Toute la doc (README, `docs/`, ADR, doc d'API) doit être écrite pour une utilisation générale de shelfdrop, pas pour notre installation : pas de domaine, de machine, d'adresse ou d'agent qui nous sont propres dans les descriptions (aujourd'hui : `docs/installation.md`, `docs/api.md`, `docs/configuration.md`, `docs/verified-facts.md`, `docs/hermes.md`, ADR 0002 et 0008, ainsi que « the user » partout). Nos valeurs vont au mieux en exemple clairement marqué comme tel.
+
 ## Interface
 
 - [ ] Faire le front en mobile first.
