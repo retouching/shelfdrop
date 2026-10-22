@@ -7,6 +7,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [ ] `GET /api/v1/library/series/<id>` répond 503.
 - [ ] La fenêtre de la fiche d'une série a un double scroll.
 - [ ] La recherche ne doit pas partir quand la barre de recherche est vide.
+- [ ] Quand on quitte la page de recherche puis qu'on y revient, ne pas garder la recherche précédente, ou alors la garder sans la relancer.
 
 ## Fonctionnalités
 
