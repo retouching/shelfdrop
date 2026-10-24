@@ -42,6 +42,7 @@ from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
 from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from shelfdrop.http.openapi import DocumentedApi
 from shelfdrop.journal.service import JournalSender
+from shelfdrop.library.sync import LibrarySync
 from shelfdrop.logging.setup import configure_logging
 from shelfdrop.modules.docs.router import router as docs_router
 from shelfdrop.modules.downloads.router import router as downloads_router
@@ -101,6 +102,7 @@ def build_app(settings: Settings) -> FastAPI:
         monitor = await container.get(ConnectionMonitor)
         journal = await container.get(JournalSender)
         waiting = await container.get(WaitingRunner)
+        library_sync = await container.get(LibrarySync)
         loops = [
             asyncio.create_task(monitor.run()),
             asyncio.create_task(journal.run()),
@@ -116,6 +118,7 @@ def build_app(settings: Settings) -> FastAPI:
                 with contextlib.suppress(asyncio.CancelledError):
                     await loop
             await sender.close()
+            await library_sync.close()
 
     app = DocumentedApi(
         lifespan=lifespan,

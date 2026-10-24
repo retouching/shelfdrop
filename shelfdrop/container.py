@@ -31,6 +31,7 @@ from shelfdrop.journal.repository import event_repository_factory
 from shelfdrop.journal.service import DiscordSettings, Journal, JournalSender
 from shelfdrop.journal.types import JournalOptions
 from shelfdrop.library.service import LibraryReader, LibraryService, LibrarySettings
+from shelfdrop.library.sync import LibrarySync
 from shelfdrop.placement.audio import AudioTools
 from shelfdrop.placement.byhand import HandPlacement, HandSettings
 from shelfdrop.placement.repository import placement_repository_factory
@@ -353,6 +354,12 @@ def new_library_reader(jellyfin: JellyfinClient, settings: LibrarySettings) -> L
     return LibraryReader(jellyfin, settings)
 
 
+def new_library_sync(reader: LibraryReader, engine: Engine, clock: Clock) -> LibrarySync:
+    """The sync of the metadata to Jellyfin (a singleton: it runs in the background and keeps
+    its state), on sessions of its own."""
+    return LibrarySync(reader, placement_repository_factory(engine), clock)
+
+
 def as_library_volumes(reader: LibraryReader) -> LibraryVolumes:
     return reader
 
@@ -561,6 +568,7 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(BoardSearcher),
         wireup.injectable(as_release_searcher),
         wireup.injectable(new_library_reader),
+        wireup.injectable(new_library_sync),
         wireup.injectable(as_library_volumes),
         wireup.injectable(as_waiting_settings),
         wireup.injectable(as_waiting_events),

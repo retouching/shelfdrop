@@ -8,9 +8,21 @@ import httpx
 import pytest
 
 from shelfdrop.clients.jellyfin import JellyfinClient
-from shelfdrop.library.exceptions import ImageRefusedError, SeriesNotFoundError
-from shelfdrop.library.service import LibraryService, series_folder
-from shelfdrop.library.types import ItemImage, LinkImage, ScanOrder, SentImage, SeriesChange
+from shelfdrop.library.exceptions import (
+    ImageRefusedError,
+    LibraryUnavailableError,
+    SeriesNotFoundError,
+    VolumeNotFoundError,
+)
+from shelfdrop.library.service import LibraryService, missing_numbers, series_folder
+from shelfdrop.library.types import (
+    ItemImage,
+    LinkImage,
+    ScanOrder,
+    SentImage,
+    SeriesChange,
+    VolumeChange,
+)
 from shelfdrop.works.exceptions import NoSourceAnsweredError
 from shelfdrop.works.types import Kind, Work, WorkSearch
 from tests.unit.clients.support import API_KEY, FakeJellyfin
@@ -86,6 +98,7 @@ def shelf() -> FakeJellyfin:
         items={i["Id"]: i for i in items}
         | {f"lib-{k}": {"Id": f"lib-{k}", "Type": "CollectionFolder"} for k in ROOTS},
         images={"b1": JPEG},
+        files={"b1": b"x" * 2048, "b2": b"y" * 10},
     )
 
 
@@ -314,3 +327,120 @@ async def test_a_scan_targets_a_series_a_library_or_every_library() -> None:
     ]
     assert jellyfin.refreshed[1][1]["replaceAllMetadata"] == "true"
     assert await service.scanning() == {"manga": None, "ebook": None, "audiobook": None}
+
+
+def test_the_numbers_missing_are_the_gaps_up_to_the_highest_held() -> None:
+    assert missing_numbers([1, 2, 5, None, 2]) == (3, 4)
+    assert missing_numbers([None]) == ()
+    assert missing_numbers([]) == ()
+
+
+@pytest.mark.anyio
+async def test_the_volumes_of_a_series_come_with_their_file_and_the_numbers_missing() -> None:
+    jellyfin = shelf()
+    jellyfin.items["b4"] = item(
+        "b4", "Book", "/files/comics/Berserk/Berserk - T04.cbz", "lib-manga"
+    )
+    service, _ = service_of(jellyfin)
+
+    found = await service.volumes("berserk")
+
+    assert found.series.id == "berserk"
+    assert [(v.id, v.number, v.file_name, v.size) for v in found.volumes] == [
+        ("b1", 1, "Berserk - T01.cbz", 2048),
+        ("b2", 2, "Berserk - T02.cbz", 10),
+        # No number in Jellyfin; its file says 4. Jellyfin has no file for it: no size.
+        ("b4", None, "Berserk - T04.cbz", None),
+    ]
+    assert found.volumes[0].authors == ("Kentaro Miura",)
+    assert found.volumes[0].has_image
+    assert found.missing == (3,)
+    with pytest.raises(SeriesNotFoundError):
+        await service.volumes("b1")
+
+
+@pytest.mark.anyio
+async def test_the_file_of_a_volume_is_read_from_jellyfin_and_no_other_item() -> None:
+    service, _ = service_of(shelf())
+
+    found = await service.download("b1")
+    data = b"".join([chunk async for chunk in found.file.chunks])
+
+    assert (found.name, data, found.file.size) == ("Berserk - T01.cbz", b"x" * 2048, 2048)
+    # A folder, a library, an unknown id: never asked of Jellyfin.
+    for item_id in ("berserk", "lib-manga", "nope"):
+        with pytest.raises(VolumeNotFoundError):
+            await service.download(item_id)
+
+
+@pytest.mark.anyio
+async def test_a_volume_jellyfin_has_no_file_for_is_not_found_and_jellyfin_down_unavailable() -> (
+    None
+):
+    jellyfin = shelf()
+    service, _ = service_of(jellyfin)
+
+    del jellyfin.files["b2"]
+    with pytest.raises(VolumeNotFoundError):
+        await service.download("b2")
+    jellyfin.down = True
+    with pytest.raises(LibraryUnavailableError):
+        await service.download("b1")
+
+
+def volume_change(**fields: Any) -> VolumeChange:
+    values: dict[str, Any] = {
+        "name": "Berserk - T02 - Le Guerrier noir",
+        "number": 2,
+        "summary": "Guts.",
+        "authors": ("Kentaro Miura", "Studio Gaga"),
+        "lock": True,
+        "image": None,
+    }
+    return VolumeChange(**(values | fields))
+
+
+@pytest.mark.anyio
+async def test_a_volume_change_sets_its_fields_locked_its_image_and_reads_it_again() -> None:
+    jellyfin = shelf()
+    jellyfin.items["b2"]["People"] = [
+        {"Name": "Old", "Type": "Author"},
+        {"Name": "X", "Type": "Translator"},
+    ]
+    service, _ = service_of(jellyfin)
+
+    changed = await service.change_volume(
+        "b2", volume_change(number=3, image=LinkImage(url="https://x.test/c.jpg"))
+    )
+
+    volume = jellyfin.items["b2"]
+    assert (volume["Name"], volume["IndexNumber"], volume["Overview"]) == (
+        "Berserk - T02 - Le Guerrier noir",
+        3,
+        "Guts.",
+    )
+    assert volume["People"] == [
+        {"Name": "Kentaro Miura", "Type": "Author", "Role": ""},
+        {"Name": "Studio Gaga", "Type": "Author", "Role": ""},
+        {"Name": "X", "Type": "Translator"},
+    ]
+    assert volume["LockedFields"] == ["Cast", "Name", "Overview"]
+    # Read back whole: the rest of the item stays.
+    assert volume["Path"] == "/files/comics/Berserk/Berserk - T02.cbz"
+    assert jellyfin.images["b2"] == JPEG
+    assert (changed.id, changed.number, changed.size) == ("b2", 3, 10)
+    unlocked = await service.change_volume("b1", volume_change(lock=False))
+    assert "LockedFields" not in jellyfin.items["b1"] or not jellyfin.items["b1"]["LockedFields"]
+    assert unlocked.name == "Berserk - T02 - Le Guerrier noir"
+
+
+@pytest.mark.anyio
+async def test_a_volume_change_refuses_a_folder_and_an_image_that_is_not_one() -> None:
+    jellyfin = shelf()
+    service, _ = service_of(jellyfin)
+
+    with pytest.raises(VolumeNotFoundError):
+        await service.change_volume("berserk", volume_change())
+    with pytest.raises(ImageRefusedError):
+        await service.change_volume("b2", volume_change(image=SentImage(data=b"<svg/>")))
+    assert jellyfin.items["b2"]["Name"] == "Berserk - T02.cbz"

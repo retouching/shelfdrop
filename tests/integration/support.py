@@ -720,6 +720,38 @@ def jellyfin_library_stubs(folder: str, items: list[dict[str, Any]]) -> list[dic
     return stubs
 
 
+def jellyfin_file_stubs(item_id: str, data: bytes) -> list[dict[str, Any]]:
+    """The file of an item of the fake Jellyfin (`GET /Items/{id}/Download`, F38): whole, and
+    its first byte alone with its size for `Range: bytes=0-0`."""
+    key = {"Authorization": {"contains": f'Token="{JELLYFIN_API_KEY}"'}}
+    path = f"/Items/{item_id}/Download"
+    headers = {"Content-Type": "application/octet-stream"}
+    return [
+        {
+            "priority": 1,
+            "request": {"method": "GET", "urlPath": path, "headers": key},
+            "response": {
+                "status": 200,
+                "base64Body": base64.b64encode(data).decode(),
+                "headers": headers,
+            },
+        },
+        {
+            "priority": 1,
+            "request": {
+                "method": "GET",
+                "urlPath": path,
+                "headers": {**key, "Range": {"equalTo": "bytes=0-0"}},
+            },
+            "response": {
+                "status": 206,
+                "base64Body": base64.b64encode(data[:1]).decode(),
+                "headers": {**headers, "Content-Range": f"bytes 0-0/{len(data)}"},
+            },
+        },
+    ]
+
+
 def wait_for_requests(
     fake_sources: FakeSources, method: str, path: str, *, seconds: float = 30
 ) -> list[dict[str, Any]]:

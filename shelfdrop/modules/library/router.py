@@ -1,9 +1,14 @@
-"""The routes of the page Jellyfin: the series of the libraries of Jellyfin, their images,
-what the sources propose, their changes, the summaries by batch, the scans."""
+"""The routes of the page Jellyfin: the series of the libraries of Jellyfin, their volumes,
+their files, their images, what the sources propose, their changes, the summaries by batch,
+the scans and the sync of the metadata."""
 
 import base64
+from typing import Final
+from urllib.parse import quote
 
 from fastapi import APIRouter, Query, Response
+from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
 from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
@@ -11,8 +16,10 @@ from shelfdrop.library.exceptions import (
     ImageRefusedError,
     LibraryUnavailableError,
     SeriesNotFoundError,
+    VolumeNotFoundError,
 )
 from shelfdrop.library.service import LibraryService
+from shelfdrop.library.sync import LibrarySync
 from shelfdrop.library.types import (
     ImageChoice,
     ItemImage,
@@ -20,8 +27,14 @@ from shelfdrop.library.types import (
     ScanOrder,
     SentImage,
     SeriesChange,
+    VolumeChange,
 )
-from shelfdrop.modules.library.errors import image_refused, jellyfin_unavailable, series_not_found
+from shelfdrop.modules.library.errors import (
+    image_refused,
+    jellyfin_unavailable,
+    series_not_found,
+    volume_not_found,
+)
 from shelfdrop.modules.library.schemas import (
     FilledRead,
     ImageBody,
@@ -32,9 +45,24 @@ from shelfdrop.modules.library.schemas import (
     SeriesChangeBody,
     SeriesRead,
     SummariesBody,
+    SyncBody,
+    SyncRead,
+    VolumeChangeBody,
+    VolumeRead,
+    VolumesRead,
 )
 
 router = APIRouter(prefix="/v1/library", tags=["library"], route_class=WireupRoute)
+
+# The characters a quoted file name keeps in the fallback `filename=` of a download.
+PLAIN: Final = frozenset(chr(c) for c in range(0x20, 0x7F)) - {'"', "\\"}
+
+
+def attachment(name: str) -> str:
+    """The `Content-Disposition` of a file: its name in ASCII, and whole in UTF-8 (RFC 6266,
+    RFC 5987)."""
+    fallback = "".join(c if c in PLAIN else "_" for c in name) or "file"
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 def image_of(body: ImageBody | None) -> ImageChoice | None:
@@ -96,6 +124,62 @@ async def change_series(
         raise jellyfin_unavailable() from exc
 
 
+@router.get("/series/{series_id}/volumes")
+async def read_volumes(series_id: str, service: Injected[LibraryService]) -> VolumesRead:
+    try:
+        return VolumesRead.model_validate(await service.volumes(series_id))
+    except SeriesNotFoundError as exc:
+        raise series_not_found() from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+
+
+@router.get(
+    "/items/{item_id}/file",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"application/octet-stream": {}}}},
+)
+async def read_file(item_id: str, service: Injected[LibraryService]) -> StreamingResponse:
+    """The file of a book or an audiobook, as Jellyfin sends it (`/Items/{id}/Download`)."""
+    try:
+        found = await service.download(item_id)
+    except VolumeNotFoundError as exc:
+        raise volume_not_found() from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+    headers = {"Content-Disposition": attachment(found.name)}
+    if found.file.size is not None:
+        headers["Content-Length"] = str(found.file.size)
+    return StreamingResponse(
+        found.file.chunks,
+        media_type=found.file.content_type,
+        headers=headers,
+        background=BackgroundTask(found.file.close),
+    )
+
+
+@router.put("/items/{item_id}")
+async def change_volume(
+    item_id: str, body: VolumeChangeBody, service: Injected[LibraryService]
+) -> VolumeRead:
+    change = VolumeChange(
+        name=body.name.strip(),
+        number=body.number,
+        summary=body.summary.strip(),
+        authors=tuple(a.strip() for a in body.authors if a.strip()),
+        lock=body.lock,
+        image=image_of(body.image),
+    )
+    try:
+        return VolumeRead.model_validate(await service.change_volume(item_id, change))
+    except VolumeNotFoundError as exc:
+        raise volume_not_found() from exc
+    except ImageRefusedError as exc:
+        raise image_refused() from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+
+
 @router.get("/items/{item_id}/image")
 async def read_image(
     item_id: str,
@@ -138,3 +222,20 @@ async def read_scan(service: Injected[LibraryService]) -> ScanRead:
         return ScanRead(progress=await service.scanning())
     except LibraryUnavailableError as exc:
         raise jellyfin_unavailable() from exc
+
+
+@router.post("/sync", status_code=202)
+async def start_sync(body: SyncBody, sync: Injected[LibrarySync]) -> SyncRead:
+    """The metadata of the files placed sent again to Jellyfin, in the background; while a
+    sync runs, its state alone."""
+    try:
+        return SyncRead.model_validate(await sync.start(body.series_id))
+    except SeriesNotFoundError as exc:
+        raise series_not_found() from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+
+
+@router.get("/sync")
+async def read_sync(sync: Injected[LibrarySync]) -> SyncRead:
+    return SyncRead.model_validate(sync.state())

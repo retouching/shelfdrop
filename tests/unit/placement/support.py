@@ -105,6 +105,10 @@ class FakePlacementRepository(PlacementRepository):
         return [f for f in self.files if not f.locked and f.created_at >= since]
 
     @override
+    def read_files(self) -> list[ShelfFile]:
+        return list(self.files)
+
+    @override
     def mark_locked(self, file_ids: Sequence[int]) -> None:
         self.files = [
             ShelfFile(**{**f.__dict__, "locked": True}) if f.id in file_ids else f

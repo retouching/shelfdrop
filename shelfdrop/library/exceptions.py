@@ -11,3 +11,7 @@ class LibraryUnavailableError(Exception):
 
 class ImageRefusedError(Exception):
     """The image chosen is not a JPEG, a PNG or a WebP of 5 MB at most, or was not read."""
+
+
+class VolumeNotFoundError(Exception):
+    """No book nor audiobook of a library of books of Jellyfin has this id."""

@@ -7,13 +7,20 @@ The password goes in the body of `POST /Users/AuthenticateByName` alone, never i
 """
 
 import base64
-from collections.abc import Mapping, Sequence
+import re
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any, Final
 
 import httpx
 
 from shelfdrop.clients.exceptions import ServiceError, ServiceNotConfiguredError
-from shelfdrop.clients.types import JellyfinItem, JellyfinLibrary, JellyfinLogin, JellyfinUser
+from shelfdrop.clients.types import (
+    JellyfinFile,
+    JellyfinItem,
+    JellyfinLibrary,
+    JellyfinLogin,
+    JellyfinUser,
+)
 
 CLIENT: Final = "shelfdrop"
 # The fields `GET /Items` adds to each item.
@@ -35,6 +42,8 @@ REFRESH_MODES: Final[Mapping[str, dict[str, str]]] = {
         "replaceAllImages": "true",
     },
 }
+# The total of `Content-Range: bytes 0-0/<total>`.
+CONTENT_RANGE: Final = re.compile(r"bytes \d+-\d+/(\d+)")
 
 
 def authorization(version: str, device_id: str, token: str | None) -> str:
@@ -107,6 +116,17 @@ def user_of(body: object) -> JellyfinUser:
         administrator=isinstance(policy, dict) and policy.get("IsAdministrator") is True,
         disabled=isinstance(policy, dict) and policy.get("IsDisabled") is True,
     )
+
+
+async def chunks_of(response: httpx.Response) -> AsyncIterator[bytes]:
+    """The body of a streamed answer, closed at its end; its failures raise ServiceError."""
+    try:
+        async for chunk in response.aiter_bytes():
+            yield chunk
+    except httpx.HTTPError as exc:
+        raise ServiceError(type(exc).__name__) from exc
+    finally:
+        await response.aclose()
 
 
 class JellyfinClient:
@@ -194,10 +214,14 @@ class JellyfinClient:
                 return user.id
         raise ServiceError("no administrator")
 
-    async def item(self, url: str | None, api_key: str | None, item_id: str) -> dict[str, Any]:
+    async def item(
+        self, url: str | None, api_key: str | None, item_id: str, user_id: str | None = None
+    ) -> dict[str, Any]:
         """`GET /Items/{id}?userId=`: the whole item, as `POST /Items/{id}` takes it back. With an
-        API key, Jellyfin needs the user it reads as (F26): an administrator."""
-        user_id = await self.administrator(url, api_key)
+        API key, Jellyfin needs the user it reads as (F26): an administrator, `user_id` when
+        the caller read it already (`administrator`), else read here."""
+        if user_id is None:
+            user_id = await self.administrator(url, api_key)
         body = await self.call(
             "GET", url, f"/Items/{item_id}", self.key_header(api_key), params={"userId": user_id}
         )
@@ -236,6 +260,56 @@ class JellyfinClient:
             content=base64.b64encode(data),
             content_type=content_type,
         )
+
+    async def download(self, url: str | None, api_key: str | None, item_id: str) -> JellyfinFile:
+        """`GET /Items/{id}/Download`: the file of a book or an audiobook, as it comes (F38).
+        Raises ServiceError (`status` 404 for an item it does not have)."""
+        response = await self.open_stream(url, f"/Items/{item_id}/Download", api_key, {})
+        if response.status_code != 200:
+            await response.aclose()
+            raise ServiceError(f"HTTP {response.status_code}", status=response.status_code)
+        length = response.headers.get("Content-Length")
+        return JellyfinFile(
+            content_type=response.headers.get("Content-Type", "application/octet-stream"),
+            size=int(length) if length is not None and length.isdigit() else None,
+            chunks=chunks_of(response),
+            close=response.aclose,
+        )
+
+    async def file_size(self, url: str | None, api_key: str | None, item_id: str) -> int | None:
+        """The size of the file of an item: `GET /Items/{id}/Download` for its first byte alone
+        (`Range: bytes=0-0`, the total of its `Content-Range`), or the `Content-Length` of the
+        whole file when the range is not taken, never read (F38). None when Jellyfin tells
+        neither or does not answer."""
+        try:
+            response = await self.open_stream(
+                url, f"/Items/{item_id}/Download", api_key, {"Range": "bytes=0-0"}
+            )
+        except ServiceError:
+            return None
+        try:
+            if response.status_code == 206:
+                found = CONTENT_RANGE.fullmatch(response.headers.get("Content-Range", ""))
+                return int(found.group(1)) if found else None
+            length = response.headers.get("Content-Length", "")
+            return int(length) if response.status_code == 200 and length.isdigit() else None
+        finally:
+            await response.aclose()
+
+    async def open_stream(
+        self, url: str | None, path: str, api_key: str | None, headers: dict[str, str]
+    ) -> httpx.Response:
+        """A `GET` whose body is left unread; the caller closes it."""
+        header = self.key_header(api_key)
+        if not url:
+            raise ServiceNotConfiguredError("no address")
+        request = self.http.build_request(
+            "GET", f"{url.rstrip('/')}{path}", headers={"Authorization": header, **headers}
+        )
+        try:
+            return await self.http.send(request, stream=True)
+        except httpx.HTTPError as exc:
+            raise ServiceError(type(exc).__name__) from exc
 
     async def refresh(self, url: str | None, api_key: str | None, item_id: str, mode: str) -> None:
         """`POST /Items/{id}/Refresh` (a library, a folder or a book, and what it holds) in

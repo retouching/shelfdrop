@@ -238,6 +238,21 @@ The series of the libraries of books of Jellyfin (the library of each kind, foun
 ## GET /api/v1/library/series/{id}/proposals
 What the page proposes for a series: the images of its volumes (`volumes`: `item_id`, `label` « Tome 3 · CBZ »), then the covers and the summaries of the first work the sources find under its name (`covers`, `summaries`: `source`, and `url` or `text`; empty when no source answers), and `work_id`. `404 series_not_found`.
 
+## GET /api/v1/library/series/{id}/volumes
+A series (as `GET /api/v1/library/series` gives it), its volumes by number and the numbers missing: those between 1 and the highest held (by the number of a volume in Jellyfin, else in the name of its file) that no volume holds. Each volume: `id` (its item in Jellyfin), `type` (`Book`, `AudioBook`), `name`, `number` (`null` without one), `summary`, `authors`, `has_image`, `file_name`, `size` (bytes, `null` when Jellyfin does not tell it). `404 series_not_found`, `503 jellyfin_unavailable`.
+
+```json
+{"series": {"id": "f2c1...", "name": "Berserk", "...": "..."}, "volumes": [{"id": "9a0e...", "type": "Book",
+  "name": "Berserk - T01", "number": 1, "summary": "", "authors": ["Kentaro Miura"], "has_image": true,
+  "file_name": "Berserk - T01.cbz", "size": 73400320}], "missing": [2, 5]}
+```
+
+## GET /api/v1/library/items/{id}/file
+The file of a book or an audiobook of a library of a kind, as Jellyfin sends it (`GET /Items/{id}/Download`, streamed): its type, its length when Jellyfin gives it, `Content-Disposition: attachment` with its name (in ASCII, and whole in `filename*`). Any other item (a folder, a library, another library) is `404 volume_not_found`, never asked of Jellyfin; `503 jellyfin_unavailable`.
+
+## PUT /api/v1/library/items/{id}
+`{"name", "number": null, "summary": "", "authors": [], "lock": true, "image": null}`: the fields of a volume set in Jellyfin, its authors in place of those it had (its other people kept), locked with `lock` (`Name`, `Overview`, `Cast`); `image` as for a series, set on the volume. Answers the volume read again. `404 volume_not_found`, `422 image_refused`, `503 jellyfin_unavailable`.
+
 ## GET /api/v1/library/items/{id}/image?width=400
 The image Jellyfin holds for a series or a volume (50 to 2000 pixels wide), through the session of the page.
 
@@ -249,6 +264,9 @@ The fields of a series set in Jellyfin (`name`, `original_title`, `authors`, `ye
 
 ## POST /api/v1/library/scan, GET /api/v1/library/scan
 `POST {"mode": "new" | "missing" | "all", "kind": null, "series_id": null}` asks Jellyfin for a scan of a series, of the library of a kind, or of every library (`202`); `new` the new and changed files, `missing` the missing metadata and images, `all` everything replaced. Both answer the progress of the scan of each library, from 0 to 100, `null` when idle: `{"progress": {"manga": 42.5, "ebook": null}}`.
+
+## POST /api/v1/library/sync, GET /api/v1/library/sync
+`POST {"series_id": null}`: the metadata of the files placed by shelfdrop sent again to Jellyfin, for a series or for every library (`202`), in the background ([ADR 0016](adr/0016-placement.md)): the name, the series, the number, the sort and the authors of shelfdrop (over those of Jellyfin), `Name` and `Cast` locked; the images are left; whatever `placement.lock_jellyfin` says. While a sync runs, `POST` starts none and answers its state. Both answer the state of the last sync: `{"stage": "done", "series_id": null, "changed": 12, "unchanged": 30, "not_found": 1, "started_at": 1792598400, "ended_at": 1792598406}`; `stage`: `idle` (none since the start of the API), `running`, `done`, `failed`; `not_found`: the files placed Jellyfin does not list. `404 series_not_found`, `503 jellyfin_unavailable`.
 
 ## GET /api/v1/waiting
 The searches kept waiting ([ADR 0017](adr/0017-waiting.md)), the newest first, and the hours between two searches: `{"searches": [...], "every_hours": 6}`. Each: `id`, `work_id`, `title`, `author`, `kind`, `names`, `wanted` (`target` `any`, `volume` with `volume`, or `chapters` with `chapter_from` and `chapter_to`, `null` for every one after), `label` (« T03 », « Ch. 233 et suivants », « Toute release »), `state` (`waiting` or `found`, with `releases`), `attempts`, `created_at`, `created_by`, `searched_at`, `next_search_at` (Unix seconds).

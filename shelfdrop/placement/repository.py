@@ -107,6 +107,13 @@ class PlacementRepository:
         )
         return [file_of(row) for row in rows]
 
+    def read_files(self) -> list[ShelfFile]:
+        """Every file placed, in the order of their placement."""
+        return [
+            file_of(row)
+            for row in self.session.scalars(select(ShelfFileRow).order_by(ShelfFileRow.id))
+        ]
+
     def mark_locked(self, file_ids: Sequence[int]) -> None:
         self.session.execute(
             update(ShelfFileRow).where(ShelfFileRow.id.in_(file_ids)).values(locked=True)

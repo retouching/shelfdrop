@@ -81,6 +81,9 @@ class ErrorCode(StrEnum):
     JELLYFIN_UNAVAILABLE = "jellyfin_unavailable"
     # 404: no series of a library of books of Jellyfin has this id; data = null.
     SERIES_NOT_FOUND = "series_not_found"
+    # 404: no book nor audiobook of a library of books of Jellyfin has this id (any other
+    # item of Jellyfin is refused alike); data = null.
+    VOLUME_NOT_FOUND = "volume_not_found"
     # 404: no waiting search has this id (or it left the list); data = null.
     WAITING_NOT_FOUND = "waiting_not_found"
     # 404: no file of the page Ranger (`/items/{id}`), or of the shelf (`/shelf/{id}`), has

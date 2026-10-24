@@ -1,5 +1,6 @@
 """What the clients of the services read from them."""
 
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 
 
@@ -69,3 +70,16 @@ class JellyfinItem:
     has_image: bool
     """Its `Primary` image."""
     index_number: int | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class JellyfinFile:
+    """The file of an item, read from `GET /Items/{id}/Download` as it comes."""
+
+    content_type: str
+    size: int | None
+    """Its `Content-Length`, None without one."""
+    chunks: AsyncIterator[bytes]
+    """Its bytes; raises ServiceError when Jellyfin stops sending them."""
+    close: Callable[[], Awaitable[None]]
+    """Closes the answer of Jellyfin (the end of `chunks` closes it too)."""

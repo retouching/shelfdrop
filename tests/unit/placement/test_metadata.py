@@ -1,6 +1,8 @@
 """shelfdrop.placement.metadata: the name, the series, the number and the authors of a file
 placed, set and locked in Jellyfin."""
 
+from dataclasses import replace
+
 from shelfdrop.placement.metadata import locked_item
 from shelfdrop.placement.types import ShelfFile
 
@@ -46,3 +48,25 @@ def test_a_chapter_alone_sorts_after_the_volumes_before_it_and_keeps_its_people(
     assert item["ForcedSortName"] == "Chainsaw Man - T22 ~ 0206.0"
     assert "IndexNumber" not in item
     assert item["People"] == people
+
+
+def test_a_forced_lock_replaces_the_authors_and_keeps_the_other_people() -> None:
+    body = {
+        "Id": "b1",
+        "People": [{"Name": "Fujimoto", "Type": "Author"}, {"Name": "X", "Type": "Translator"}],
+        "ImageTags": {"Primary": "t"},
+    }
+    placed = shelf_file("/s/Chainsaw Man/Chainsaw Man - T01.cbz", 1)
+
+    item = locked_item(body, placed, [1], forced=True)
+
+    assert item["People"] == [
+        {"Name": "Tatsuki Fujimoto", "Type": "Author", "Role": ""},
+        {"Name": "X", "Type": "Translator"},
+    ]
+    assert item["ImageTags"] == {"Primary": "t"}
+    # Not forced, the people of the item stay.
+    assert locked_item(body, placed, [1])["People"] == body["People"]
+    # Without an author on the shelf, the forced lock keeps those of the item.
+    alone = replace(placed, author="")
+    assert locked_item(body, alone, [1], forced=True)["People"] == body["People"]

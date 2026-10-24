@@ -3,9 +3,11 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from shelfdrop.clients.types import JellyfinFile
 from shelfdrop.works.types import Kind
 
 type ScanMode = Literal["new", "missing", "all"]
+type SyncStage = Literal["idle", "running", "done", "failed"]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -114,3 +116,69 @@ class ScanOrder:
     mode: ScanMode
     kind: Kind | None = None
     series_id: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class LibraryVolume:
+    """A book or an audiobook of a series, as Jellyfin holds it."""
+
+    id: str
+    type: str
+    """`Book` or `AudioBook`."""
+    name: str
+    number: int | None
+    """Its `IndexNumber`."""
+    summary: str
+    authors: tuple[str, ...]
+    has_image: bool
+    file_name: str
+    size: int | None
+    """The size of its file, None when Jellyfin does not tell it."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class SeriesVolumes:
+    """A series, its volumes by number, and the numbers missing: those between 1 and the
+    highest it has that none of its volumes holds."""
+
+    series: LibrarySeries
+    volumes: tuple[LibraryVolume, ...]
+    missing: tuple[int, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class VolumeChange:
+    """The fields of a volume set in Jellyfin, locked when asked, and its image."""
+
+    name: str
+    number: int | None
+    summary: str
+    authors: tuple[str, ...]
+    lock: bool
+    image: ImageChoice | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class VolumeFile:
+    """The file of a volume, read from Jellyfin as it comes."""
+
+    name: str
+    file: JellyfinFile
+
+
+@dataclass(frozen=True, kw_only=True)
+class SyncState:
+    """The sync of the metadata of the files placed to Jellyfin: the last one asked, in
+    memory (a restart forgets it)."""
+
+    stage: SyncStage
+    series_id: str | None = None
+    """The series it targets; None for every library."""
+    changed: int = 0
+    """The items written again."""
+    unchanged: int = 0
+    """The items that held these metadata already."""
+    not_found: int = 0
+    """The files placed that Jellyfin does not list."""
+    started_at: int | None = None
+    ended_at: int | None = None

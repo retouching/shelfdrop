@@ -16,10 +16,14 @@ def authors_of(author: str) -> list[str]:
     return [name.strip() for name in author.split(",") if name.strip()]
 
 
-def locked_item(body: dict[str, Any], placed: ShelfFile, volumes: Sequence[int]) -> dict[str, Any]:
+def locked_item(
+    body: dict[str, Any], placed: ShelfFile, volumes: Sequence[int], *, forced: bool = False
+) -> dict[str, Any]:
     """The whole item `body` (`GET /Items/{id}`) with the name of its file, its series, its
     number, its authors (when it has none) and its sort, and those fields locked; `volumes`:
-    the volumes of its series on the shelf, before which a chapter alone sorts."""
+    the volumes of its series on the shelf, before which a chapter alone sorts. `forced` (the
+    sync asked from the page Jellyfin): the authors of the shelf replace those of the item, its
+    other people kept. Its images are never touched."""
     item = dict(body)
     name = PurePosixPath(placed.path).stem
     item["Name"] = name
@@ -34,10 +38,14 @@ def locked_item(body: dict[str, Any], placed: ShelfFile, volumes: Sequence[int])
         item["SortName"] = item["ForcedSortName"] = chapter_sort_name(
             placed.series, after, placed.chapter
         )
-    if not item.get("People") and authors_of(placed.author):
-        item["People"] = [
-            {"Name": name, "Type": "Author", "Role": ""} for name in authors_of(placed.author)
+    authors = [{"Name": name, "Type": "Author", "Role": ""} for name in authors_of(placed.author)]
+    if forced and authors:
+        others = [
+            p for p in item.get("People") or [] if isinstance(p, dict) and p.get("Type") != "Author"
         ]
+        item["People"] = [*authors, *others]
+    elif not item.get("People") and authors:
+        item["People"] = authors
     locked = set(item.get("LockedFields") or []) | set(LOCKED)
     item["LockedFields"] = sorted(locked)
     return item

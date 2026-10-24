@@ -1,6 +1,7 @@
 """shelfdrop.clients.jellyfin: the requests of Jellyfin, in the shape of its API."""
 
 import json
+from collections.abc import AsyncIterator
 
 import httpx
 import pytest
@@ -280,3 +281,81 @@ async def test_a_refresh_sends_the_modes_of_its_scan(mode: str, expected: dict[s
     await client.refresh_libraries(URL, API_KEY)
 
     assert jellyfin.refreshed == [("lib-1", {"recursive": "true", **expected}), ("library", {})]
+
+
+@pytest.mark.anyio
+async def test_a_file_is_streamed_as_jellyfin_sends_it_and_closed_at_its_end() -> None:
+    data = bytes(range(256)) * 300
+    jellyfin = FakeJellyfin(items={"b1": book("b1", "/files/x.cbz")}, files={"b1": data})
+    client = new_client(jellyfin)
+
+    read = await client.download(URL, API_KEY, "b1")
+    chunks = [chunk async for chunk in read.chunks]
+
+    assert b"".join(chunks) == data
+    assert (read.content_type, read.size) == ("application/octet-stream", len(data))
+    [request] = jellyfin.requests
+    assert request.url.path == "/Items/b1/Download"
+    assert API_KEY in request.headers["Authorization"]
+
+
+@pytest.mark.anyio
+async def test_a_file_jellyfin_does_not_have_is_a_service_error_with_its_status() -> None:
+    jellyfin = FakeJellyfin(items={"b1": book("b1", "/files/x.cbz")})
+
+    with pytest.raises(ServiceError) as refused:
+        await new_client(jellyfin).download(URL, API_KEY, "b1")
+
+    assert refused.value.status == 404
+    with pytest.raises(ServiceNotConfiguredError):
+        await new_client(jellyfin).download(URL, None, "b1")
+
+
+@pytest.mark.anyio
+async def test_the_size_of_a_file_is_the_total_of_its_first_byte() -> None:
+    jellyfin = FakeJellyfin(items={"b1": book("b1", "/files/x.cbz")}, files={"b1": b"x" * 4096})
+    client = new_client(jellyfin)
+
+    assert await client.file_size(URL, API_KEY, "b1") == 4096
+    assert jellyfin.requests[0].headers["Range"] == "bytes=0-0"
+    # The range not taken: the length of the whole file, never read.
+    whole = httpx.MockTransport(
+        lambda r: httpx.Response(200, content=b"abc", headers={"Content-Length": "3"})
+    )
+    assert (
+        await JellyfinClient(httpx.AsyncClient(transport=whole), "0.3.0").file_size(
+            URL, API_KEY, "b1"
+        )
+        == 3
+    )
+    # Unknown: None, never an error.
+    assert await client.file_size(URL, API_KEY, "nope") is None
+    jellyfin.down = True
+    assert await client.file_size(URL, API_KEY, "b1") is None
+
+
+@pytest.mark.anyio
+async def test_an_item_read_with_its_administrator_asks_no_users() -> None:
+    jellyfin = FakeJellyfin(items={"b1": book("b1", "/files/x.cbz")})
+
+    await new_client(jellyfin).item(URL, API_KEY, "b1", ADMIN_ID)
+
+    assert jellyfin.paths() == ["/Items/b1"]
+
+
+class BrokenStream(httpx.AsyncByteStream):
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield b"first"
+        raise httpx.ReadError("cut")
+
+
+@pytest.mark.anyio
+async def test_a_file_cut_on_the_way_is_a_service_error() -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, stream=BrokenStream()))
+    client = JellyfinClient(httpx.AsyncClient(transport=transport), "0.3.0")
+
+    read = await client.download(URL, API_KEY, "b1")
+
+    with pytest.raises(ServiceError):
+        async for _ in read.chunks:
+            pass

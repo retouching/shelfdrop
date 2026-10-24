@@ -46,6 +46,9 @@ class FakeJellyfin:
     items: dict[str, dict[str, Any]] = field(default_factory=dict)
     """Every item (a `BaseItemDto`) by id, with the id of its library in `ParentId`."""
     images: dict[str, bytes] = field(default_factory=dict)
+    files: dict[str, bytes] = field(default_factory=dict)
+    """The file of a book or an audiobook (`/Items/{id}/Download`), by id; `Range: bytes=0-0`
+    gets its first byte and its size (`206`, `Content-Range`), as `PhysicalFile` sends it."""
     refreshed: list[tuple[str, dict[str, str]]] = field(default_factory=list)
     """The items refreshed (`/Library/Refresh`: `library`) and the parameters of each."""
     administrator: bool = True
@@ -107,10 +110,12 @@ class FakeJellyfin:
                 if item.get("LibraryId") == params.get("parentId") and item.get("Type") in types
             ]
             return httpx.Response(200, json={"Items": found}, request=request)
-        found_path = re.fullmatch(r"/Items/([^/]+)(/Images/Primary|/Refresh)?", path)
+        found_path = re.fullmatch(r"/Items/([^/]+)(/Images/Primary|/Refresh|/Download)?", path)
         if found_path is None or found_path.group(1) not in self.items:
             return httpx.Response(404, request=request)
         item_id, rest = found_path.group(1), found_path.group(2)
+        if rest == "/Download":
+            return self.download(request, item_id)
         if rest == "/Refresh":
             self.refreshed.append((item_id, params))
             return httpx.Response(204, request=request)
@@ -133,6 +138,20 @@ class FakeJellyfin:
             # Jellyfin 12 with an API key: "Guid can't be empty" (F26).
             return httpx.Response(400, request=request)
         return httpx.Response(200, json=self.items[item_id], request=request)
+
+    def download(self, request: httpx.Request, item_id: str) -> httpx.Response:
+        if item_id not in self.files:
+            return httpx.Response(404, request=request)
+        data = self.files[item_id]
+        name = self.items[item_id].get("Path", "").rsplit("/", 1)[-1]
+        headers = {
+            "Content-Type": "application/octet-stream",
+            "Content-Disposition": f'attachment; filename="{name}"',
+        }
+        if request.headers.get("Range") == "bytes=0-0":
+            headers["Content-Range"] = f"bytes 0-0/{len(data)}"
+            return httpx.Response(206, content=data[:1], headers=headers, request=request)
+        return httpx.Response(200, content=data, headers=headers, request=request)
 
     def paths(self) -> list[str]:
         return [request.url.path for request in self.requests]

@@ -1,7 +1,7 @@
-"""LibraryService: the page Jellyfin. The series of the libraries of books of Jellyfin, what
-the sources propose for them, their fields and their image set and locked, the scans; the
-`cover.jpg` of a series asked of the placement worker (the API never writes in the libraries,
-ADR 0016)."""
+"""LibraryService: the page Jellyfin. The series of the libraries of books of Jellyfin, their
+volumes and their files, what the sources propose for them, their fields and their image set
+and locked, the scans; the `cover.jpg` of a series asked of the placement worker (the API never
+writes in the libraries, ADR 0016)."""
 
 import logging
 from collections.abc import Callable, Coroutine, Mapping, Sequence
@@ -20,18 +20,23 @@ from shelfdrop.library.exceptions import (
     ImageRefusedError,
     LibraryUnavailableError,
     SeriesNotFoundError,
+    VolumeNotFoundError,
 )
 from shelfdrop.library.types import (
     ImageChoice,
     ItemImage,
     LibrarySeries,
+    LibraryVolume,
     LinkImage,
     ScanOrder,
     SentImage,
     SeriesChange,
     SeriesProposals,
+    SeriesVolumes,
     SourceCover,
     SourceSummary,
+    VolumeChange,
+    VolumeFile,
     VolumeImage,
 )
 from shelfdrop.placement.naming import file_volume
@@ -53,6 +58,8 @@ IMAGE_WIDTH: Final = 2000
 VOLUME_PROPOSALS: Final = 8
 # The fields of an item a change locks, when asked (`MetadataField`, F30).
 LOCKED: Final = ("Name", "Overview", "Genres", "Cast")
+# The sizes of the files of a series read at once.
+SIZE_READS: Final = 4
 EXTENSIONS: Final[Mapping[Kind, str]] = {"manga": "CBZ", "ebook": "EPUB", "audiobook": "M4B"}
 
 
@@ -132,6 +139,40 @@ def changed_item(
         item["Overview"] = change.summary
         if change.lock:
             locked |= {"Overview"}
+    item["LockedFields"] = sorted(locked)
+    return item
+
+
+def number_of(volume: JellyfinItem) -> int | None:
+    """Its number in Jellyfin, else in the name of its file."""
+    if volume.index_number is not None:
+        return volume.index_number
+    return file_volume(PurePosixPath(volume.path).stem)
+
+
+def missing_numbers(numbers: Sequence[int | None]) -> tuple[int, ...]:
+    """The numbers between 1 and the highest given that none of them is."""
+    held = {n for n in numbers if n is not None and n > 0}
+    return tuple(n for n in range(1, max(held, default=0) + 1) if n not in held)
+
+
+def changed_volume(body: dict[str, Any], change: VolumeChange) -> dict[str, Any]:
+    """The item of a volume read, with the fields of the change set, locked when asked; its
+    other people kept."""
+    item = dict(body)
+    item["Name"] = change.name
+    item["IndexNumber"] = change.number
+    item["Overview"] = change.summary
+    others = [
+        p for p in item.get("People") or [] if isinstance(p, dict) and p.get("Type") != "Author"
+    ]
+    item["People"] = [
+        *({"Name": a, "Type": "Author", "Role": ""} for a in change.authors),
+        *others,
+    ]
+    locked = set(item.get("LockedFields") or [])
+    if change.lock:
+        locked |= {"Name", "Overview", "Cast"}
     item["LockedFields"] = sorted(locked)
     return item
 
@@ -233,6 +274,16 @@ class LibraryReader:
                     return found, books
         raise SeriesNotFoundError(series_id)
 
+    async def volume(self, item_id: str) -> tuple[Shelf, JellyfinItem]:
+        """A book or an audiobook of a library of books, and its library; raises
+        VolumeNotFoundError (any other item of Jellyfin is never given)."""
+        url, key = await self.settings.jellyfin()
+        for shelf in await self.kinds():
+            for item in await self.jellyfin.items(url, key, shelf.item_id, VOLUME_TYPES):
+                if item.id == item_id and item.type in VOLUME_TYPES:
+                    return shelf, item
+        raise VolumeNotFoundError(item_id)
+
     @jellyfin_down
     async def volumes_of(self, kind: Kind, name: str) -> set[int]:
         """The numbers of the volumes of the series `name` (by its folder, whatever its case) in
@@ -244,13 +295,7 @@ class LibraryReader:
             items = await self.jellyfin.items(url, key, shelf.item_id, ITEM_TYPES)
             for found, books in self.grouped(items, shelf.location, kind):
                 if found.name.casefold() == name.casefold():
-                    numbers = (
-                        b.index_number
-                        if b.index_number is not None
-                        else file_volume(PurePosixPath(b.path).stem)
-                        for b in books
-                    )
-                    return {n for n in numbers if n is not None}
+                    return {n for n in (number_of(b) for b in books) if n is not None}
         return set()
 
 
@@ -293,6 +338,53 @@ class LibraryService(LibraryReader):
             summaries=tuple(SourceSummary(source=s, text=t) for s, t in work.summaries.items()),
             work_id=work.id,
         )
+
+    @jellyfin_down
+    async def volumes(self, series_id: str) -> SeriesVolumes:
+        """A series, its volumes with the size of their file, and the numbers missing."""
+        found, books = await self.series(series_id)
+        url, key = await self.settings.jellyfin()
+        sizes: dict[str, int | None] = {}
+        limiter = anyio.CapacityLimiter(SIZE_READS)
+
+        async def size(book: JellyfinItem) -> None:
+            async with limiter:
+                sizes[book.id] = await self.jellyfin.file_size(url, key, book.id)
+
+        async with anyio.create_task_group() as group:
+            for book in books:
+                group.start_soon(size, book)
+        return SeriesVolumes(
+            series=found,
+            volumes=tuple(volume_of(b, sizes.get(b.id)) for b in books),
+            missing=missing_numbers([number_of(b) for b in books]),
+        )
+
+    @jellyfin_down
+    async def download(self, item_id: str) -> VolumeFile:
+        """The file of a volume, as Jellyfin sends it; raises VolumeNotFoundError."""
+        _, found = await self.volume(item_id)
+        url, key = await self.settings.jellyfin()
+        try:
+            read = await self.jellyfin.download(url, key, item_id)
+        except ServiceError as exc:
+            if exc.status == 404:
+                raise VolumeNotFoundError(item_id) from exc
+            raise
+        return VolumeFile(name=PurePosixPath(found.path).name, file=read)
+
+    @jellyfin_down
+    async def change_volume(self, item_id: str, change: VolumeChange) -> LibraryVolume:
+        """The change of a volume, then the volume read again."""
+        await self.volume(item_id)
+        picture = await self.picture(change.image) if change.image is not None else None
+        url, key = await self.settings.jellyfin()
+        body = await self.jellyfin.item(url, key, item_id)
+        await self.jellyfin.update_item(url, key, item_id, changed_volume(body, change))
+        if picture is not None:
+            await self.jellyfin.set_image(url, key, item_id, *picture)
+        _, changed = await self.volume(item_id)
+        return volume_of(changed, await self.jellyfin.file_size(url, key, item_id))
 
     @jellyfin_down
     async def image(self, item_id: str, width: int) -> tuple[bytes, str]:
@@ -406,6 +498,20 @@ class LibraryService(LibraryReader):
     async def scanning(self) -> dict[Kind, float | None]:
         """The progress of the scan of the library of each kind (0 to 100), None when idle."""
         return {shelf.kind: shelf.library.refresh_progress for shelf in await self.kinds()}
+
+
+def volume_of(item: JellyfinItem, size: int | None) -> LibraryVolume:
+    return LibraryVolume(
+        id=item.id,
+        type=item.type,
+        name=item.name,
+        number=item.index_number,
+        summary=item.overview,
+        authors=item.authors,
+        has_image=item.has_image,
+        file_name=PurePosixPath(item.path).name,
+        size=size,
+    )
 
 
 def summary_change(text: str) -> SeriesChange:

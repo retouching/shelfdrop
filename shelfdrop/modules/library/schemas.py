@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-from shelfdrop.library.types import ScanMode
+from shelfdrop.library.types import ScanMode, SyncStage
 from shelfdrop.works.types import Kind
 
 type ShortText = Annotated[str, StringConstraints(max_length=300)]
@@ -123,3 +123,61 @@ class ScanBody(BaseModel):
 class ScanRead(BaseModel):
     # The progress of the scan of each library (0 to 100), null when idle.
     progress: dict[Kind, float | None]
+
+
+class VolumeRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    # The id of its item in Jellyfin: its image at /library/items/{id}/image, its file at
+    # /library/items/{id}/file.
+    id: str
+    # "Book" or "AudioBook".
+    type: str
+    name: str
+    # Its number (IndexNumber), null without one.
+    number: int | None
+    summary: str
+    authors: list[str]
+    has_image: bool
+    file_name: str
+    # The size of its file in bytes, null when Jellyfin does not tell it.
+    size: int | None
+
+
+class VolumesRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    series: SeriesRead
+    volumes: list[VolumeRead]
+    # The numbers between 1 and the highest held that no volume holds.
+    missing: list[int]
+
+
+class VolumeChangeBody(BaseModel):
+    name: ShortText = Field(min_length=1)
+    number: int | None = Field(default=None, ge=0, le=9999)
+    summary: str = Field(default="", max_length=10000)
+    authors: list[ShortText] = Field(default=[], max_length=20)
+    # The fields changed locked in Jellyfin (Name, Overview, Cast).
+    lock: bool = True
+    image: ImageBody | None = None
+
+
+class SyncBody(BaseModel):
+    # A series, or every library (null).
+    series_id: str | None = Field(default=None, max_length=64)
+
+
+class SyncRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    # "idle" (none since the start of the API), "running", "done", "failed".
+    stage: SyncStage
+    series_id: str | None
+    # The items written again, those that held these metadata, the files placed that
+    # Jellyfin does not list.
+    changed: int
+    unchanged: int
+    not_found: int
+    started_at: int | None
+    ended_at: int | None

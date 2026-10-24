@@ -83,6 +83,8 @@ The worker `shelfdrop placement run` ([ADR 0016](adr/0016-placement.md)) runs a 
 6. **The lock.** Each file placed that Jellyfin lists now (by its path, its library found by the name of its folder): its name, its series, its number and its authors set, `Name` and `Cast` locked.
 7. **The writes asked.** The `cover.jpg` the page chose, written in the folder of its series.
 
+The page Jellyfin can force the lock again (`POST /api/v1/library/sync`, [ADR 0016](adr/0016-placement.md)): for each file placed of a series or of every library that Jellyfin lists by its path, the API reads its item (as the first administrator, read once a sync) and writes it back with its name, its series, its number, its sort and the authors of shelfdrop over those of Jellyfin, `Name` and `Cast` locked, its image left; an item already so is not written. It runs in the background, even with `placement.lock_jellyfin` off. The volumes of a series, their file (through `GET /Items/{id}/Download`: the size is the total of its first byte, `Range: bytes=0-0`) and their fields are read and changed through Jellyfin too.
+
 ## Ranger
 After each round of the placement, the worker takes the files of Ranger ([ADR 0018](adr/0018-ranger.md), `HandPlacement.round`):
 
