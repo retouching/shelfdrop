@@ -12,6 +12,7 @@ from shelfdrop.settings.catalog import (
     CLIENTS,
     EVENTS,
     LIBRARIES,
+    PLACE_MODES,
     SOURCES,
     TORRENT_FOLDERS,
     VALUES,
@@ -165,6 +166,13 @@ class SettingsReader:
 
     async def covers(self) -> bool:
         return await self.switch("placement.covers")
+
+    async def place_mode(self) -> str:
+        """How a file of a download goes on the shelf: `hardlink`, `hardlink_or_copy`, `copy`."""
+        key = "placement.mode"
+        values, _ = await anyio.to_thread.run_sync(self.read, (key,), ())
+        value = values[key]
+        return value if isinstance(value, str) and value in PLACE_MODES else PLACE_MODES[0]
 
     async def lock_jellyfin(self) -> bool:
         return await self.switch("placement.lock_jellyfin")

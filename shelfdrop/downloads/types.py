@@ -78,6 +78,8 @@ class Download:
     """Why it was not placed alone (`shelfdrop.placement.types.Unplaced`)."""
     placing_percent: int | None = None
     """The merge of its MP3 tracks, while it runs."""
+    copied: bool = False
+    """A file of it copied on the shelf rather than hardlinked (`placement.mode`)."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -96,6 +98,8 @@ class Progress:
     """Placed: where."""
     unplaced: str | None = None
     """To place: why the placement left it."""
+    copied: bool = False
+    """A file of it copied on the shelf rather than hardlinked."""
 
 
 @dataclass(frozen=True, kw_only=True)

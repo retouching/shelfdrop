@@ -58,18 +58,21 @@ REASONS: Final = {
     "no_files": "aucun fichier de livre",
     "missing_files": "fichiers introuvables",
     "link_refused": "lien refusé par le système de fichiers",
+    "copy_failed": "copie interrompue",
     "merge_failed": "fusion des MP3 en échec",
 }
 # What failed, and what shelfdrop did then (`{client}`: the name of the torrent client).
 FAILURES: Final = {
     "not_received": "{client} n'a pas reçu le torrent",
     "link_refused": "Rangement impossible",
+    "copy_failed": "Copie impossible",
     "merge_failed": "Fusion des MP3 en M4B impossible",
     "upload_corrupt": "Envoi corrompu",
 }
 ACTIONS: Final = {
     "not_received": "Rien d'envoyé. Réessayer depuis Téléchargements.",
     "link_refused": "Rien d'écrasé, fichiers laissés en place.",
+    "copy_failed": "Rien d'écrit, fichiers laissés en place.",
     "merge_failed": "Rien d'écrasé, pistes MP3 laissées en place.",
     "upload_corrupt": "Fichier supprimé, à envoyer de nouveau.",
 }

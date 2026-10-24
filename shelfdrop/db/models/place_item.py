@@ -1,7 +1,7 @@
 """PlaceItem: a file (or a folder of files) of the page Ranger, to place by hand: a download the
 worker did not place alone, or a file of the libraries the scan found misplaced."""
 
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shelfdrop.db.base import Base
@@ -42,6 +42,8 @@ class PlaceItem(Base):
     request: Mapped[str | None] = mapped_column(Text)
     error: Mapped[str | None] = mapped_column(String(20))
     destination: Mapped[str | None] = mapped_column(String(300))
+    # Placed through a copy of a file of its download (`placement.mode`).
+    copied: Mapped[bool] = mapped_column(Boolean, server_default="0")
     # Unix seconds.
     created_at: Mapped[int] = mapped_column(Integer)
     updated_at: Mapped[int] = mapped_column(Integer)

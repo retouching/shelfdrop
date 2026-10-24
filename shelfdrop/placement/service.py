@@ -38,6 +38,7 @@ from shelfdrop.placement.shelf import files_of, remove_links, replace_with, writ
 from shelfdrop.placement.types import (
     PlacedFile,
     PlacementOptions,
+    PlaceMode,
     ShelfFile,
     Unplaced,
 )
@@ -45,8 +46,10 @@ from shelfdrop.works.types import Clock, Kind
 
 logger = logging.getLogger(__name__)
 
-# What a failure of the placement is, in the journal: a link refused, a merge failed.
-FAILURES: frozenset[Unplaced] = frozenset({"link_refused", "merge_failed"})
+# What a failure of the placement is, in the journal: a link refused, a copy cut, a merge
+# failed.
+FAILURES: frozenset[Unplaced] = frozenset({"link_refused", "copy_failed", "merge_failed"})
+PLACE_MODES: tuple[PlaceMode, ...] = ("hardlink", "hardlink_or_copy", "copy")
 
 
 class PlacementSettings(Protocol):
@@ -59,6 +62,8 @@ class PlacementSettings(Protocol):
     async def merge_mp3(self) -> bool: ...
 
     async def covers(self) -> bool: ...
+
+    async def place_mode(self) -> str: ...
 
     async def lock_jellyfin(self) -> bool: ...
 
@@ -77,6 +82,18 @@ def read_shelved(
     repository: PlacementRepository, *, work_id: str | None, series: str, kind: Kind
 ) -> list[ShelfFile]:
     return repository.read_shelved(work_id, series, kind)
+
+
+def place_mode_of(value: str) -> PlaceMode:
+    """The mode of the setting `placement.mode`; `hardlink` for a value it does not know."""
+    for mode in PLACE_MODES:
+        if mode == value:
+            return mode
+    return "hardlink"
+
+
+def is_copied(files: Sequence[PlacedFile]) -> bool:
+    return any(f.copied_from is not None for f in files)
 
 
 def mark_task(repository: PlacementRepository, *, task_id: int, state: str, now: int) -> None:
@@ -178,8 +195,14 @@ class PlacementService:
         destination = destination_label(order.kind, order.series, library)
         now = int(self.clock.now())
         await self.on_shelf(lambda r: r.add_files(laid.files, now))
+        copied = is_copied(laid.files)
+        if copied:
+            await self.on_downloads(lambda r: r.mark_copied(download.id))
         await self.on_downloads(lambda r: r.mark_placed(download.id, destination, now))
-        logger.info("Download placed", extra={"download": download.id, "files": len(laid.files)})
+        logger.info(
+            "Download placed",
+            extra={"download": download.id, "files": len(laid.files), "copied": copied},
+        )
         await self.after_placement(download, library)
         placed = NewEvent(
             type="placed",
@@ -188,6 +211,8 @@ class PlacementService:
                 "destination": destination,
                 "volumes": list(laid.volumes) or volume_numbers(download),
                 "skipped": list(laid.present),
+                # A copy rather than hardlinks (`placement.mode`): a fact of the event alone.
+                **({"copied": True} if copied else {}),
             },
             cover=laid.cover,
         )
@@ -209,27 +234,35 @@ class PlacementService:
         roots = await self.settings.libraries()
         root = Path(roots[order.kind])
         library = await self.library_for(roots[order.kind])
+        mode = place_mode_of(await self.settings.place_mode())
         match order.kind:
             case "manga":
                 covers = await self.settings.covers()
-                laid = await anyio.to_thread.run_sync(place_comics, order, files, root, covers)
+                laid = await anyio.to_thread.run_sync(
+                    place_comics, order, files, root, covers, mode
+                )
             case "ebook":
-                laid = await anyio.to_thread.run_sync(place_books, order, files, root)
+                laid = await anyio.to_thread.run_sync(place_books, order, files, root, mode)
             case "audiobook":
-                laid = await self.place_audio(download.id, order, files, root)
+                laid = await self.place_audio(download.id, order, files, root, mode)
         if not laid.files and not laid.present:
             raise NotPlacedError("no_files")
         return laid, library
 
     async def place_audio(
-        self, download_id: int | None, order: Order, files: Sequence[Path], root: Path
+        self,
+        download_id: int | None,
+        order: Order,
+        files: Sequence[Path],
+        root: Path,
+        mode: PlaceMode,
     ) -> Laid:
         """The tracks of each volume merged into one M4B with its cover (the picture of the
         torrent, else the one of the tracks, else the one of the sources); the tracks of the
         shelf removed once merged. A merge that fails leaves the tracks in place. Raises
         NotPlacedError."""
         merge = await self.settings.merge_mp3()
-        laid, merges = await anyio.to_thread.run_sync(lay_audio, order, files, root, merge)
+        laid, merges = await anyio.to_thread.run_sync(lay_audio, order, files, root, merge, mode)
         placed = list(laid.files)
         cover: bytes | None = None
         for volume in merges:
@@ -294,6 +327,8 @@ class PlacementService:
         now = int(self.clock.now())
         if placed:
             await self.on_shelf(lambda r: r.add_files(placed, now))
+        if is_copied(placed):
+            await self.on_downloads(lambda r: r.mark_copied(download.id))
         await self.on_downloads(lambda r: r.mark_unplaced(download.id, reason, now))
         logger.info("Download left to Ranger", extra={"download": download.id, "reason": reason})
         facts: dict[str, str] = {

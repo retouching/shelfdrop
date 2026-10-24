@@ -41,6 +41,7 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `search.work_cache_hours` | 24 | How long an answer of a metadata source is reused, 0 to 720. |
 | `placement.library.manga`, `.ebook`, `.audiobook` | `/data/files/comics`, `/data/files/ebooks`, `/data/files/audiobooks` | The folder of each library, as the placement worker sees it: an absolute path. Its library in Jellyfin is the one with a folder of the same name ([ADR 0016](adr/0016-placement.md)). |
 | `waiting.interval_hours` | `6` | The hours between two searches of a waiting search: 1, 3, 6, 12 or 24 ([ADR 0017](adr/0017-waiting.md)). |
+| `placement.mode` | `hardlink` | How a file of a download goes on the shelf ([ADR 0016](adr/0016-placement.md)): `hardlink` (no second copy, the torrents and the libraries on one file system; a link refused leaves the download to Ranger), `hardlink_or_copy` (a copy when the link is refused), `copy` (a copy always, twice the space). A copy is written beside its name then named, never over a file; the pages Ranger and Téléchargements mark it « copié ». A file of the libraries is moved in every mode. |
 | `placement.merge_mp3` | on | The MP3 tracks of an audiobook merged into one M4B. |
 | `placement.covers` | on | The cover of a series written when it has none (the first page of its first volume). |
 | `placement.scan_time` | `04:30` | The time of the day (`HH:MM`, local time of the worker) of the scan of the files misplaced ([ADR 0018](adr/0018-ranger.md)). |

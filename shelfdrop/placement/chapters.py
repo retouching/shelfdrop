@@ -14,19 +14,21 @@ from pathlib import Path
 from shelfdrop.placement.comics import ArchiveError, first_page, merge_chapters
 from shelfdrop.placement.existing import content_of
 from shelfdrop.placement.items import chapter_files
-from shelfdrop.placement.layout import Laid, NotPlacedError, series_cover
+from shelfdrop.placement.layout import Laid, NotPlacedError, copy_source, lay_file, series_cover
 from shelfdrop.placement.naming import (
     COMIC_EXTENSIONS,
     chapter_name,
     comic_name,
     safe,
 )
-from shelfdrop.placement.shelf import LinkRefusedError, link, make_folder, names_in
+from shelfdrop.placement.shelf import make_folder, names_in
 from shelfdrop.placement.types import (
     ChapterRequest,
     ChaptersRequest,
     ComicInfo,
+    Outcome,
     PlacedFile,
+    PlaceMode,
     VolumeRequest,
 )
 from shelfdrop.releases.guess import chapters_of
@@ -49,6 +51,7 @@ def shelf_file(
     path: Path,
     volume: int | None,
     chapter: float | None,
+    copied_from: Path | None = None,
 ) -> PlacedFile:
     return PlacedFile(
         download_id=None,
@@ -59,6 +62,7 @@ def shelf_file(
         volume=volume,
         chapter=chapter,
         path=str(path),
+        copied_from=None if copied_from is None else str(copied_from),
     )
 
 
@@ -70,12 +74,10 @@ def same_file(source: Path, target: Path) -> bool:
         return False
 
 
-def put(source: Path, target: Path) -> bool:
-    """`source` hardlinked as `target`; False when a file is there. Raises NotPlacedError."""
-    try:
-        return link(source, target)
-    except LinkRefusedError as exc:
-        raise NotPlacedError("link_refused") from exc
+def put(source: Path, target: Path, mode: PlaceMode) -> Outcome:
+    """`source` hardlinked (or copied, `mode`) as `target`; `exists` when a file is there.
+    Raises NotPlacedError."""
+    return lay_file(source, target, mode)
 
 
 def laid(folder: Path, files: Sequence[PlacedFile], covers: bool) -> Laid:
@@ -89,7 +91,11 @@ def laid(folder: Path, files: Sequence[PlacedFile], covers: bool) -> Laid:
 
 
 def place_volume(
-    sources: Sequence[str], request: VolumeRequest, root: Path, covers: bool
+    sources: Sequence[str],
+    request: VolumeRequest,
+    root: Path,
+    covers: bool,
+    mode: PlaceMode = "hardlink",
 ) -> HandLaid:
     """One volume of a manga as `<Series> - TXX.<ext>`. Raises NotPlacedError (`exists` when a
     file has that name)."""
@@ -98,17 +104,24 @@ def place_volume(
         raise NotPlacedError("no_files")
     folder = root / safe(request.series)
     target = folder / comic_name(request.series, request.volume or 1, books[0].suffix)
-    placed = [shelf_file(request, target, request.volume or 1, None)]
     if same_file(books[0], target):
+        placed = [shelf_file(request, target, request.volume or 1, None)]
         return HandLaid(laid=laid(folder, placed, covers), used=())
     make_folder(folder)
-    if not put(books[0], target):
+    outcome = put(books[0], target, mode)
+    if outcome == "exists":
         raise NotPlacedError("exists")
+    copied = copy_source(books[0], outcome)
+    placed = [shelf_file(request, target, request.volume or 1, None, copied)]
     return HandLaid(laid=laid(folder, placed, covers), used=(str(books[0]),))
 
 
 def place_chapter(
-    sources: Sequence[str], request: ChapterRequest, root: Path, covers: bool
+    sources: Sequence[str],
+    request: ChapterRequest,
+    root: Path,
+    covers: bool,
+    mode: PlaceMode = "hardlink",
 ) -> HandLaid:
     """One file of chapters as `<Series> - T23 - Ch. 206` or `<Series> - Ch. 233-236`. Raises
     NotPlacedError."""
@@ -119,12 +132,15 @@ def place_chapter(
     target = folder / chapter_name(
         request.series, request.volume, request.first, books[0].suffix, request.last
     )
-    placed = [shelf_file(request, target, request.volume, request.first)]
     if same_file(books[0], target):
+        placed = [shelf_file(request, target, request.volume, request.first)]
         return HandLaid(laid=laid(folder, placed, covers), used=())
     make_folder(folder)
-    if not put(books[0], target):
+    outcome = put(books[0], target, mode)
+    if outcome == "exists":
         raise NotPlacedError("exists")
+    copied = copy_source(books[0], outcome)
+    placed = [shelf_file(request, target, request.volume, request.first, copied)]
     return HandLaid(laid=laid(folder, placed, covers), used=(str(books[0]),))
 
 
@@ -181,7 +197,11 @@ def loose_chapters(folder: Path, taken: Sequence[str]) -> tuple[float, ...]:
 
 
 def place_chapters(
-    sources: Sequence[str], request: ChaptersRequest, root: Path, covers: bool
+    sources: Sequence[str],
+    request: ChaptersRequest,
+    root: Path,
+    covers: bool,
+    mode: PlaceMode = "hardlink",
 ) -> HandLaid:
     """A release in chapters linked to its volumes. The chapters already loose in the folder of
     the series count with those of the release: a volume complete with them is merged, and
@@ -221,11 +241,11 @@ def place_chapters(
             removed += gone
             continue
         for path in in_range:
-            placed += link_chapter(path, request, folder, volume.volume, moved)
+            placed += link_chapter(path, request, folder, volume.volume, moved, mode)
     left = tuple(s for s in release.values() if s not in used)
     if request.rest == "place":
         for path in dict.fromkeys(left):
-            placed += link_chapter(path, request, folder, None, moved)
+            placed += link_chapter(path, request, folder, None, moved, mode)
         left = ()
     return HandLaid(
         laid=laid(folder, placed, covers),
@@ -236,7 +256,12 @@ def place_chapters(
 
 
 def link_chapter(
-    path: str, request: ChaptersRequest, folder: Path, volume: int | None, moved: set[str]
+    path: str,
+    request: ChaptersRequest,
+    folder: Path,
+    volume: int | None,
+    moved: set[str],
+    mode: PlaceMode = "hardlink",
 ) -> list[PlacedFile]:
     """A file of chapters linked as it is, under its name of the shelf (already there when it is
     that file); none when another file has that name."""
@@ -248,7 +273,8 @@ def link_chapter(
     )
     if same_file(Path(path), target):
         return [shelf_file(request, target, volume, found.first)]
-    if not put(Path(path), target):
+    outcome = put(Path(path), target, mode)
+    if outcome == "exists":
         return []
     moved.add(path)
-    return [shelf_file(request, target, volume, found.first)]
+    return [shelf_file(request, target, volume, found.first, copy_source(Path(path), outcome))]

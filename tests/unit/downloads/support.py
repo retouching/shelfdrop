@@ -129,6 +129,10 @@ class FakeDownloadRepository(DownloadRepository):
         self.change(download_id, stage="placed", destination=destination, placing_percent=None)
 
     @override
+    def mark_copied(self, download_id: int) -> None:
+        self.change(download_id, copied=True)
+
+    @override
     def mark_unplaced(self, download_id: int, reason: str, now: int) -> None:
         self.change(download_id, stage="unplaced", unplaced=reason, placing_percent=None)
 

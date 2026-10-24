@@ -3,6 +3,7 @@ worker after each round: the downloads left to Ranger listed with their files, w
 asked done (a volume, a file of chapters, a release in chapters linked to its volumes), and the
 scan of the libraries for the files misplaced, every day and when the page asks."""
 
+import dataclasses
 import logging
 from collections.abc import Callable, Sequence
 from datetime import datetime
@@ -31,8 +32,8 @@ from shelfdrop.placement.naming import safe
 from shelfdrop.placement.paths import destination_label
 from shelfdrop.placement.repository import PlacementRepository
 from shelfdrop.placement.scan import scan_library
-from shelfdrop.placement.service import PlacementService
-from shelfdrop.placement.shelf import files_of, names_in
+from shelfdrop.placement.service import PlacementService, is_copied, place_mode_of
+from shelfdrop.placement.shelf import files_of, moving_mode, names_in
 from shelfdrop.placement.types import (
     LIBRARY_NAMES,
     ChapterRequest,
@@ -41,6 +42,7 @@ from shelfdrop.placement.types import (
     NewItem,
     PlacedFile,
     PlaceItem,
+    PlaceMode,
     ShelfFile,
     VolumeRequest,
 )
@@ -94,11 +96,22 @@ def inode_of(path: str) -> tuple[int, int] | None:
 
 
 def not_shelved(files: Sequence[tuple[str, int]], shelved: Sequence[str]) -> list[tuple[str, int]]:
-    """The files of a torrent but those already on the shelf: a hardlink shares their inode."""
+    """The files of a torrent but those already on the shelf: a hardlink shares their inode, a
+    copy names its source (`shelved` holds both: the paths of the shelf, the sources of the
+    copies)."""
+    named = set(shelved)
     placed = {n for n in (inode_of(p) for p in shelved) if n is not None}
     if not placed:
-        return list(files)
-    return [(path, size) for path, size in files if inode_of(path) not in placed]
+        return [(path, size) for path, size in files if path not in named]
+    return [
+        (path, size) for path, size in files if path not in named and inode_of(path) not in placed
+    ]
+
+
+def moved(hand: HandLaid) -> HandLaid:
+    """What a file of the libraries (or sent) put on the shelf: moved, a copy of no file kept."""
+    files = tuple(dataclasses.replace(f, copied_from=None) for f in hand.laid.files)
+    return dataclasses.replace(hand, laid=dataclasses.replace(hand.laid, files=files))
 
 
 def remove_sources(paths: Sequence[str], kept: set[str]) -> None:
@@ -268,13 +281,10 @@ class HandPlacement:
         for download in todo:
             info = torrents.get(download.info_hash or "")
             content = info.content_path if info is not None else ""
-            shelved = [
-                f.path
-                for f in await self.placement.on_shelf(
-                    partial(download_files, download_id=download.id),
-                    commit=False,
-                )
-            ]
+            shelf = await self.placement.on_shelf(
+                partial(download_files, download_id=download.id), commit=False
+            )
+            shelved = [f.path for f in shelf] + [f.copied_from for f in shelf if f.copied_from]
             items = await anyio.to_thread.run_sync(
                 self.items_for, download, content, roots, shelved
             )
@@ -335,18 +345,25 @@ class HandPlacement:
         roots = await self.placement.settings.libraries()
         root = Path(roots[kind])
         sources = item.files or (item.path,)
+        mode = place_mode_of(await self.placement.settings.place_mode())
+        if item.origin != "download":
+            mode = moving_mode(mode)
         now = int(self.placement.clock.now())
         try:
-            hand = await self.lay(item, request, kind, root, sources)
+            hand = await self.lay(item, request, kind, root, sources, mode)
         except NotPlacedError as exc:
             await self.failed(item, exc.reason, exc.placed, now)
             return
+        if item.origin != "download":
+            # A file moved: its old name goes, it is no copy of a file kept.
+            hand = moved(hand)
         library = await self.placement.library_for(roots[kind])
         destination = destination_label(kind, request.series, library)
         placed = {f.path for f in hand.laid.files}
         if item.origin != "download":
             await anyio.to_thread.run_sync(remove_sources, hand.used, placed)
         removed = [*hand.removed, *(p for p in hand.used if p not in placed)]
+        copied = is_copied(hand.laid.files)
 
         await self.placement.on_shelf(lambda r: r.remove_files(removed))
         await self.placement.on_shelf(lambda r: r.add_files(hand.laid.files, now))
@@ -356,9 +373,21 @@ class HandPlacement:
                 lambda r: r.mark_item_kept(item.id, left, chapter_numbers(left), now)
             )
         else:
-            await self.placement.on_shelf(lambda r: r.mark_item_placed(item.id, destination, now))
-        logger.info("File of Ranger placed", extra={"item": item.id, "files": len(placed)})
+            await self.placement.on_shelf(
+                lambda r: r.mark_item_placed(item.id, destination, now, copied=copied)
+            )
+        await self.mark_copied(item, hand.laid.files)
+        logger.info(
+            "File of Ranger placed",
+            extra={"item": item.id, "files": len(placed), "copied": copied},
+        )
         await self.after(item, destination, hand, library)
+
+    async def mark_copied(self, item: PlaceItem, files: Sequence[PlacedFile]) -> None:
+        """The download of `item` marked copied when a file of it was copied on the shelf."""
+        download_id = item.download_id
+        if download_id is not None and is_copied(files):
+            await self.placement.on_downloads(lambda r: r.mark_copied(download_id))
 
     async def ignore(self, item: PlaceItem) -> None:
         """The file left where it is (a file of a download, of the libraries or sent alike:
@@ -408,8 +437,11 @@ class HandPlacement:
     ) -> None:
         """The request not done: what it placed before kept, the file left in Ranger with the
         reason."""
+        if item.origin != "download":
+            placed = [dataclasses.replace(f, copied_from=None) for f in placed]
         if placed:
             await self.placement.on_shelf(lambda r: r.add_files(placed, now))
+        await self.mark_copied(item, placed)
         await self.placement.on_shelf(lambda r: r.mark_item_failed(item.id, reason, now))
         logger.info("File of Ranger not placed", extra={"item": item.id, "reason": reason})
 
@@ -420,18 +452,24 @@ class HandPlacement:
         kind: Kind,
         root: Path,
         sources: Sequence[str],
+        mode: PlaceMode,
     ) -> HandLaid:
-        """The files of `item` on the shelf. Raises NotPlacedError."""
+        """The files of `item` on the shelf, hardlinked or copied (`mode`). Raises
+        NotPlacedError."""
         covers = await self.placement.settings.covers()
         match request:
             case ChapterRequest():
-                return await anyio.to_thread.run_sync(place_chapter, sources, request, root, covers)
+                return await anyio.to_thread.run_sync(
+                    place_chapter, sources, request, root, covers, mode
+                )
             case ChaptersRequest():
                 return await anyio.to_thread.run_sync(
-                    place_chapters, sources, request, root, covers
+                    place_chapters, sources, request, root, covers, mode
                 )
             case VolumeRequest() if kind == "manga":
-                return await anyio.to_thread.run_sync(place_volume, sources, request, root, covers)
+                return await anyio.to_thread.run_sync(
+                    place_volume, sources, request, root, covers, mode
+                )
             case VolumeRequest():
                 volume = request.volume or 1
                 order = Order(
@@ -446,9 +484,11 @@ class HandPlacement:
                 )
                 paths = [Path(s) for s in sources]
                 if kind == "ebook":
-                    laid = await anyio.to_thread.run_sync(place_books, order, paths, root)
+                    laid = await anyio.to_thread.run_sync(place_books, order, paths, root, mode)
                 else:
-                    laid = await self.placement.place_audio(item.download_id, order, paths, root)
+                    laid = await self.placement.place_audio(
+                        item.download_id, order, paths, root, mode
+                    )
                 if not laid.files:
                     raise NotPlacedError("exists" if laid.present else "no_files")
                 return HandLaid(laid=laid, used=tuple(sources))
@@ -468,6 +508,7 @@ class HandPlacement:
                 "destination": destination,
                 "volumes": list(hand.laid.volumes),
                 "skipped": [],
+                **({"copied": True} if is_copied(hand.laid.files) else {}),
             },
             cover=hand.laid.cover,
         )

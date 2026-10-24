@@ -269,3 +269,57 @@ async def test_a_file_sent_is_taken_into_ranger_placed_from_there_and_one_left_g
     assert not (envois / str(left.id)).exists()
     assert old.id not in bench.uploads.rows
     assert not bench.store.folder(old.id).exists()
+
+
+@pytest.mark.anyio
+async def test_a_download_copied_in_part_lists_its_rest_alone_then_copies_it(
+    tmp_path: Path,
+) -> None:
+    bench = new_bench(tmp_path, mode="copy")
+    torrent = tmp_path / "torrents" / "Berserk"
+    files = [cbz(torrent / n, ["1.jpg"]) for n in ("Berserk T41.cbz", "Berserk bonus.cbz")]
+    download = completed(bench, torrent, volumes=Volumes(kind="unknown"))
+    await bench.service.round()
+    await bench.hand.round()
+
+    # The copy shares no inode with its source: it is known by the source it names.
+    [item] = bench.shelf.items.values()
+    assert item.path == str(files[1])
+    assert bench.downloads.rows[download.id].copied is True
+    asked = VolumeRequest(
+        kind="manga", work_id=None, series="Berserk", author="Kentaro Miura", volume=42
+    )
+    assert bench.shelf.ask(item.id, asked, 0)
+    await bench.hand.round()
+
+    placed = bench.shelf.items[item.id]
+    assert (placed.state, placed.copied) == ("placed", True)
+    target = bench.roots["manga"] / "Berserk" / "Berserk - T42.cbz"
+    assert target.stat().st_ino != files[1].stat().st_ino
+    assert files[1].is_file()
+    assert bench.downloads.rows[download.id].stage == "placed"
+    [event] = bench.journal.of("placed")
+    assert event.facts["copied"] is True
+
+
+@pytest.mark.anyio
+async def test_a_file_of_the_library_is_moved_whatever_the_mode(tmp_path: Path) -> None:
+    bench = new_bench(tmp_path, mode="copy")
+    loose = bench.roots["manga"] / "Berserk T03.cbz"
+    cbz(loose, ["1.jpg"])
+    inode = loose.stat().st_ino
+    await bench.hand.round()
+    [item] = bench.shelf.items.values()
+
+    asked = VolumeRequest(
+        kind="manga", work_id=None, series="Berserk", author="Kentaro Miura", volume=3
+    )
+    assert bench.shelf.ask(item.id, asked, 0)
+    await bench.hand.round()
+
+    target = bench.roots["manga"] / "Berserk" / "Berserk - T03.cbz"
+    # Moved: linked then its old name removed, no second copy.
+    assert target.stat().st_ino == inode
+    assert not loose.exists()
+    assert bench.shelf.items[item.id].copied is False
+    assert [f.copied_from for f in bench.shelf.files] == [None]
