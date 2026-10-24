@@ -204,7 +204,9 @@ async def test_the_proposals_are_the_volumes_then_the_sources() -> None:
 
     proposals = await service.proposals("berserk")
 
-    assert [(v.item_id, v.label) for v in proposals.volumes] == [("b1", "Tome 1 \u00b7 CBZ")]
+    assert [(v.item_id, v.label, v.number, v.format) for v in proposals.volumes] == [
+        ("b1", "Tome 1 \u00b7 CBZ", 1, "CBZ")
+    ]
     assert [(c.source, c.url) for c in proposals.covers] == [
         ("kitsu", "https://media.kitsu.test/b.jpg")
     ]

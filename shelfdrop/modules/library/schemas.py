@@ -44,7 +44,11 @@ class VolumeImageRead(BaseModel):
 
     # The image is at /library/items/{item_id}/image?tag={image_tag}.
     item_id: str
+    # "Tome 3 · CBZ", in French; the number of the volume (null without one) and its format
+    # ("CBZ", "EPUB", "M4B") let a client write its own.
     label: str
+    number: int | None
+    format: str
     image_tag: str | None
 
 

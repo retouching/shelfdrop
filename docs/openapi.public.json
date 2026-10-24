@@ -4557,6 +4557,21 @@
             "type": "string",
             "title": "Label"
           },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
           "image_tag": {
             "anyOf": [
               {
@@ -4573,6 +4588,8 @@
         "required": [
           "item_id",
           "label",
+          "number",
+          "format",
           "image_tag"
         ],
         "title": "VolumeImageRead"

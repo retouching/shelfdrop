@@ -247,7 +247,7 @@ The series of the libraries of books of Jellyfin (the library of each kind, foun
 ```
 
 ## GET /api/v1/library/series/{id}/proposals
-What the page proposes for a series: the images of its volumes (`volumes`: `item_id`, `label` « Tome 3 · CBZ », `image_tag`), then the covers and the summaries of the first work the sources find under its name (`covers`, `summaries`: `source`, and `url` or `text`; empty when no source answers), and `work_id`. `404 series_not_found`.
+What the page proposes for a series: the images of its volumes (`volumes`: `item_id`, `label` « Tome 3 · CBZ », in French, `number` the number of the volume, `null` without one, `format` `CBZ`, `EPUB` or `M4B`, `image_tag`), then the covers and the summaries of the first work the sources find under its name (`covers`, `summaries`: `source`, and `url` or `text`; empty when no source answers), and `work_id`. `404 series_not_found`.
 
 ## GET /api/v1/library/series/{id}/volumes
 A series (as `GET /api/v1/library/series` gives it), its volumes by number and the numbers missing: those between 1 and the highest held (by the number of a volume in Jellyfin, else in the name of its file) that no volume holds. Each volume: `id` (its item in Jellyfin), `type` (`Book`, `AudioBook`), `name`, `number` (`null` without one), `summary`, `authors`, `has_image`, `image_tag` (as for a series), `file_name`, `size` (bytes, `null` when Jellyfin does not tell it). `404 series_not_found`, `503 jellyfin_unavailable`.
