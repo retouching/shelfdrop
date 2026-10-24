@@ -219,7 +219,7 @@ export function Sidebar({
         id={id}
         className={`${
           open ? "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] overflow-y-auto shadow-2xl" : "hidden"
-        } flex-col border-r border-slate-200 bg-surface md:static md:z-auto md:flex md:w-64 md:max-w-none md:shrink-0 md:overflow-visible md:shadow-none`}
+        } flex-col border-r border-slate-200 bg-surface md:sticky md:top-0 md:z-auto md:flex md:h-dvh md:w-64 md:max-w-none md:shrink-0 md:overflow-y-auto md:shadow-none`}
       >
         <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
           <span className="flex size-10 items-center justify-center rounded-lg bg-accent text-white">
