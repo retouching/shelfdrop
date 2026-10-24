@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "shelfdrop",
-    "version": "0.12.3",
+    "version": "0.12.4",
     "description": "The API of shelfdrop: the work search, the releases of Prowlarr, the downloads, Ranger, the waiting searches. A browser signs in with the session cookie; a program sends `Authorization: Bearer <token>`. Each operation names the access it needs in `x-access`: `public`, `session` (the cookie alone), `read` (the cookie or any token), `write` (the cookie or a token `write`). Every error body is `{\"code\", \"detail\", \"data\"}`; the codes are listed in the schema `ErrorCode`."
   },
   "paths": {
@@ -1592,6 +1592,7 @@
           "works"
         ],
         "summary": "Search Works",
+        "description": "`retry`: the sources resting after their failures are asked too (the button Réessayer).",
         "operationId": "search_works_api_v1_works_get",
         "parameters": [
           {
@@ -1618,6 +1619,16 @@
               "type": "string",
               "default": "manga",
               "title": "Kind"
+            }
+          },
+          {
+            "name": "retry",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Retry"
             }
           }
         ],
