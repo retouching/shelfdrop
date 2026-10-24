@@ -31,19 +31,41 @@ The `.env` file (mode 600: it holds the key of the secrets) sets `SHELFDROP_CONT
 The pages of a new installation open on the set-up ([ADR 0024](adr/0024-first-launch-setup.md)), and the API answers its steps alone (`409 setup_required` to the others):
 1. **The internal account**: a name and a password (10 characters at least), the administrator of shelfdrop; its session opens. Anyone who reaches the pages can create it while it does not exist: do this step before the site is published.
 2. **Prowlarr**: its address and its API key, and their test.
-3. **qBittorrent**: the address of qui and the key of its client proxy, and their test.
+3. **The torrent client**: the client, its address and its credentials, and their test ([the torrent client](#the-torrent-client)).
 4. **Jellyfin**: its address and an API key; its test must pass to go on.
 5. **The libraries and the folder of the uploads**: the folders as the placement worker sees them ([the placement worker](#the-placement-worker)).
 6. **Terminer**: Jellyfin is tested again, and the site opens.
 
 Each step saves its settings: a set-up stopped and taken again starts at the first service without an address, and Précédent goes back. The settings stay on the settings page afterwards. An installation whose first start had `SHELFDROP_JELLYFIN_URL` skips the set-up: the administrators of Jellyfin sign in, and the internal account is created on the page Paramètres › Accès.
 
+## The torrent client
+shelfdrop sends its downloads to one torrent client, chosen on the page Paramètres › Services (`torrent.client`, [configuration](configuration.md#the-torrent-client), [ADR 0025](adr/0025-torrent-clients.md)). Whatever the client:
+- **The categories**: shelfdrop downloads into `manga`, `ebook`, `audiobook` (by kind) and `shelfdrop-manual` (the manual downloads): the categories of qBittorrent, the labels of Deluge and of Transmission.
+- **The same paths as the placement worker**: the client gives the path of each download as it sees it, and the worker opens that path as it is: shelfdrop maps no path. The client must save its downloads under the shared `/data` and mount `${SHELFDROP_MEDIA_DIR}` on `/data` too ([the placement worker](#the-placement-worker)), on the file system of the libraries: a hardlink does not cross file systems.
+- **Its files writable by the group of the libraries** (a umask `002`), for the hardlinks of the worker.
+- **A network** the API and the worker reach it on.
+
+| Client | `torrent.client` | Signs in with | Requirements |
+| --- | --- | --- | --- |
+| qBittorrent through [qui](https://github.com/autobrr/qui) | `qui` | the key of the client proxy of qui | qui reaches qBittorrent; the categories below in qBittorrent |
+| qBittorrent | `qbittorrent` | the username and the password of its WebUI | the WebUI on; the categories below |
+| Deluge 2 | `deluge` | the password of its Web UI | **the plugin Label enabled**; the Web UI connected to its daemon, or a daemon it can connect to |
+| Transmission | `transmission` | its RPC username and password, or none | **Transmission 3.00 or later** |
+
+**qBittorrent** (through qui or directly): the categories `manga`, `ebook`, `audiobook` and `shelfdrop-manual`, each with its save path under `/data` (for example `/data/torrents/manga`); the test of the connection names those it lacks (a category it lacks is created by the first send into it, without a save path). A torrent goes to the folder of its category when the automatic torrent management of qBittorrent is on (Options › Downloads), to its default save path otherwise: both must be under `/data`. Directly, the address is the one of its WebUI (`http://qbittorrent:8080`), and qBittorrent must accept it as the `Host` it is reached by (its host header validation compares the port too). After 5 sign-ins refused, qBittorrent bans the address of shelfdrop for an hour.
+
+**Deluge: the plugin Label must be enabled** (Preferences › Plugins › Label), **otherwise shelfdrop refuses to send**: the test of the connection says so (`unsupported`), and a download sent ends `not_received` with nothing added. The labels are created at the first send of each. The address is the one of its Web UI (`http://deluge:8112`), the password the one of the Web UI. Deluge has no tags: the mark `placé` that shelfdrop gives what it placed on qBittorrent and Transmission is absent there; the placement works the same.
+
+**Transmission 3.00 or later is required** (the labels came with 3.00), **otherwise shelfdrop refuses to send**: the test of the connection gives the version found (`unsupported`). The address is the one of Transmission (`http://transmission:9091`; shelfdrop adds `/transmission/rpc`). Its credentials are optional: set both, or neither when Transmission asks for none. Without credentials, a Transmission whose host whitelist is on must list the host name of the address shelfdrop uses. Transmission keeps no list of labels: a label exists once a torrent carries it, so none is missing.
+
+**The download folders of Deluge and Transmission**: neither has a folder by label, so the settings `torrent.folder.manga`, `.ebook`, `.audiobook`, `.manual` give the folder of each kind as the client sees it (for example `/data/torrents/manga`); unset, the download goes to the default folder of the client, which must then be under `/data`.
+
 ## The placement worker
 What the worker needs, on the machine of the libraries:
-- **One mount for the torrents and the libraries**: `${SHELFDROP_MEDIA_DIR}:/data` (for example `SHELFDROP_MEDIA_DIR=/srv/media`), with the torrents of qBittorrent in `/data/torrents` (the `content_path` qBittorrent gives must be the path the worker sees: qBittorrent mounts the same folder on `/data`) and the libraries in `/data/files/comics`, `/data/files/ebooks`, `/data/files/audiobooks` (the settings `placement.library.<kind>`). Two mounts would put the torrents and the libraries on two mount points, where a hardlink fails (`EXDEV`).
+- **One mount for the torrents and the libraries**: `${SHELFDROP_MEDIA_DIR}:/data` (for example `SHELFDROP_MEDIA_DIR=/srv/media`), with the torrents of the torrent client in `/data/torrents` (the path the client gives must be the path the worker sees: the client mounts the same folder on `/data`) and the libraries in `/data/files/comics`, `/data/files/ebooks`, `/data/files/audiobooks` (the settings `placement.library.<kind>`). Two mounts would put the torrents and the libraries on two mount points, where a hardlink fails (`EXDEV`).
 - **The database of the API under another path**: the volume `data` of the API, mounted on `/var/lib/shelfdrop`, with `SHELFDROP_DATA_DIR=/var/lib/shelfdrop`: nothing is mounted inside the libraries. Both processes open the same SQLite file (WAL), on one machine.
-- **The user**: `10001:${SHELFDROP_LIBRARY_GID}`, the group that owns the files of qBittorrent and the libraries (`1000` by default). The kernel lets a process hardlink a file it does not own only when it can read and write it (`fs.protected_hardlinks=1`): the files of qBittorrent must be writable by that group (a umask `002` in qBittorrent), and the folders of the libraries too. The worker writes with the umask `002`: its folders `775`, its files `664`, in the group. Its uid stays 10001, the owner of the database.
-- **The environment**: `SHELFDROP_CONTACT`, `SHELFDROP_SECRET_KEY` (the same key as the API), `SHELFDROP_DATA_DIR=/var/lib/shelfdrop`; a network that reaches qBittorrent (or qui), Jellyfin and the metadata sources (the covers of the audiobooks without a picture).
+- **The user**: `10001:${SHELFDROP_LIBRARY_GID}`, the group that owns the files of the torrent client and the libraries (`1000` by default). The kernel lets a process hardlink a file it does not own only when it can read and write it (`fs.protected_hardlinks=1`): the files of the torrent client must be writable by that group (a umask `002` in the client), and the folders of the libraries too. The worker writes with the umask `002`: its folders `775`, its files `664`, in the group. Its uid stays 10001, the owner of the database.
+- **The environment**: `SHELFDROP_CONTACT`, `SHELFDROP_SECRET_KEY` (the same key as the API), `SHELFDROP_DATA_DIR=/var/lib/shelfdrop`; a network that reaches the torrent client (or qui), Jellyfin and the metadata sources (the covers of the audiobooks without a picture).
 - **The image** holds ffmpeg and ffprobe. The worker runs read-only (`read_only: true`) with a `tmpfs` on `/tmp` (the lists of a merge), `cap_drop: [ALL]`, `no-new-privileges`.
 - **The time zone**: the daily scan of the files misplaced runs at `placement.scan_time` in the local time of the worker: `TZ` in its environment (for example `Europe/Paris`; the image must hold the zoneinfo of the zone), else UTC.
 - **Jellyfin**: the folders of its libraries have the names of those of the worker (for example `/files/comics` in the container of Jellyfin, `/data/files/comics` in the worker): a library is found by that name, and its items by their path.
