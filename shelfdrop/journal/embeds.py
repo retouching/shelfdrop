@@ -69,6 +69,11 @@ def lines(values: Sequence[str]) -> str:
     return "\n".join(unique(values))[:DESCRIPTION_MAX]
 
 
+def client_name(value: Fact) -> str:
+    """The name of the torrent client of a fact `client`; qBittorrent without one."""
+    return texts.CLIENTS.get(text(value), texts.DEFAULT_CLIENT)
+
+
 def field(name: str, value: str, *, inline: bool = True) -> dict[str, Any]:
     return {"name": name, "value": value[:FIELD_MAX], "inline": inline}
 
@@ -116,7 +121,14 @@ def fields_of(events: Sequence[Event]) -> tuple[str, str, list[dict[str, Any]]]:
                 field(
                     texts.RESULT,
                     ", ".join(
-                        unique([texts.RESULTS.get(text(f.get("result")), "") for f in facts])
+                        unique(
+                            [
+                                texts.RESULTS.get(text(f.get("result")), "").format(
+                                    client=client_name(f.get("client"))
+                                )
+                                for f in facts
+                            ]
+                        )
                     ),
                 ),
             ]
@@ -132,7 +144,10 @@ def fields_of(events: Sequence[Event]) -> tuple[str, str, list[dict[str, Any]]]:
             if errors:
                 fields.insert(0, field(texts.ERROR, ", ".join(errors)))
             body = lines([text(f.get("release")) for f in facts])
-            return texts.FAILURES.get(what, what), body, fields
+            title = texts.FAILURES.get(what, what)
+            if what in texts.FAILURES:
+                title = title.format(client=client_name(first.facts.get("client")))
+            return title, body, fields
         case "login":
             # Never the address itself on Discord: its country alone.
             fields = []

@@ -77,9 +77,10 @@ def sent_event(download: Download) -> NewEvent:
     )
 
 
-def outcome_event(download: Download, failure: Failure | None) -> NewEvent | None:
+def outcome_event(download: Download, failure: Failure | None, client: str) -> NewEvent | None:
     """The event of the end of a send: sent, not received (`failed`), or, for a retry, the
-    retry and its result. A duplicate has none."""
+    retry and its result, with the torrent client (`client`, the setting `torrent.client`). A
+    duplicate has none."""
     if failure == "duplicate":
         return None
     if download.attempts > 1:
@@ -91,6 +92,7 @@ def outcome_event(download: Download, failure: Failure | None) -> NewEvent | Non
                 "release": download.title,
                 "attempt": download.attempts,
                 "result": failure or "sent",
+                "client": client,
             },
         )
     if failure is None:
@@ -98,7 +100,7 @@ def outcome_event(download: Download, failure: Failure | None) -> NewEvent | Non
     return NewEvent(
         type="failed",
         group=f"failed:not_received:{download.created_by}:{download.created_at}",
-        facts={"what": "not_received", "release": download.title},
+        facts={"what": "not_received", "release": download.title, "client": client},
     )
 
 
@@ -189,7 +191,8 @@ class DownloadSender:
                 now = int(self.clock.now())
                 await self.write(lambda r: r.mark_sent(download_id, now))
                 logger.info("Download sent", extra={"download": download_id})
-            event = outcome_event(download, failure)
+            client = (await self.torrents.settings.torrent()).client
+            event = outcome_event(download, failure, client)
             if event is not None:
                 event = await self.covers.dress(download, event)
                 await anyio.to_thread.run_sync(self.events.record, event)

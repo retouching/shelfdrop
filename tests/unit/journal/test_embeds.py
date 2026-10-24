@@ -105,6 +105,15 @@ def test_a_failure_says_what_shelfdrop_did() -> None:
     assert embed["fields"][-1]["value"] == "Rien d'envoyé. Réessayer depuis Téléchargements."
 
 
+def test_a_failure_and_a_retry_name_the_torrent_client_of_the_event() -> None:
+    failed = event("failed", what="not_received", release="Berserk.T01.CBZ", client="deluge")
+    retry = event("retry", work="Berserk", release="R", attempt=2, result="sent", client="qui")
+
+    assert embed_of([failed], None, None)["title"] == "Échec : Deluge n'a pas reçu le torrent"
+    fields = embed_of([retry], None, None)["fields"]
+    assert (fields[-1]["name"], fields[-1]["value"]) == ("Résultat", "Reçu par qBittorrent")
+
+
 def test_the_files_misplaced_are_counted_by_library() -> None:
     embed = embed_of(
         [

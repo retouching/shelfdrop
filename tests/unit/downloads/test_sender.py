@@ -252,9 +252,14 @@ async def test_the_journal_gets_a_send_a_failure_and_a_retry_but_no_duplicate() 
         "mode": "auto",
         "actor": "sylvain",
     }
-    assert failed.facts == {"what": "not_received", "release": "Berserk.T01.FRENCH.CBZ"}
+    assert failed.facts == {
+        "what": "not_received",
+        "release": "Berserk.T01.FRENCH.CBZ",
+        "client": "qui",
+    }
     assert retry.facts["attempt"] == 2
     assert retry.facts["result"] == "sent"
+    assert retry.facts["client"] == "qui"
     # The downloads of one request share the group of their message.
     assert first.group == "sent:sylvain:0:Berserk"
 

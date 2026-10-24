@@ -31,7 +31,17 @@ DESTINATION: Final = "Destination"
 REASON: Final = "Raison"
 ATTEMPT: Final = "Essai"
 RESULT: Final = "Résultat"
-RESULTS: Final = {"sent": "Reçu par qBittorrent", "not_received": "Non reçu"}
+# The name of the torrent client of an event (its fact `client`, the setting `torrent.client`);
+# an event recorded before the torrent clients names qBittorrent.
+CLIENTS: Final = {
+    "qui": "qBittorrent",
+    "qbittorrent": "qBittorrent",
+    "deluge": "Deluge",
+    "transmission": "Transmission",
+}
+DEFAULT_CLIENT: Final = "qBittorrent"
+# `{client}`: the name of the torrent client.
+RESULTS: Final = {"sent": "Reçu par {client}", "not_received": "Non reçu"}
 ERROR: Final = "Erreur"
 DONE: Final = "Ce que shelfdrop a fait"
 ACCOUNT: Final = "Compte"
@@ -50,9 +60,9 @@ REASONS: Final = {
     "link_refused": "lien refusé par le système de fichiers",
     "merge_failed": "fusion des MP3 en échec",
 }
-# What failed, and what shelfdrop did then.
+# What failed, and what shelfdrop did then (`{client}`: the name of the torrent client).
 FAILURES: Final = {
-    "not_received": "qBittorrent n'a pas reçu le torrent",
+    "not_received": "{client} n'a pas reçu le torrent",
     "link_refused": "Rangement impossible",
     "merge_failed": "Fusion des MP3 en M4B impossible",
     "upload_corrupt": "Envoi corrompu",
