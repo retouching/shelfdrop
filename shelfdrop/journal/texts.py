@@ -1,4 +1,5 @@
-"""The French texts of the messages of the journal, as Discord shows them (docs/writing.md)."""
+"""The French texts of the messages of the journal, as Discord shows them (rules:
+docs/agents/writing.md)."""
 
 from typing import Final
 

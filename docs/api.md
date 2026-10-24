@@ -1,6 +1,6 @@
 # API
 
-Every route but `/health` and the pages is served under the prefix `/api` (`SHELFDROP_API_PREFIX`). The API serves neither its schema nor a documentation page: this page describes it.
+Every route but `/health` and the pages is served under the prefix `/api` (`SHELFDROP_API_PREFIX`). Its OpenAPI document (the routes open to the access tokens) is served at `/api/v1/openapi.json` and shown by Swagger UI at `/api/docs` ([ADR 0021](adr/0021-openapi.md)); this page describes every route, those of the session included.
 
 ## Session
 Every route of the API but `POST /api/v1/session`, `GET /api/v1/setup` and `POST /api/v1/setup/account` needs the session cookie `__Host-shelfdrop`, or an access token where one may go, otherwise `401 not_signed_in` ([ADR 0013](adr/0013-sign-in-and-sessions.md)). Until the end of the set-up of the first launch, every route of the API and `/mcp` answer `409 setup_required` but the set-up, the session and the settings ([below](#set-up-of-the-first-launch)). A write (`POST`, `PUT`, `PATCH`, `DELETE`) with the cookie needs an `Origin` header naming the host of the request, otherwise `403 origin_refused`, before any other check.

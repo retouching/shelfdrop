@@ -1,4 +1,4 @@
-// Tous les textes visibles de la page. Règles : docs/writing.md (no-ai-slop en français).
+// Tous les textes visibles de la page. Règles : docs/agents/writing.md (no-ai-slop en français).
 import type { Kind } from "./types";
 
 function plural(n: number, one: string, many: string): string {
