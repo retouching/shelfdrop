@@ -141,10 +141,9 @@ async function desktop(browser) {
   await page.locator("li").filter({ hasText: author }).locator('button[aria-label^="Choisir "]').first().click();
   await page.locator("#results-title").waitFor({ timeout: 120_000 });
   await settle(page, 2);
-  // The names of the work above, the releases below.
+  // From the top of the page: the search typed, the work chosen, its names, then its releases.
   await page.evaluate(() => {
-    const results = document.querySelector("#results-title").closest("section");
-    window.scrollBy(0, results.getBoundingClientRect().top - 160);
+    window.scrollTo(0, 0);
   });
   await settle(page, 1);
   await shoot(page, "search-releases");
