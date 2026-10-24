@@ -163,6 +163,35 @@ services:
       start_period: 60s
       start_interval: 1s
 
+  # A real Transmission, the torrent client of tests/integration/test_torrent_transmission.py:
+  # the image of linuxserver, pinned, with credentials (basic) of the tests; as the user and the
+  # group of the placement worker, on the same volume `media` on /data, so that what it
+  # downloads is where the worker sees it. On the network `sources` alone: no way out.
+  transmission:
+    image: lscr.io/linuxserver/transmission:4.1.3-r0-ls365@sha256:55aaeedf9fc354d34136387e15ee0ba4679096f20398dd2875867e5cd5cf8be5
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      PUID: "10001"
+      PGID: "1000"
+      TZ: Etc/UTC
+      USER: shelfdrop
+      PASS: transmission-password-of-the-tests
+    volumes:
+      - media:/data
+    networks:
+      - sources
+    healthcheck:
+      # Any answer of the RPC (a 401 without the credentials): it listens.
+      test:
+        - CMD-SHELL
+        - "curl -s -o /dev/null http://127.0.0.1:9091/transmission/rpc"
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
   # A real qBittorrent, for the block `torrent_qbittorrent` alone
   # (tests/integration/test_torrent_qbittorrent.py starts it with `--profile torrent-qbittorrent`
   # and removes it at its end). The account of its WebUI is set by qbittorrent/qBittorrent.conf,

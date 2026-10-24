@@ -59,7 +59,9 @@ async def test_a_client_no_connector_serves_answers_nothing_and_asks_nothing() -
             client="transmission", url=QUI_URL, username="admin", password="p", api_key=None
         )
     )
-    client = await torrent_clients(qui, settings).current()
+    client = await TorrentClients(
+        httpx.AsyncClient(transport=httpx.MockTransport(qui)), settings, {"qui": QuiClient.of}
+    ).current()
 
     assert isinstance(client, UnavailableClient)
     with pytest.raises(ClientUnavailableError):

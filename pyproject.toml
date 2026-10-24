@@ -112,6 +112,8 @@ markers = [
     "ranger_link: block of ranger, a download left linked to a work, a name taken, a file corrected, a file ignored (test_ranger_link.py)",
     "ranger_chapters: block of ranger, a release in chapters merged into its volumes (test_ranger_chapters.py)",
     "ranger_scan: block of ranger, the scan of the files misplaced and its time (test_ranger_scan.py)",
+    "torrents: integration part, the real torrent clients of the test stack",
+    "torrent_transmission: block of torrents, a real Transmission: its test, a release sent under its label into its folder, placed and marked (test_torrent_transmission.py)",
     "access: integration part, the access tokens, the OpenAPI document and the MCP server",
     "access_tokens: block of access, the tokens created, scoped, counted, revoked (test_tokens.py)",
     "access_openapi: block of access, the OpenAPI document and its page (test_openapi.py)",

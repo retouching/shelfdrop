@@ -15,6 +15,7 @@ from shelfdrop.clients.torrents.client import Connector, TorrentClient, TorrentC
 from shelfdrop.clients.torrents.qbittorrent import QbittorrentClient
 from shelfdrop.clients.torrents.deluge import DelugeClient
 from shelfdrop.clients.torrents.qui import QuiClient
+from shelfdrop.clients.torrents.transmission import TransmissionClient
 from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 
 # The connectors, by the name of the setting `torrent.client`. A client the settings know but no
@@ -23,6 +24,7 @@ CONNECTORS: Final[Mapping[str, Connector]] = {
     "qui": QuiClient.of,
     "qbittorrent": QbittorrentClient.of,
     "deluge": DelugeClient.of,
+    "transmission": TransmissionClient.of,
 }
 
 
