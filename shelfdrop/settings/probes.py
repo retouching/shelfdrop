@@ -3,7 +3,8 @@ with the values typed on the page or those saved. A container singleton.
 
 - Prowlarr: `GET /api/v1/system/status`, then its indexers on.
 - The torrent client (its connector, `shelfdrop.clients.torrents`): its version, then the
-  categories of shelfdrop, with the client saved and the address and the secret given.
+  categories of shelfdrop (and what keeps shelfdrop from sending to it), with the client, the
+  address, the username and the secret given.
 - Jellyfin: `GET /System/Info` with the key, then its libraries of books.
 - A metadata source: one fixed search ("Chainsaw Man" for the manga, "Can't Hurt Me" for the
   books), and the time of its answer.
@@ -21,7 +22,7 @@ from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.torrents.factory import ClientUnavailableError, TorrentClients
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
 from shelfdrop.releases.exceptions import ProwlarrError, ProwlarrNotConfiguredError
-from shelfdrop.settings.catalog import torrent_secret
+from shelfdrop.settings.catalog import CLIENTS, torrent_secret
 from shelfdrop.settings.reader import SettingsReader
 from shelfdrop.settings.types import ProbeResult
 from shelfdrop.works.clients.myanimelist import MyAnimeListClient
@@ -44,6 +45,19 @@ def failure(service: str, exc: ServiceError | ProwlarrError) -> ProbeResult:
     if exc.status in (401, 403):
         return ProbeResult(service=service, state="refused", status=exc.status)
     return ProbeResult(service=service, state="unavailable", status=exc.status)
+
+
+def credentials_missing(client: str, username: str | None, secret: str | None) -> bool:
+    """A credential `client` signs in with is missing: the key of qui, the username and the
+    password of qBittorrent, the password of Deluge; Transmission signs in with both, or with
+    none."""
+    match client:
+        case "qui" | "deluge":
+            return not secret
+        case "qbittorrent":
+            return not (username and secret)
+        case _:
+            return bool(username) != bool(secret)
 
 
 def constant(value: str | None) -> Callable[[], Awaitable[str | None]]:
@@ -74,18 +88,32 @@ class ConnectionProbes:
         """Every service and source a test knows."""
         return ("prowlarr", "torrent", "jellyfin", *self.sources)
 
-    async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult:
-        """The test of `service` with this address and this secret. Raises KeyError for a
-        service it does not know."""
+    def clients(self) -> tuple[str, ...]:
+        """The torrent clients a connector serves, in the order of the catalog."""
+        available = self.torrents.available()
+        return tuple(client for client in CLIENTS if client in available)
+
+    async def run(
+        self,
+        service: str,
+        url: str | None,
+        secret: str | None,
+        *,
+        client: str | None = None,
+        username: str | None = None,
+    ) -> ProbeResult:
+        """The test of `service` with this address and this secret; the torrent client: the
+        client `client` and the username `username` (None: those saved, a `username` "": none).
+        Raises KeyError for a service it does not know."""
         match service:
-            case "prowlarr" | "torrent" | "jellyfin" if not url:
+            case "torrent":
+                return await self.run_torrent(url, secret, client, username)
+            case "prowlarr" | "jellyfin" if not url:
                 return ProbeResult(service=service, state="no_address")
-            case "prowlarr" | "torrent" | "jellyfin" if not secret:
+            case "prowlarr" | "jellyfin" if not secret:
                 return ProbeResult(service=service, state="no_key")
             case "prowlarr":
                 return await self.run_prowlarr(url, secret)
-            case "torrent":
-                return await self.run_torrent(url, secret)
             case "jellyfin":
                 return await self.run_jellyfin(url, secret)
             case _:
@@ -101,29 +129,52 @@ class ConnectionProbes:
         on = [i for i in indexers if i.enabled and i.protocol in ("torrent", "")]
         return ProbeResult(service="prowlarr", state="connected", version=version, count=len(on))
 
-    async def run_torrent(self, url: str | None, secret: str | None) -> ProbeResult:
-        """The client saved (`torrent.client`, `torrent.username`), at the address `url`, signed
-        in with `secret` (the key of qui, the password of the others)."""
+    async def run_torrent(
+        self, url: str | None, secret: str | None, client: str | None, username: str | None
+    ) -> ProbeResult:
+        """The client `client` (None: the one saved), at the address `url`, signed in with
+        `username` (None: the one saved, "": none) and `secret` (the key of qui, the password of
+        the others)."""
         saved = await self.saved.torrent()
-        if torrent_secret(saved.client) == "torrent.api_key":
-            connection = replace(saved, url=url, api_key=secret)
+        chosen = saved.client if client is None else client
+        connection = replace(
+            saved,
+            client=chosen,
+            url=url,
+            username=saved.username if username is None else (username or None),
+        )
+        if torrent_secret(chosen) == "torrent.api_key":
+            connection = replace(connection, api_key=secret)
         else:
-            connection = replace(saved, url=url, password=secret)
+            connection = replace(connection, password=secret)
+        if not url:
+            return ProbeResult(service="torrent", state="no_address", client=chosen)
+        if chosen not in self.torrents.available():
+            # A client the settings know, that no connector of this version serves.
+            return ProbeResult(service="torrent", state="no_connector", client=chosen)
+        if credentials_missing(chosen, connection.username, secret):
+            return ProbeResult(service="torrent", state="no_key", client=chosen)
         try:
             check = await self.torrents.of(connection).check(CATEGORIES)
         except ClientUnavailableError:
-            # A client the settings know, that no connector of this version serves.
-            return ProbeResult(service="torrent", state="unavailable")
+            return ProbeResult(service="torrent", state="no_connector", client=chosen)
         except ServiceError as exc:
-            return failure("torrent", exc)
+            return replace(failure("torrent", exc), client=chosen)
         if check.unsupported is not None:
-            return ProbeResult(service="torrent", state="unavailable", version=check.version)
+            return ProbeResult(
+                service="torrent",
+                state="unsupported",
+                version=check.version,
+                client=chosen,
+                reason=check.unsupported,
+            )
         return ProbeResult(
             service="torrent",
             state="connected",
             version=check.version,
             count=len(CATEGORIES) - len(check.missing),
             missing=check.missing,
+            client=chosen,
         )
 
     async def run_jellyfin(self, url: str | None, secret: str | None) -> ProbeResult:

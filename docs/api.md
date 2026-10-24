@@ -211,27 +211,28 @@ The settings of the page ([the list](configuration.md#settings-of-the-page)):
 
 ```json
 {"values": {"prowlarr.url": "http://prowlarr:9696", "search.max_names": 6, "sources.kitsu.enabled": true},
- "secrets": {"prowlarr.api_key": 1792598400, "torrent.api_key": null}}
+ "secrets": {"prowlarr.api_key": 1792598400, "torrent.api_key": null},
+ "torrent_clients": ["qui", "qbittorrent", "deluge", "transmission"]}
 ```
 
-- `values`: every setting, its default when never saved. `secrets`: when each secret was set (Unix seconds), or `null`; never its value.
+- `values`: every setting, its default when never saved. `secrets`: when each secret was set (Unix seconds), or `null`; never its value. `torrent_clients`: the values of `torrent.client` this version can use (a connector serves each).
 - `PUT` takes `{"values": {...}, "secrets": {"prowlarr.api_key": "new key", "jellyfin.api_key": null}}`: the keys given alone change, `null` clears a secret. Each change is audited (who, when, which key), never its value. Errors: `422 invalid_settings`, `data.keys` the keys unknown or whose value is refused, nothing saved.
 
 ## POST /api/v1/settings/test
-The test of a connection, with the values typed before they are saved: `{"service": "prowlarr", "url": null, "secret": null}`. `service`: `prowlarr`, `torrent` (the torrent client saved), `jellyfin`, or a metadata source (`kitsu`, `myanimelist`...); `url` and `secret` `null` are the values saved, a `secret` `""` none.
+The test of a connection, with the values typed before they are saved: `{"service": "prowlarr", "url": null, "secret": null}`. `service`: `prowlarr`, `torrent` (the torrent client), `jellyfin`, or a metadata source (`kitsu`, `myanimelist`...); `url` and `secret` `null` are the values saved, a `secret` `""` none. The torrent client alone takes `client` (`qui`, `qbittorrent`, `deluge`, `transmission`) and `username`, `null` the values saved, a `username` `""` none; its `secret` is the key of qui or the password of the others, the one saved being the one of the client tested.
 
 ```json
 {"service": "prowlarr", "ok": true, "state": "connected", "status": null, "version": "2.1.5.5216",
- "count": 4, "missing": [], "elapsed_ms": null}
+ "count": 4, "missing": [], "elapsed_ms": null, "client": null, "reason": null}
 ```
 
-- `state`: `connected`, `no_address`, `no_key`, `refused` (`status` 401 or 403), `unavailable` (no answer, or an error with its `status`).
-- Prowlarr: `version`, `count` the indexers on. qBittorrent: `version`, `count` the categories of shelfdrop found (`manga`, `ebook`, `audiobook`, `shelfdrop-manual`), `missing` the others. Jellyfin: `version`, `count` its libraries of books. A source: `elapsed_ms`, the time of a fixed search.
+- `state`: `connected`, `no_address`, `no_key` (the key, or a credential the torrent client signs in with: the key of qui, the username and the password of qBittorrent, the password of Deluge, both or none for Transmission), `refused` (`status` 401 or 403), `unavailable` (no answer, or an error with its `status`); the torrent client also `unsupported` (it answers, shelfdrop cannot send to it: `reason` `label-plugin`, Deluge without its plugin Label, or `transmission-version`, Transmission before 3.00) and `no_connector` (no connector of this version serves the client).
+- Prowlarr: `version`, `count` the indexers on. The torrent client: `client`, `version`, `count` the categories of shelfdrop found (`manga`, `ebook`, `audiobook`, `shelfdrop-manual`), `missing` the others. Jellyfin: `version`, `count` its libraries of books. A source: `elapsed_ms`, the time of a fixed search.
 
-Errors: `422 invalid_settings` (an unknown service, or an address refused: `data.keys`).
+Errors: `422 invalid_settings` (an unknown service, an address, a client or a username refused, or a `client` or a `username` given to another service: `data.keys`, `<service>.url`, `<service>.client`, `<service>.username`).
 
 ## GET /api/v1/settings/health
-The last tests of the background, run at start then every 5 minutes, of each service whose address and key are saved: `{"services": [<the object of the test>], "checked_at": 1792598400}`.
+The last tests of the background, run at start then every 5 minutes, of each service whose address and key are saved (the torrent client: its address): `{"services": [<the object of the test>], "checked_at": 1792598400}`.
 
 ## GET /api/v1/settings/audit
 The last 100 changes, the newest first: `{"entries": [{"at": 1792598400, "actor": "admin", "action": "replaced", "target": "prowlarr.api_key"}]}`. `action`: `changed`, `replaced`, `cleared`, `imported` (`actor` `environment`); the target `trackers` or `filters` for a change of those; `created`, `revoked` for an access token (target `token.<id>`).

@@ -8,7 +8,9 @@ from typing import Literal
 type ValueKind = Literal["address", "number", "switch", "path", "time", "choice", "text"]
 type SettingValue = str | int | bool | None
 type AuditAction = Literal["changed", "replaced", "cleared", "imported", "created", "revoked"]
-type ProbeState = Literal["connected", "no_address", "no_key", "refused", "unavailable"]
+type ProbeState = Literal[
+    "connected", "no_address", "no_key", "refused", "unavailable", "unsupported", "no_connector"
+]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -32,6 +34,8 @@ class SettingsView:
     """Every setting of the catalog, the default of those never saved."""
     secrets: Mapping[str, int | None]
     """Every secret of the catalog: when it was set (Unix seconds), None when it is not."""
+    torrent_clients: tuple[str, ...] = ()
+    """The torrent clients a connector of this version serves, in the order of the catalog."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -63,7 +67,11 @@ class TorrentSettings:
 
 @dataclass(frozen=True, kw_only=True)
 class ProbeResult:
-    """What a test of a connection found: `connected`, or why not."""
+    """What a test of a connection found: `connected`, or why not: `no_address`, `no_key` (a
+    secret, or for a torrent client a credential it needs, is missing), `refused`,
+    `unavailable` (no answer), and for the torrent client `unsupported` (it answers, but
+    shelfdrop cannot send to it: `reason`) or `no_connector` (no connector of this version serves
+    the client chosen)."""
 
     service: str
     state: ProbeState
@@ -77,6 +85,10 @@ class ProbeResult:
     """The torrent client: the categories of shelfdrop it does not have."""
     elapsed_ms: int | None = None
     """A metadata source: the time of its answer."""
+    client: str | None = None
+    """The torrent client tested (`torrent.client`)."""
+    reason: str | None = None
+    """`unsupported`: why, as the connector names it (`label-plugin`, `transmission-version`)."""
 
     @property
     def ok(self) -> bool:

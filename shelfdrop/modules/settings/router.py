@@ -27,7 +27,11 @@ router = APIRouter(prefix="/v1/settings", tags=["settings"], route_class=WireupR
 
 
 def settings_read(view: SettingsView) -> SettingsRead:
-    return SettingsRead(values=dict(view.values), secrets=dict(view.secrets))
+    return SettingsRead(
+        values=dict(view.values),
+        secrets=dict(view.secrets),
+        torrent_clients=list(view.torrent_clients),
+    )
 
 
 def probe_read(result: ProbeResult) -> ProbeRead:
@@ -40,6 +44,8 @@ def probe_read(result: ProbeResult) -> ProbeRead:
         count=result.count,
         missing=list(result.missing),
         elapsed_ms=result.elapsed_ms,
+        client=result.client,
+        reason=result.reason,
     )
 
 
@@ -65,7 +71,10 @@ async def save_settings(
 async def test_connection(service: Injected[SettingsService], body: ProbeBody) -> ProbeRead:
     """Test a service or a source with the values typed, before they are saved."""
     try:
-        return probe_read(await service.test(body.service, body.url, body.secret))
+        result = await service.test(
+            body.service, body.url, body.secret, client=body.client, username=body.username
+        )
+        return probe_read(result)
     except InvalidSettingsError as exc:
         raise invalid_settings(exc.keys) from exc
 

@@ -196,6 +196,65 @@ async def test_a_test_of_the_torrent_client_uses_the_secret_of_the_client_saved(
 
 
 @pytest.mark.anyio
+async def test_a_test_of_the_torrent_client_typed_uses_the_secret_saved_of_that_client() -> None:
+    probes = FakeProbes()
+    service, _ = new_service(probes)
+    await service.save(
+        SettingsChange(
+            values={"torrent.url": "http://qui:7476", "torrent.username": "admin"},
+            secrets={"torrent.api_key": "key-of-qui", "torrent.password": "pass"},
+        ),
+        "s",
+    )
+
+    # qui saved; Transmission typed, its username kept, then cleared; its password typed.
+    await service.test("torrent", None, None, client="transmission")
+    await service.test("torrent", "http://tr:9091", "", client="transmission", username="")
+    await service.test("torrent", None, "typed", client="qbittorrent", username="other")
+
+    assert probes.runs == [
+        ("torrent", "http://qui:7476", "pass"),
+        ("torrent", "http://tr:9091", None),
+        ("torrent", "http://qui:7476", "typed"),
+    ]
+    assert probes.options == [
+        ("transmission", None),
+        ("transmission", ""),
+        ("qbittorrent", "other"),
+    ]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("name", "client", "username", "key"),
+    [
+        ("torrent", "rtorrent", None, "torrent.client"),
+        ("prowlarr", "qui", None, "prowlarr.client"),
+        ("torrent", None, " admin", "torrent.username"),
+        ("jellyfin", None, "admin", "jellyfin.username"),
+    ],
+)
+async def test_a_client_or_a_username_refused_is_not_tested(
+    name: str, client: str | None, username: str | None, key: str
+) -> None:
+    probes = FakeProbes()
+    service, _ = new_service(probes)
+
+    with pytest.raises(InvalidSettingsError) as refused:
+        await service.test(name, None, None, client=client, username=username)
+
+    assert refused.value.keys == [key]
+    assert probes.runs == []
+
+
+@pytest.mark.anyio
+async def test_the_settings_name_the_torrent_clients_a_connector_serves() -> None:
+    service, _ = new_service()
+
+    assert (await service.read()).torrent_clients == ("qui", "transmission")
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     ("name", "url", "key"),
     [

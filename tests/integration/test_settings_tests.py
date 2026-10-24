@@ -1,6 +1,7 @@
 """The tests of the connections through the real API, against the fake
 Prowlarr, qBittorrent (behind qui), Jellyfin and metadata sources: with the values typed before
-they are saved, or those saved; and the tests of the background, run at start."""
+they are saved (the torrent client: its client and its username too), or those saved; and the
+tests of the background, run at start."""
 
 from typing import Any
 
@@ -40,6 +41,8 @@ def test_a_key_typed_is_tested_before_it_is_saved(client: httpx.Client) -> None:
         "count": None,
         "missing": [],
         "elapsed_ms": None,
+        "client": None,
+        "reason": None,
     }
     assert client.get("/api/v1/settings").json()["secrets"]["prowlarr.api_key"] is not None
 
@@ -48,9 +51,27 @@ def test_qbittorrent_through_qui_names_the_category_it_misses(client: httpx.Clie
     result = probe(client, {"service": "torrent", "url": FAKE_ORIGIN, "secret": QUI_KEY})
 
     assert result["ok"] is True
+    assert result["client"] == "qui"
     assert result["version"] == "5.1.2"
     assert result["count"] == 3
     assert result["missing"] == ["shelfdrop-manual"]
+
+
+def test_the_torrent_client_typed_is_tested_with_its_own_credentials(client: httpx.Client) -> None:
+    """qui typed, its key cleared on the page: nothing to sign in with, nothing asked."""
+    typed = {"service": "torrent", "client": "qui", "url": FAKE_ORIGIN, "secret": ""}
+
+    result = probe(client, typed)
+
+    assert (result["state"], result["client"], result["reason"]) == ("no_key", "qui", None)
+
+
+def test_a_client_or_a_username_refused_is_named(client: httpx.Client) -> None:
+    unknown = client.post("/api/v1/settings/test", json={"service": "torrent", "client": "x"})
+    other = client.post("/api/v1/settings/test", json={"service": "jellyfin", "username": "a"})
+
+    assert (unknown.status_code, unknown.json()["data"]) == (422, {"keys": ["torrent.client"]})
+    assert (other.status_code, other.json()["data"]) == (422, {"keys": ["jellyfin.username"]})
 
 
 def test_jellyfin_gives_its_version_and_its_libraries_of_books(client: httpx.Client) -> None:

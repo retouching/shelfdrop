@@ -1,9 +1,15 @@
 """shelfdrop.settings.probes: the test of each service and source, with the values given."""
 
+from collections.abc import Sequence
+from typing import ClassVar
+
 import httpx
 import pytest
 
 from shelfdrop.clients.jellyfin import JellyfinClient
+from shelfdrop.clients.torrents.client import TorrentConnection
+from shelfdrop.clients.torrents.factory import TorrentClients
+from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
 from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.works.clients.kitsu import KitsuClient
@@ -33,11 +39,54 @@ def http(handler: object) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))  # type: ignore[arg-type]  # the fakes are handlers of MockTransport
 
 
+class ScriptedClient:
+    """A connector of any client: the check it is given, and the connections it was built on."""
+
+    built: ClassVar[list[TorrentConnection]] = []
+    answer: ClassVar[TorrentCheck] = TorrentCheck(version="4.0.6")
+
+    @classmethod
+    def of(cls, http: httpx.AsyncClient, connection: TorrentConnection) -> "ScriptedClient":
+        cls.built.append(connection)
+        return cls()
+
+    async def version(self) -> str:
+        return self.answer.version
+
+    async def check(self, categories: Sequence[str]) -> TorrentCheck:
+        return self.answer
+
+    async def add(
+        self,
+        *,
+        category: str,
+        file: bytes | None = None,
+        magnet: str | None = None,
+        directory: str | None = None,
+    ) -> None:
+        return None
+
+    async def torrents(self, hashes: Sequence[str]) -> list[TorrentInfo]:
+        return []
+
+    async def mark_placed(self, hashes: Sequence[str]) -> None:
+        return None
+
+
+def scripted(answer: TorrentCheck) -> TorrentClients:
+    """Every client served by `ScriptedClient`, which answers `answer`, but Deluge."""
+    ScriptedClient.built = []
+    ScriptedClient.answer = answer
+    connectors = {name: ScriptedClient.of for name in ("qui", "qbittorrent", "transmission")}
+    return TorrentClients(http(FakeQui()), FakeTorrentSettings(), connectors)
+
+
 def new_probes(
     sources: httpx.AsyncClient | None = None,
     qui: FakeQui | None = None,
     jellyfin: FakeJellyfin | None = None,
     saved: FakeSettingsReader | None = None,
+    torrents: TorrentClients | None = None,
 ) -> ConnectionProbes:
     source_http = sources or http(lambda r: httpx.Response(200, json={"data": []}))
 
@@ -46,7 +95,7 @@ def new_probes(
 
     return ConnectionProbes(
         ProwlarrClient(http(ProwlarrReplay()), fixed(None, None)),
-        torrent_clients(qui or FakeQui(categories=["manga", "ebook", "audiobook"])),
+        torrents or torrent_clients(qui or FakeQui(categories=["manga", "ebook", "audiobook"])),
         JellyfinClient(http(jellyfin or FakeJellyfin()), "0.3.0"),
         WorkSources(clients=(KitsuClient(source_http), MyAnimeListClient(source_http, no_id))),
         saved or FakeSettingsReader(),
@@ -96,14 +145,87 @@ async def test_the_torrent_client_names_the_categories_of_shelfdrop_it_misses() 
 
 
 @pytest.mark.anyio
-async def test_a_torrent_client_no_connector_serves_is_unavailable() -> None:
+async def test_a_torrent_client_no_connector_serves_is_named_so() -> None:
     qui = FakeQui()
     saved = FakeSettingsReader({"torrent.client": "deluge"})
 
     result = await new_probes(qui=qui, saved=saved).run("torrent", QUI, "a-password")
 
-    assert result.state == "unavailable"
+    assert (result.state, result.client) == ("no_connector", "deluge")
     assert qui.requests == []
+
+
+@pytest.mark.anyio
+async def test_the_client_typed_is_tested_with_the_username_saved_or_typed() -> None:
+    torrents = scripted(TorrentCheck(version="5.1.2"))
+    saved = FakeSettingsReader({"torrent.username": "admin"}, {"torrent.api_key": "key"})
+    probes = new_probes(saved=saved, torrents=torrents)
+
+    kept = await probes.run("torrent", QUI, "pass", client="qbittorrent")
+    typed = await probes.run("torrent", QUI, "pass", client="qbittorrent", username="other")
+
+    assert (kept.state, kept.client, kept.count) == ("connected", "qbittorrent", 4)
+    assert typed.ok
+    assert [(c.client, c.username, c.password) for c in ScriptedClient.built] == [
+        ("qbittorrent", "admin", "pass"),
+        ("qbittorrent", "other", "pass"),
+    ]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("client", "username", "secret", "state"),
+    [
+        ("qui", None, None, "no_key"),
+        ("qbittorrent", "admin", None, "no_key"),
+        ("qbittorrent", "", "pass", "no_key"),
+        ("transmission", "admin", None, "no_key"),
+        ("transmission", "", "pass", "no_key"),
+        ("transmission", "", None, "connected"),
+        ("transmission", "admin", "pass", "connected"),
+    ],
+)
+async def test_each_client_needs_its_own_credentials(
+    client: str, username: str, secret: str | None, state: str
+) -> None:
+    probes = new_probes(torrents=scripted(TorrentCheck(version="4.0.6")))
+
+    result = await probes.run("torrent", QUI, secret, client=client, username=username)
+
+    assert result.state == state
+    assert len(ScriptedClient.built) == (1 if state == "connected" else 0)
+
+
+@pytest.mark.anyio
+async def test_a_client_shelfdrop_cannot_send_to_is_unsupported_with_its_reason() -> None:
+    torrents = scripted(TorrentCheck(version="2.94", unsupported="transmission-version"))
+
+    result = await new_probes(torrents=torrents).run("torrent", QUI, None, client="transmission")
+
+    assert (result.state, result.reason, result.version) == (
+        "unsupported",
+        "transmission-version",
+        "2.94",
+    )
+    assert not result.ok
+
+
+@pytest.mark.anyio
+async def test_without_address_the_torrent_client_is_not_asked() -> None:
+    result = await new_probes(torrents=scripted(TorrentCheck(version="1"))).run(
+        "torrent", None, "k"
+    )
+
+    assert (result.state, result.client) == ("no_address", "qui")
+    assert ScriptedClient.built == []
+
+
+def test_the_clients_offered_are_those_a_connector_serves() -> None:
+    assert new_probes(torrents=scripted(TorrentCheck(version="1"))).clients() == (
+        "qui",
+        "qbittorrent",
+        "transmission",
+    )
 
 
 @pytest.mark.anyio

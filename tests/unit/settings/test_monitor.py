@@ -55,3 +55,15 @@ async def test_only_the_services_saved_are_tested_and_a_failure_is_logged_once(
     assert [r.service for r in results] == ["prowlarr"]
     assert results[0].ok
     assert checked_at == int(FixedClock().now())
+
+
+@pytest.mark.anyio
+async def test_the_torrent_client_is_tested_once_its_address_is_saved() -> None:
+    """Transmission may sign in with nothing: its address is enough to test it."""
+    probes = ScriptedProbes()
+    reader = FakeSettingsReader({"torrent.client": "transmission", "torrent.url": "http://t:9091"})
+    monitor = ConnectionMonitor(probes, reader, FixedClock())
+
+    await monitor.check_all()
+
+    assert probes.asked == ["torrent"]

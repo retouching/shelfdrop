@@ -5320,6 +5320,30 @@
               }
             ],
             "title": "Secret"
+          },
+          "client": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
           }
         },
         "type": "object",
@@ -5391,6 +5415,28 @@
               }
             ],
             "title": "Elapsed Ms"
+          },
+          "client": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
         "type": "object",
@@ -5402,7 +5448,9 @@
           "version",
           "count",
           "missing",
-          "elapsed_ms"
+          "elapsed_ms",
+          "client",
+          "reason"
         ],
         "title": "ProbeRead"
       },
@@ -5413,7 +5461,9 @@
           "no_address",
           "no_key",
           "refused",
-          "unavailable"
+          "unavailable",
+          "unsupported",
+          "no_connector"
         ]
       },
       "ProgressRead": {
@@ -6152,12 +6202,20 @@
             },
             "type": "object",
             "title": "Secrets"
+          },
+          "torrent_clients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Torrent Clients"
           }
         },
         "type": "object",
         "required": [
           "values",
-          "secrets"
+          "secrets",
+          "torrent_clients"
         ],
         "title": "SettingsRead"
       },

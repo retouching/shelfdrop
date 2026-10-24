@@ -9,6 +9,7 @@ import anyio.to_thread
 
 from shelfdrop.settings.catalog import (
     ADDRESS,
+    CLIENTS,
     SECRETS,
     SERVICES,
     VALUES,
@@ -34,7 +35,17 @@ AUDIT_SHOWN: Final = 100
 class Probes(Protocol):
     def names(self) -> tuple[str, ...]: ...
 
-    async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult: ...
+    def clients(self) -> tuple[str, ...]: ...
+
+    async def run(
+        self,
+        service: str,
+        url: str | None,
+        secret: str | None,
+        *,
+        client: str | None = None,
+        username: str | None = None,
+    ) -> ProbeResult: ...
 
 
 def secret_key_of(service: str, client: str) -> str | None:
@@ -70,6 +81,7 @@ class SettingsService:
         return SettingsView(
             values={key: saved.get(key, entry.default) for key, entry in VALUES.items()},
             secrets={key: dates.get(key) for key in sorted(SECRETS)},
+            torrent_clients=self.probes.clients(),
         )
 
     async def save(self, change: SettingsChange, actor: str) -> SettingsView:
@@ -96,26 +108,50 @@ class SettingsService:
         self.repository.commit()
         return self.view()
 
-    async def test(self, service: str, url: str | None, secret: str | None) -> ProbeResult:
-        """The test of a connection with the values typed: `url` and `secret` None are those
-        saved, a `secret` "" none. Raises InvalidSettingsError for an unknown service or an
-        address refused."""
+    async def test(
+        self,
+        service: str,
+        url: str | None,
+        secret: str | None,
+        *,
+        client: str | None = None,
+        username: str | None = None,
+    ) -> ProbeResult:
+        """The test of a connection with the values typed: `url`, `secret` and, for the torrent
+        client, `client` and `username` None are those saved, a `secret` or a `username` ""
+        none; the secret saved is the one of the client tested. Raises InvalidSettingsError for
+        an unknown service, an address, a client or a username refused, or a client or a
+        username given to another service than the torrent client."""
         if service not in self.probes.names():
             raise InvalidSettingsError([service])
         if url is not None and (service not in SERVICES or ADDRESS.match(url) is None):
             raise InvalidSettingsError([f"{service}.url"])
-        saved_url, saved_secret = await anyio.to_thread.run_sync(self.saved_connection, service)
-        return await self.probes.run(
-            service,
-            saved_url if url is None else url,
-            saved_secret if secret is None else (secret or None),
+        if client is not None and (service != "torrent" or client not in CLIENTS):
+            raise InvalidSettingsError([f"{service}.client"])
+        if username and (
+            service != "torrent" or not is_valid(VALUES["torrent.username"], username)
+        ):
+            raise InvalidSettingsError([f"{service}.username"])
+        saved_url, saved_secret = await anyio.to_thread.run_sync(
+            self.saved_connection, service, client
         )
+        url = saved_url if url is None else url
+        secret = saved_secret if secret is None else (secret or None)
+        if service != "torrent":
+            return await self.probes.run(service, url, secret)
+        return await self.probes.run(service, url, secret, client=client, username=username)
 
-    def saved_connection(self, service: str) -> tuple[str | None, str | None]:
-        client = self.repository.read_values(["torrent.client"]).get("torrent.client")
+    def saved_connection(
+        self, service: str, client: str | None = None
+    ) -> tuple[str | None, str | None]:
+        """The address and the secret saved of `service`; the torrent client: the secret of
+        `client`, the client saved when None."""
+        if client is None:
+            saved = self.repository.read_values(["torrent.client"]).get("torrent.client")
+            default = str(VALUES["torrent.client"].default)
+            client = saved if isinstance(saved, str) else default
         url_key = f"{service}.url"
-        default = str(VALUES["torrent.client"].default)
-        secret_key = secret_key_of(service, client if isinstance(client, str) else default)
+        secret_key = secret_key_of(service, client)
         url = self.repository.read_values([url_key]).get(url_key) if service in SERVICES else None
         sealed = None if secret_key is None else self.repository.read_sealed(secret_key)
         secret = None

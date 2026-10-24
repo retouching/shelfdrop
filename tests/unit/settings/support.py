@@ -94,10 +94,24 @@ class FakeProbes:
 
     def __init__(self) -> None:
         self.runs: list[tuple[str, str | None, str | None]] = []
+        # The client and the username of each test, in the order of `runs`.
+        self.options: list[tuple[str | None, str | None]] = []
 
     def names(self) -> tuple[str, ...]:
         return ("prowlarr", "torrent", "jellyfin", "kitsu", "myanimelist")
 
-    async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult:
+    def clients(self) -> tuple[str, ...]:
+        return ("qui", "transmission")
+
+    async def run(
+        self,
+        service: str,
+        url: str | None,
+        secret: str | None,
+        *,
+        client: str | None = None,
+        username: str | None = None,
+    ) -> ProbeResult:
         self.runs.append((service, url, secret))
+        self.options.append((client, username))
         return ProbeResult(service=service, state="connected")

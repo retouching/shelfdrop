@@ -2,8 +2,9 @@
 result of each kept in memory for the page. A container singleton; the lifespan of the application
 runs it.
 
-A service is tested once its address and its key are saved. A failure is logged once, when
-it starts, and its end once.
+A service is tested once its address and its key are saved; the torrent client once its address
+is (Transmission may sign in with nothing; its test names a credential missing). A failure is
+logged once, when it starts, and its end once.
 """
 
 import logging
@@ -39,7 +40,7 @@ class ConnectionMonitor:
     async def check_all(self) -> None:
         for service in SERVICES:
             url, secret = await self.saved.connection(service)
-            if not url or not secret:
+            if not url or (not secret and service != "torrent"):
                 self.results.pop(service, None)
                 continue
             result = await self.probes.run(service, url, secret)
