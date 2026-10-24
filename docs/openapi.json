@@ -874,6 +874,146 @@
         ]
       }
     },
+    "/api/v1/logs": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Read Logs",
+        "description": "The records of a process, the newest first: those of its file and of its two rotated\ncopies (15 MiB at most).",
+        "operationId": "read_logs_api_v1_logs_get",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LogProcess",
+              "description": "The service of Compose whose records are read.",
+              "default": "api"
+            },
+            "description": "The service of Compose whose records are read."
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "DEBUG",
+                "INFO",
+                "WARNING",
+                "ERROR",
+                "CRITICAL"
+              ],
+              "type": "string",
+              "description": "The lowest level shown.",
+              "default": "DEBUG",
+              "title": "Level"
+            },
+            "description": "The lowest level shown."
+          },
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Searched, without case, in the message, the logger, the request id and the other fields.",
+              "title": "Text"
+            },
+            "description": "Searched, without case, in the message, the logger, the request id and the other fields."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\+00:00~[1-9]\\d{0,6}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The `next` of the previous page.",
+              "title": "Before"
+            },
+            "description": "The `next` of the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A write from another origin (`origin_refused`), or an access token (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "session",
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/v1/searches": {
       "post": {
         "tags": [
@@ -4468,6 +4608,93 @@
           "series"
         ],
         "title": "LibraryRead"
+      },
+      "LogEntryRead": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "UTC, ISO 8601, to the millisecond."
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "logger": {
+            "type": "string",
+            "title": "Logger"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "fields": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Fields",
+            "description": "The other fields of the record: its extra fields, `exception`, `stack`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "level",
+          "logger",
+          "message",
+          "request_id",
+          "fields"
+        ],
+        "title": "LogEntryRead"
+      },
+      "LogProcess": {
+        "type": "string",
+        "enum": [
+          "api",
+          "placement"
+        ],
+        "title": "LogProcess",
+        "description": "The processes that write a file of logs (`shelfdrop.logging.setup.log_file`)."
+      },
+      "LogsRead": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LogEntryRead"
+            },
+            "type": "array",
+            "title": "Entries",
+            "description": "The newest first."
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next",
+            "description": "The `before` of the older entries; null: there are no more."
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries",
+          "next"
+        ],
+        "title": "LogsRead"
       },
       "Name": {
         "type": "string",

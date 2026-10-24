@@ -43,12 +43,13 @@ from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from shelfdrop.http.openapi import DocumentedApi
 from shelfdrop.journal.service import JournalSender
 from shelfdrop.library.sync import LibrarySync
-from shelfdrop.logging.setup import configure_logging
+from shelfdrop.logging.setup import configure_logging, log_file
 from shelfdrop.modules.docs.router import docs_router
 from shelfdrop.modules.downloads.router import router as downloads_router
 from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
 from shelfdrop.modules.library.router import router as library_router
+from shelfdrop.modules.logs.router import router as logs_router
 from shelfdrop.modules.mcp.router import new_mcp_server
 from shelfdrop.modules.place.router import router as place_router
 from shelfdrop.modules.releases.router import router as releases_router
@@ -75,7 +76,11 @@ def create_app() -> FastAPI:
     """Uvicorn factory (`--factory shelfdrop.main:create_app`); fails fast on invalid
     configuration."""
     settings = Settings()
-    configure_logging(level=settings.log_level, json_format=settings.log_format == "json")
+    configure_logging(
+        level=settings.log_level,
+        json_format=settings.log_format == "json",
+        file=log_file(settings.log_dir, "api"),
+    )
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     return build_app(settings)
 
@@ -159,13 +164,14 @@ def build_app(settings: Settings) -> DocumentedApi:
         api_paths=(f"{prefix}/", "/health", MCP_PATH),
         docs_path=f"{prefix}/docs",
     )
-    app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health"}))
+    # The logs are read again every 5 seconds by their page: their reads would fill their file.
+    app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health", f"{prefix}/v1/logs"}))
     app.add_middleware(RequestIdMiddleware)
     app.include(health_router)
     # The session asks for itself; every other route of the API needs one, or
     # an access token where one may go (ADR 0020).
     app.include(session_router, prefix=prefix)
-    for router in (settings_router, trackers_router, filters_router, tokens_router):
+    for router in (settings_router, trackers_router, filters_router, tokens_router, logs_router):
         app.include(router, prefix=prefix, guard=require_session)
     for router in (searches_router, releases_router, docs_router(settings.static_dir)):
         app.include(router, prefix=prefix, guard=require_reader)

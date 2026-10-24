@@ -1,12 +1,19 @@
 import json
 import logging
 import re
+from pathlib import Path
 
 import httpx
 import pytest
 
 from shelfdrop.logging.context import request_id_var
-from shelfdrop.logging.setup import configure_logging
+from shelfdrop.logging.setup import (
+    LOG_FILE_BACKUPS,
+    LOG_FILE_BYTES,
+    config,
+    configure_logging,
+    log_file,
+)
 
 TEXT_LINE = r"\S+ \S+ WARNING shelfdrop\.tests\.text \[{request_id}\] {message}"
 
@@ -97,3 +104,43 @@ def test_a_request_of_httpx_never_logs_its_address(capsys: pytest.CaptureFixture
         client.post("https://discord.com/api/webhooks/1/leaky-token")
 
     assert "leaky-token" not in capsys.readouterr().err
+
+
+@pytest.mark.usefixtures("isolated_logging")
+def test_a_file_gets_the_same_records_in_json_even_when_stderr_is_text(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    file = log_file(tmp_path / "logs", "api")
+
+    configure_logging(level="INFO", json_format=False, file=file)
+    logger = logging.getLogger("shelfdrop.tests.file")
+    logger.debug("dropped")
+    token = request_id_var.set("req-9")
+    try:
+        logger.warning("kept", extra={"source": "anilist"})
+    finally:
+        request_id_var.reset(token)
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+
+    assert file == tmp_path / "logs" / "api.jsonl"
+    records = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
+    assert [(r["message"], r["level"], r["request_id"], r["source"]) for r in records] == [
+        ("kept", "WARNING", "req-9", "anilist")
+    ]
+    assert "kept" in capsys.readouterr().err
+
+
+def test_the_file_rotates_at_5_mib_and_keeps_two_copies(tmp_path: Path) -> None:
+    handler = config(level="INFO", json_format=True, file=tmp_path / "api.jsonl")["handlers"][
+        "file"
+    ]
+
+    assert handler["class"] == "logging.handlers.RotatingFileHandler"
+    assert (handler["maxBytes"], handler["backupCount"]) == (LOG_FILE_BYTES, LOG_FILE_BACKUPS)
+    assert (LOG_FILE_BYTES, LOG_FILE_BACKUPS) == (5 * 1024 * 1024, 2)
+    assert handler["formatter"] == "json"
+
+
+def test_without_a_file_only_stderr_gets_the_records() -> None:
+    assert list(config(level="INFO", json_format=True)["handlers"]) == ["stderr"]

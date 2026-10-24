@@ -7,6 +7,7 @@ import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import { AccessTab } from "./AccessTab";
 import { FiltersTab } from "./FiltersTab";
+import { LogsTab } from "./LogsTab";
 import {
   DiscordTab,
   PlacementTab,
@@ -34,6 +35,8 @@ function TabContent({ tab, tests }: { readonly tab: SettingsTab; readonly tests:
       return <DiscordTab />;
     case "access":
       return <AccessTab />;
+    case "logs":
+      return <LogsTab />;
   }
 }
 
@@ -99,7 +102,7 @@ export function SettingsPage({ tab, onTab }: Props): ReactElement {
             </button>
           ))}
         </div>
-        {tab === "access" ? null : (
+        {tab === "access" || tab === "logs" ? null : (
           <div className="flex items-center gap-3">
             {saved ? (
               <p role="status" className="text-sm text-emerald-700">

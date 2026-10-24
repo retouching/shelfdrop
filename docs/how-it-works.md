@@ -10,6 +10,9 @@ A request goes through, from the outside in:
 6. `OriginMiddleware`: a write of the API without the `Origin` of its host gets `403 origin_refused`, unless it carries an `Authorization` header;
 7. the route, after `require_session`, `require_reader` or `require_access` (every route of the API but the sign-in: [the session](#sign-in-and-sessions), or [an access token](#access-tokens)). After the response, `release_session` closes the session in the threadpool.
 
+## Logs
+Every record goes to stderr and, for the API and the placement worker, to a file of the data volume, in JSON (`shelfdrop.logging.setup.configure_logging`); the tab Journaux of the settings reads both through `GET /api/v1/logs` (`shelfdrop.logs.service.LogReader`, from the end of the files), for a session alone ([ADR 0023](adr/0023-logs.md)).
+
 ## Sign-in and sessions
 `POST /api/v1/session` runs `shelfdrop.auth.service.AuthService.sign_in` ([ADR 0013](adr/0013-sign-in-and-sessions.md)):
 

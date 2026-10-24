@@ -133,5 +133,10 @@ class Settings(BaseSettings):
         return None if value == "" else value
 
     @property
+    def log_dir(self) -> Path:
+        """The files of logs of the API and of the placement worker (the same volume)."""
+        return self.data_dir / "logs"
+
+    @property
     def database_url(self) -> str:
         return f"sqlite:///{self.data_dir / 'shelfdrop.db'}"

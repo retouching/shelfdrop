@@ -29,7 +29,12 @@ def isolated_logging() -> Iterator[None]:
     try:
         yield
     finally:
+        kept = {handler for state in saved.values() for handler in state[3]}
         for logger in all_loggers():
+            # The handlers it added are closed: a file of logs stays open otherwise.
+            for handler in logger.handlers:
+                if handler not in kept:
+                    handler.close()
             level, propagate, disabled, handlers, filters = saved.get(
                 logger, (logging.NOTSET, True, False, [], [])
             )

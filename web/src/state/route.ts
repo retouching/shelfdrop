@@ -4,7 +4,16 @@ import { useEffect, useRef, useState } from "react";
 export type Page = "auto" | "manual" | "waiting" | "downloads" | "place" | "metadata" | "settings";
 
 /** Les onglets de Paramètres, dans leur ordre. */
-export const settingsTabs = ["services", "sources", "search", "filters", "placement", "discord", "access"] as const;
+export const settingsTabs = [
+  "services",
+  "sources",
+  "search",
+  "filters",
+  "placement",
+  "discord",
+  "access",
+  "logs",
+] as const;
 
 export type SettingsTab = (typeof settingsTabs)[number];
 
@@ -30,6 +39,7 @@ const tabSlugs: Readonly<Record<SettingsTab, string>> = {
   placement: "rangement",
   discord: "discord",
   access: "acces",
+  logs: "journaux",
 };
 
 /** La vue où mène une section de la barre : Paramètres s'ouvre sur son premier onglet. */

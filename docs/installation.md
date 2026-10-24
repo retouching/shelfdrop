@@ -22,6 +22,9 @@ docker compose --env-file .env -f docker/compose.yaml down
 
 `down --volumes` also deletes the database.
 
+## Logs
+Both services write their records to stderr, read by `docker compose ... logs`, and to a file of the volume `data`: `logs/api.jsonl` and `logs/placement.jsonl` (`/data/shelfdrop/logs` in the API, `/var/lib/shelfdrop/logs` in the worker), 5 MiB each and two older copies (`.1`, `.2`), 30 MiB at most in all ([ADR 0023](adr/0023-logs.md)). The API reads both for the tab Journaux of the settings: the worker must mount the same volume as the API, as `docker/compose.yaml` does; a worker on another volume leaves its tab empty.
+
 The `.env` file (mode 600: it holds the key of the secrets) sets `SHELFDROP_CONTACT` and `SHELFDROP_SECRET_KEY`, and the variables Compose reads: `SHELFDROP_MEDIA_DIR`, `SHELFDROP_LIBRARY_GID`, `SHELFDROP_API_PORT`, `SHELFDROP_PROXY_ADDRESS`. The other settings are changed on the settings page ([configuration](configuration.md)).
 
 ## The placement worker

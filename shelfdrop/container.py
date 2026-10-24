@@ -32,6 +32,9 @@ from shelfdrop.journal.service import DiscordSettings, Journal, JournalSender
 from shelfdrop.journal.types import JournalOptions
 from shelfdrop.library.service import LibraryReader, LibraryService, LibrarySettings
 from shelfdrop.library.sync import LibrarySync
+from shelfdrop.logging.setup import log_file
+from shelfdrop.logs.service import LogReader
+from shelfdrop.logs.types import LogProcess
 from shelfdrop.placement.audio import AudioTools
 from shelfdrop.placement.byhand import HandPlacement, HandSettings
 from shelfdrop.placement.repository import placement_repository_factory
@@ -259,6 +262,11 @@ async def run_placement(settings: Settings) -> None:
         await worker.run()
     finally:
         await container.close()
+
+
+def new_log_reader(settings: Settings) -> LogReader:
+    """The files of logs of every process, in the data volume they share (ADR 0023)."""
+    return LogReader({process: log_file(settings.log_dir, process) for process in LogProcess})
 
 
 def as_hand_settings(reader: SettingsReader) -> HandSettings:
@@ -574,6 +582,7 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(as_waiting_events),
         wireup.injectable(new_waiting_service),
         wireup.injectable(WaitingRunner),
+        wireup.injectable(new_log_reader),
         wireup.injectable(new_library_service, lifetime="scoped"),
         wireup.injectable(open_engine),
         wireup.injectable(open_session, lifetime="scoped"),

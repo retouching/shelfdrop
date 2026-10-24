@@ -137,6 +137,7 @@ async def test_without_a_build_no_page_is_served(tmp_path: Path) -> None:
         ("PUT", "/api/v1/filters"),
         ("GET", "/api/v1/session"),
         ("DELETE", "/api/v1/session"),
+        ("GET", "/api/v1/logs"),
     ],
 )
 async def test_without_a_session_the_api_answers_401(
@@ -161,6 +162,7 @@ async def test_without_a_session_the_api_answers_401(
         ("POST", "/api/v1/tokens"),
         ("DELETE", "/api/v1/tokens/1"),
         ("GET", "/api/v1/session"),
+        ("GET", "/api/v1/logs"),
     ],
 )
 async def test_a_token_never_reaches_the_routes_of_the_administrators(

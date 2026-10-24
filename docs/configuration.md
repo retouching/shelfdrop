@@ -10,7 +10,7 @@
 | `SHELFDROP_STATIC_DIR` | `shelfdrop/static` (`/app/static` in the image) | The built front-end. Without an `index.html` there, no page is served. |
 | `SHELFDROP_API_PREFIX` | `/api` | The prefix of every route but `/health` and the pages: one or more `/segment`. |
 | `SHELFDROP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. SQLAlchemy, httpx and httpcore never log below `WARNING`. |
-| `SHELFDROP_LOG_FORMAT` | `json` | `json` (one object per line) or `text`. |
+| `SHELFDROP_LOG_FORMAT` | `json` | `json` (one object per line) or `text`, on stderr. The API and the placement worker also write their records to `logs/api.jsonl` and `logs/placement.jsonl` of `SHELFDROP_DATA_DIR`, always in JSON, 5 MiB and two older copies each, read by the tab Journaux of the settings ([ADR 0023](adr/0023-logs.md)). |
 | `SHELFDROP_PUBLIC_URL` | none | The address of the pages as the browser reaches them (for example `https://shelfdrop.example.com`): the title of each message of the journal links there. |
 
 Imported once into the database, at the first start where they are set ([ADR 0012](adr/0012-settings-and-secrets.md)); then the settings page holds them, and a later change of the variable is ignored:

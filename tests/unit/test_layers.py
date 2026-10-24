@@ -34,6 +34,7 @@ DOMAIN: Final = (
     "shelfdrop/utils/",
     "shelfdrop/db/",
     "shelfdrop/logging/",
+    "shelfdrop/logs/",
 )
 
 

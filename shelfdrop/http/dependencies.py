@@ -83,8 +83,8 @@ async def check_bearer(secret: str, tokens: TokenService, scope: Scope) -> Accou
 async def require_session(request: Request, auth: Injected[AuthService]) -> Account:
     """The account of the session cookie; 401 `not_signed_in` without one, 403
     `token_forbidden` with an access token. build_app() puts it on the routers kept for the
-    administrators (the settings, the trackers, the filters, the tokens); the routes of the
-    session ask for it themselves."""
+    administrators (the settings, the trackers, the filters, the tokens, the logs); the routes of
+    the session ask for it themselves."""
     if bearer_of(request) is not None:
         raise token_forbidden()
     return await check_cookie(request, auth)
