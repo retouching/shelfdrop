@@ -12,6 +12,7 @@ from shelfdrop.db.models.login_session import LoginSession
 from shelfdrop.db.models.place_item import PlaceItem
 from shelfdrop.db.models.release_answer import ReleaseAnswer
 from shelfdrop.db.models.secret import Secret
+from shelfdrop.db.models.series_link import SeriesLink
 from shelfdrop.db.models.setting import Setting
 from shelfdrop.db.models.shelf_file import ShelfFile
 from shelfdrop.db.models.source_answer import SourceAnswer
@@ -33,6 +34,7 @@ __all__ = [
     "PlaceItem",
     "ReleaseAnswer",
     "Secret",
+    "SeriesLink",
     "Setting",
     "ShelfFile",
     "SourceAnswer",

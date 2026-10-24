@@ -6,7 +6,7 @@ volume of manga `<Series> - TXX.<ext>` in the folder of its series, a book
 import re
 from typing import Final
 
-from shelfdrop.releases.guess import volumes_of
+from shelfdrop.releases.guess import chapters_of, volumes_of
 
 # Characters no folder of the libraries may hold (Windows clients of Jellyfin read them too).
 UNSAFE: Final = re.compile(r'[/\\:*?"<>|\x00-\x1f]')
@@ -98,6 +98,22 @@ def file_volume(stem: str) -> int | None:
             return int(found.group(1))
     single = volumes_of(text)
     return single.first if single.kind == "single" else None
+
+
+def file_chapter(stem: str) -> float | None:
+    """The first chapter a file name gives ('Ch. 206', '#206', 'c206'); None without one."""
+    found = chapters_of(stem)
+    return None if found is None else found.first
+
+
+def adopted_name(series: str, volume: int | None, chapter: float | None, extension: str) -> str:
+    """The name a file of a series adopted takes in its folder: 'Chainsaw Man - T01.cbz', a
+    chapter 'Chainsaw Man - Ch. 206.cbz' (within its volume when it has one)."""
+    if chapter is not None:
+        return chapter_name(series, volume, chapter, extension)
+    if volume is None:
+        raise ValueError("a volume or a chapter")
+    return comic_name(series, volume, extension)
 
 
 def stated_volume(name: str) -> int | None:

@@ -56,6 +56,18 @@ def link(source: Path, target: Path) -> bool:
     return True
 
 
+def rename_new(source: Path, target: Path) -> bool:
+    """`source` renamed `target` in the same library, never over a file: a hardlink `target`,
+    then `source` removed. False when `target` exists (both left as they are). Raises
+    LinkRefusedError."""
+    if source == target:
+        return True
+    if not link(source, target):
+        return False
+    source.unlink()
+    return True
+
+
 def write_new(target: Path, data: bytes) -> bool:
     """`data` written to `target` through a `.part`; False when `target` exists."""
     if target.exists():

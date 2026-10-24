@@ -17,19 +17,25 @@ from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.types import JellyfinItem, JellyfinLibrary
 from shelfdrop.library.exceptions import (
+    AdoptionRefusedError,
     ImageRefusedError,
     LibraryUnavailableError,
     SeriesNotFoundError,
     VolumeNotFoundError,
 )
 from shelfdrop.library.types import (
+    AdoptionChoice,
+    AdoptionFile,
+    AdoptionResult,
     ImageChoice,
     ItemImage,
     LibrarySeries,
     LibraryVolume,
     LinkImage,
+    NumberOrigin,
     ScanOrder,
     SentImage,
+    SeriesAdoption,
     SeriesChange,
     SeriesProposals,
     SeriesVolumes,
@@ -39,12 +45,17 @@ from shelfdrop.library.types import (
     VolumeFile,
     VolumeImage,
 )
-from shelfdrop.placement.naming import file_volume
-from shelfdrop.placement.paths import library_of
+from shelfdrop.placement.naming import adopted_name, file_chapter, file_volume
+from shelfdrop.placement.paths import library_of, to_jellyfin, to_local
 from shelfdrop.placement.repository import PlacementRepository
+from shelfdrop.placement.types import AdoptOrder, PlacedFile, SeriesLink
 from shelfdrop.utils.pictures import picture_of
-from shelfdrop.works.exceptions import NoSourceAnsweredError, QueryTooShortError
-from shelfdrop.works.types import Clock, Kind, WorkSearch
+from shelfdrop.works.exceptions import (
+    NoSourceAnsweredError,
+    QueryTooShortError,
+    WorkNotFoundError,
+)
+from shelfdrop.works.types import Clock, Kind, Work, WorkSearch
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +81,11 @@ class LibrarySettings(Protocol):
 
 
 class WorkFinder(Protocol):
-    """The work search, under the name of a series."""
+    """The work search, under the name of a series, and a work it found by its id."""
 
     async def search(self, query: str, kind: Kind) -> WorkSearch: ...
+
+    async def read_work(self, work_id: str) -> Work: ...
 
 
 class ImageReader(Protocol):
@@ -330,27 +343,247 @@ class LibraryService(LibraryReader):
 
     @jellyfin_down
     async def proposals(self, series_id: str) -> SeriesProposals:
-        """The images of its volumes, and the covers and the summaries of the first work the
-        sources find under its name (none when no source answers)."""
+        """The images of its volumes, and the covers, the summaries and the names of its work:
+        the one it was linked to, else the first the sources find under its name (none when no
+        source answers)."""
         found, books = await self.series(series_id)
+        return await self.proposals_of(found, books)
+
+    async def proposals_of(
+        self, found: LibrarySeries, books: Sequence[JellyfinItem]
+    ) -> SeriesProposals:
         volumes = tuple(
             VolumeImage(item_id=b.id, label=volume_label(b, found.kind), image_tag=b.image_tag)
             for b in books
             if b.has_image
         )[:VOLUME_PROPOSALS]
-        try:
-            search = await self.works.search(found.name, found.kind)
-        except (NoSourceAnsweredError, QueryTooShortError):
-            return SeriesProposals(volumes=volumes, covers=(), summaries=(), work_id=None)
-        if not search.works:
-            return SeriesProposals(volumes=volumes, covers=(), summaries=(), work_id=None)
-        work = search.works[0]
+        work, linked = await self.work_of(found)
+        if work is None:
+            return SeriesProposals(
+                volumes=volumes, covers=(), summaries=(), work_id=None, linked=linked
+            )
         return SeriesProposals(
             volumes=volumes,
             covers=tuple(SourceCover(source=s, url=u) for s, u in work.covers.items()),
             summaries=tuple(SourceSummary(source=s, text=t) for s, t in work.summaries.items()),
             work_id=work.id,
+            work=work,
+            linked=linked,
+            names=work.names,
         )
+
+    async def work_of(self, found: LibrarySeries) -> tuple[Work | None, bool]:
+        """The work of a series and whether it was linked by hand: the work linked (read from
+        the cache of the search, else searched again under its name: the work of the same
+        id), else the first the sources find under the name of the series."""
+        link = await self.on_shelf(lambda r: r.read_link(found.id))
+        if link is not None:
+            return await self.linked_work(link), True
+        try:
+            search = await self.works.search(found.name, found.kind)
+        except (NoSourceAnsweredError, QueryTooShortError):
+            return None, False
+        return (search.works[0] if search.works else None), False
+
+    async def linked_work(self, link: SeriesLink) -> Work | None:
+        try:
+            return await self.works.read_work(link.work_id)
+        except WorkNotFoundError:
+            pass
+        try:
+            search = await self.works.search(link.title, link.kind)
+        except (NoSourceAnsweredError, QueryTooShortError):
+            return None
+        return next(
+            (
+                w
+                for w in (*search.works, *search.other_forms)
+                if w.id == link.work_id or link.work_id in w.keys
+            ),
+            None,
+        )
+
+    async def on_shelf[T](self, use: Callable[[PlacementRepository], T]) -> T:
+        """`use` on a repository of its own, in the threadpool, committed."""
+
+        def run() -> T:
+            repository = self.placement()
+            try:
+                result = use(repository)
+                repository.commit()
+                return result
+            finally:
+                repository.close()
+
+        return await anyio.to_thread.run_sync(run)
+
+    @jellyfin_down
+    async def link_work(self, series_id: str, work_id: str) -> SeriesProposals:
+        """The series linked to the work `work_id` (found by a search in the last days), in
+        the place of the one found under its name; the files placed of the series given to
+        it. Raises SeriesNotFoundError, WorkNotFoundError."""
+        found, books = await self.series(series_id)
+        work = await self.works.read_work(work_id)
+        roots = await self.settings.libraries()
+        shelf = next((s for s in await self.kinds() if s.kind == found.kind), None)
+        link = SeriesLink(
+            series_id=found.id,
+            kind=found.kind,
+            work_id=work.id,
+            title=work.shelf_name,
+            updated_at=int(self.clock.now()),
+        )
+
+        def save(repository: PlacementRepository) -> None:
+            repository.save_link(link)
+            if shelf is not None:
+                ids = [
+                    f.id
+                    for f in repository.read_files()
+                    if f.kind == found.kind
+                    and in_folder(f.path, roots[found.kind], shelf.location, found.path)
+                ]
+                repository.set_work(ids, work.id)
+
+        await self.on_shelf(save)
+        logger.info("Series linked to a work", extra={"kind": found.kind})
+        return await self.proposals_of(found, books)
+
+    @jellyfin_down
+    async def unlink_work(self, series_id: str) -> SeriesProposals:
+        """The link of the series undone: its work is again the first found under its name
+        (its files placed keep their work). Raises SeriesNotFoundError."""
+        found, books = await self.series(series_id)
+        await self.on_shelf(lambda r: r.remove_link(found.id))
+        return await self.proposals_of(found, books)
+
+    @jellyfin_down
+    async def adoption(self, series_id: str) -> SeriesAdoption:
+        """The preview of the adoption of the volumes of a series: the number of each and the
+        name it would take, and whether it is on the shelf already. Raises
+        SeriesNotFoundError."""
+        found, books = await self.series(series_id)
+        work, _ = await self.work_of(found)
+        url, key = await self.settings.jellyfin()
+        locals_ = await self.local_paths(found, books)
+        shelved = await self.on_shelf(lambda r: r.read_shelf_paths())
+        sizes: dict[str, int | None] = {}
+        limiter = anyio.CapacityLimiter(SIZE_READS)
+
+        async def size(book: JellyfinItem) -> None:
+            async with limiter:
+                sizes[book.id] = await self.jellyfin.file_size(url, key, book.id)
+
+        async with anyio.create_task_group() as group:
+            for book in books:
+                group.start_soon(size, book)
+        return SeriesAdoption(
+            series_id=found.id,
+            work_id=None if work is None else work.id,
+            files=tuple(
+                adoption_file(b, found.name, sizes.get(b.id), locals_.get(b.id) in shelved)
+                for b in books
+            ),
+        )
+
+    async def local_paths(
+        self, found: LibrarySeries, books: Sequence[JellyfinItem]
+    ) -> dict[str, str]:
+        """The file of each volume, as the placement worker sees it (by item id); a volume out
+        of the folder of its kind is left."""
+        roots = await self.settings.libraries()
+        libraries = [s.library for s in await self.kinds() if s.kind == found.kind]
+        paths: dict[str, str] = {}
+        for book in books:
+            try:
+                paths[book.id] = to_local(book.path, {found.kind: roots[found.kind]}, libraries)
+            except LookupError:
+                continue
+        return paths
+
+    @jellyfin_down
+    async def adopt(
+        self, series_id: str, choices: Sequence[AdoptionChoice], *, place: bool
+    ) -> AdoptionResult:
+        """The volumes of a series chosen recorded on the shelf as files of its work, under
+        the numbers confirmed; with `place`, renamed first by the placement worker to the
+        names of the shelf, in their folder, never over a file (a name taken by another file
+        of the folder is reported, the file adopted under its name). Nothing is done when a
+        file is refused. Raises SeriesNotFoundError, AdoptionRefusedError."""
+        found, books = await self.series(series_id)
+        work, _ = await self.work_of(found)
+        if work is None:
+            raise AdoptionRefusedError("no_work")
+        by_id = {b.id: b for b in books}
+        chosen = [c for c in choices if c.include]
+        unknown = tuple(c.item_id for c in chosen if c.item_id not in by_id)
+        if unknown:
+            raise AdoptionRefusedError("unknown", unknown)
+        unnumbered = tuple(c.item_id for c in chosen if c.volume is None and c.chapter is None)
+        if unnumbered:
+            raise AdoptionRefusedError("unnumbered", unnumbered)
+        locals_ = await self.local_paths(found, books)
+        missing = tuple(c.item_id for c in chosen if c.item_id not in locals_)
+        if missing:
+            raise AdoptionRefusedError("unknown", missing)
+        files = await self.on_shelf(lambda r: r.read_files())
+        shelved = {f.path for f in files}
+        adopted = tuple(c.item_id for c in chosen if locals_[c.item_id] in shelved)
+        if adopted:
+            raise AdoptionRefusedError("adopted", adopted)
+        roots = await self.settings.libraries()
+        shelf = next((s for s in await self.kinds() if s.kind == found.kind), None)
+        on_shelf = {
+            (f.volume, f.chapter)
+            for f in files
+            if f.kind == found.kind
+            and (
+                f.work_id == work.id
+                or (
+                    shelf is not None
+                    and in_folder(f.path, roots[found.kind], shelf.location, found.path)
+                )
+            )
+        }
+        duplicate = duplicates(chosen, on_shelf)
+        if duplicate:
+            raise AdoptionRefusedError("duplicate", duplicate)
+        author = found.authors[0] if found.authors else ""
+        placed: list[PlacedFile] = []
+        targets: list[str] = []
+        conflicts: list[str] = []
+        taken = {b.path for b in books}
+        for choice in chosen:
+            book = by_id[choice.item_id]
+            local = PurePosixPath(locals_[choice.item_id])
+            name = adopted_name(found.name, choice.volume, choice.chapter, local.suffix)
+            target = str(local.parent / name)
+            seen = str(PurePosixPath(book.path).parent / name)
+            if place and seen != book.path and seen in taken:
+                conflicts.append(choice.item_id)
+                target = str(local)
+            taken.add(seen)
+            placed.append(
+                PlacedFile(
+                    download_id=None,
+                    kind=found.kind,
+                    work_id=work.id,
+                    series=found.name,
+                    author=author,
+                    volume=choice.volume,
+                    chapter=choice.chapter,
+                    path=str(local),
+                )
+            )
+            targets.append(target)
+        now = int(self.clock.now())
+        if place:
+            order = AdoptOrder(series_id=found.id, files=tuple(placed), targets=tuple(targets))
+            await self.on_shelf(lambda r: r.add_adoption(order, now))
+        else:
+            await self.on_shelf(lambda r: r.add_files(placed, now))
+        logger.info("Files adopted", extra={"files": len(placed), "renamed": place})
+        return AdoptionResult(adopted=len(placed), renamed=place, conflicts=tuple(conflicts))
 
     @jellyfin_down
     async def volumes(self, series_id: str) -> SeriesVolumes:
@@ -516,6 +749,62 @@ class LibraryService(LibraryReader):
     async def scanning(self) -> dict[Kind, float | None]:
         """The progress of the scan of the library of each kind (0 to 100), None when idle."""
         return {shelf.kind: shelf.library.refresh_progress for shelf in await self.kinds()}
+
+
+def in_folder(path: str, root: str, location: str, folder: str) -> bool:
+    """Whether a file placed (`path`, as the worker sees it, under `root`) is in the folder of
+    a series (`folder`, as Jellyfin sees it, under `location`)."""
+    try:
+        return to_jellyfin(path, root, location).startswith(f"{folder}/")
+    except ValueError:
+        return False
+
+
+def adoption_file(book: JellyfinItem, series: str, size: int | None, adopted: bool) -> AdoptionFile:
+    """A volume as an adoption would take it: its `IndexNumber`, else a chapter, else a volume
+    its file name gives (the parsers of the placement), else no number."""
+    path = PurePosixPath(book.path)
+    volume: int | None = None
+    chapter: float | None = None
+    origin: NumberOrigin | None = None
+    if book.index_number is not None:
+        volume, origin = book.index_number, "jellyfin"
+    else:
+        chapter = file_chapter(path.stem)
+        volume = None if chapter is not None else file_volume(path.stem)
+        origin = None if chapter is None and volume is None else "name"
+    target = (
+        None
+        if volume is None and chapter is None
+        else adopted_name(series, volume, chapter, path.suffix)
+    )
+    return AdoptionFile(
+        item_id=book.id,
+        path=book.path,
+        size=size,
+        volume=volume,
+        chapter=chapter,
+        origin=origin,
+        target=target,
+        adopted=adopted,
+    )
+
+
+def duplicates(
+    chosen: Sequence[AdoptionChoice], on_shelf: set[tuple[int | None, float | None]]
+) -> tuple[str, ...]:
+    """The files chosen whose number another file chosen, or a file of the shelf, holds."""
+    counts: dict[tuple[int | None, float | None], int] = {}
+    for choice in chosen:
+        key = (None if choice.chapter is not None else choice.volume, choice.chapter)
+        counts[key] = counts.get(key, 0) + 1
+    shelf = {(None if c is not None else v, c) for v, c in on_shelf}
+    return tuple(
+        c.item_id
+        for c in chosen
+        if (key := (None if c.chapter is not None else c.volume, c.chapter)) in shelf
+        or counts[key] > 1
+    )
 
 
 def volume_of(item: JellyfinItem, size: int | None) -> LibraryVolume:

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from shelfdrop.placement.types import AdoptOrder, PlacedFile
 from shelfdrop.releases.types import Volumes
 from tests.unit.placement.support import (
     JPEG,
@@ -216,3 +217,51 @@ async def test_a_cover_the_page_chose_is_written_in_its_series(tmp_path: Path) -
 
     assert (bench.roots["manga"] / "Gunnm" / "cover.jpg").read_bytes() == JPEG + b"chosen"
     assert sorted(state for _, state in bench.shelf.tasks.values()) == ["done", "failed"]
+
+
+@pytest.mark.anyio
+async def test_an_adoption_renames_its_files_never_over_one_and_records_them(
+    tmp_path: Path,
+) -> None:
+    bench = new_bench(tmp_path)
+    folder = bench.roots["manga"] / "Berserk"
+    folder.mkdir()
+    for name in ("berserk_v03.cbz", "extra.cbz", "Berserk - T04.cbz"):
+        (folder / name).write_bytes(name.encode())
+
+    def adopted(name: str, volume: int) -> PlacedFile:
+        return PlacedFile(
+            download_id=None,
+            kind="manga",
+            work_id="mangaupdates:1",
+            series="Berserk",
+            author="",
+            volume=volume,
+            chapter=None,
+            path=str(folder / name),
+        )
+
+    order = AdoptOrder(
+        series_id="berserk",
+        files=(adopted("berserk_v03.cbz", 3), adopted("extra.cbz", 4)),
+        targets=(str(folder / "Berserk - T03.cbz"), str(folder / "Berserk - T04.cbz")),
+    )
+    bench.shelf.add_adoption(order, 0)
+    bench.jellyfin.items["berserk"] = {"Id": "berserk", "Type": "Folder"}
+
+    await bench.service.run_tasks()
+
+    assert sorted(p.name for p in folder.iterdir()) == [
+        "Berserk - T03.cbz",
+        "Berserk - T04.cbz",
+        "extra.cbz",
+    ]
+    # The name taken: both files left as they are.
+    assert (folder / "Berserk - T04.cbz").read_bytes() == b"Berserk - T04.cbz"
+    assert (folder / "Berserk - T03.cbz").read_bytes() == b"berserk_v03.cbz"
+    assert [(f.path, f.volume) for f in bench.shelf.files] == [
+        (str(folder / "Berserk - T03.cbz"), 3),
+        (str(folder / "extra.cbz"), 4),
+    ]
+    assert [state for _, state in bench.shelf.tasks.values()] == ["done"]
+    assert [item_id for item_id, _ in bench.jellyfin.refreshed] == ["berserk"]

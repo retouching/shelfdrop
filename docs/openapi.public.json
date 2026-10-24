@@ -1032,6 +1032,324 @@
         ]
       }
     },
+    "/api/v1/library/series/{series_id}/work": {
+      "put": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Link Work",
+        "operationId": "link_work_api_v1_library_series__series_id__work_put",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkLinkBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Unlink Work",
+        "operationId": "unlink_work_api_v1_library_series__series_id__work_delete",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/series/{series_id}/adoption": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read Adoption",
+        "operationId": "read_adoption_api_v1_library_series__series_id__adoption_get",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdoptionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Adopt Files",
+        "operationId": "adopt_files_api_v1_library_series__series_id__adoption_post",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdoptionResultRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
     "/api/v1/library/series/{series_id}": {
       "put": {
         "tags": [
@@ -2801,6 +3119,216 @@
   },
   "components": {
     "schemas": {
+      "AdoptionBody": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdoptionChoiceBody"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "place": {
+            "type": "boolean",
+            "title": "Place",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdoptionBody"
+      },
+      "AdoptionChoiceBody": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Item Id"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          },
+          "chapter": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 99999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter"
+          },
+          "include": {
+            "type": "boolean",
+            "title": "Include",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id"
+        ],
+        "title": "AdoptionChoiceBody"
+      },
+      "AdoptionFileRead": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          },
+          "chapter": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NumberOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "adopted": {
+            "type": "boolean",
+            "title": "Adopted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "path",
+          "size",
+          "volume",
+          "chapter",
+          "origin",
+          "target",
+          "adopted"
+        ],
+        "title": "AdoptionFileRead"
+      },
+      "AdoptionRead": {
+        "properties": {
+          "series_id": {
+            "type": "string",
+            "title": "Series Id"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Id"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/AdoptionFileRead"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "series_id",
+          "work_id",
+          "files"
+        ],
+        "title": "AdoptionRead"
+      },
+      "AdoptionResultRead": {
+        "properties": {
+          "adopted": {
+            "type": "integer",
+            "title": "Adopted"
+          },
+          "renamed": {
+            "type": "boolean",
+            "title": "Renamed"
+          },
+          "conflicts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conflicts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "adopted",
+          "renamed",
+          "conflicts"
+        ],
+        "title": "AdoptionResultRead"
+      },
       "Chapter": {
         "type": "number",
         "maximum": 99999.0,
@@ -3482,6 +4010,13 @@
           "failed"
         ]
       },
+      "NumberOrigin": {
+        "type": "string",
+        "enum": [
+          "jellyfin",
+          "name"
+        ]
+      },
       "OwnedRead": {
         "properties": {
           "volumes": {
@@ -3614,6 +4149,27 @@
               }
             ],
             "title": "Work Id"
+          },
+          "work": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProposedWorkRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "linked": {
+            "type": "boolean",
+            "title": "Linked"
+          },
+          "names": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedNameRead"
+            },
+            "type": "array",
+            "title": "Names"
           }
         },
         "type": "object",
@@ -3621,9 +4177,112 @@
           "volumes",
           "covers",
           "summaries",
-          "work_id"
+          "work_id",
+          "work",
+          "linked",
+          "names"
         ],
         "title": "ProposalsRead"
+      },
+      "ProposedNameRead": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceName"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "language",
+          "sources",
+          "source"
+        ],
+        "title": "ProposedNameRead"
+      },
+      "ProposedWorkRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "shelf_name": {
+            "type": "string",
+            "title": "Shelf Name"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceName"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "shelf_name",
+          "authors",
+          "year",
+          "sources",
+          "cover_url"
+        ],
+        "title": "ProposedWorkRead"
       },
       "Rejection": {
         "type": "string",
@@ -5012,6 +5671,21 @@
         ],
         "title": "WantedBody"
       },
+      "WorkLinkBody": {
+        "properties": {
+          "work_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Work Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "work_id"
+        ],
+        "title": "WorkLinkBody"
+      },
       "WorkMergeCreate": {
         "properties": {
           "kind": {
@@ -5417,6 +6091,7 @@
           "too_many_attempts",
           "jellyfin_unavailable",
           "series_not_found",
+          "adoption_refused",
           "volume_not_found",
           "waiting_not_found",
           "place_item_not_found",

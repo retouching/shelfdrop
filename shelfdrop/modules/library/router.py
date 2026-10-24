@@ -13,6 +13,7 @@ from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
 from shelfdrop.library.exceptions import (
+    AdoptionRefusedError,
     ImageRefusedError,
     LibraryUnavailableError,
     SeriesNotFoundError,
@@ -21,6 +22,7 @@ from shelfdrop.library.exceptions import (
 from shelfdrop.library.service import LibraryService
 from shelfdrop.library.sync import LibrarySync
 from shelfdrop.library.types import (
+    AdoptionChoice,
     ImageChoice,
     ItemImage,
     LinkImage,
@@ -30,12 +32,17 @@ from shelfdrop.library.types import (
     VolumeChange,
 )
 from shelfdrop.modules.library.errors import (
+    adoption_refused,
     image_refused,
     jellyfin_unavailable,
     series_not_found,
     volume_not_found,
+    work_not_found,
 )
 from shelfdrop.modules.library.schemas import (
+    AdoptionBody,
+    AdoptionRead,
+    AdoptionResultRead,
     FilledRead,
     ImageBody,
     LibraryRead,
@@ -50,7 +57,9 @@ from shelfdrop.modules.library.schemas import (
     VolumeChangeBody,
     VolumeRead,
     VolumesRead,
+    WorkLinkBody,
 )
+from shelfdrop.works.exceptions import WorkNotFoundError
 
 router = APIRouter(prefix="/v1/library", tags=["library"], route_class=WireupRoute)
 
@@ -98,6 +107,61 @@ async def read_proposals(series_id: str, service: Injected[LibraryService]) -> P
         raise series_not_found() from exc
     except LibraryUnavailableError as exc:
         raise jellyfin_unavailable() from exc
+
+
+@router.put("/series/{series_id}/work")
+async def link_work(
+    series_id: str, body: WorkLinkBody, service: Injected[LibraryService]
+) -> ProposalsRead:
+    try:
+        return ProposalsRead.model_validate(await service.link_work(series_id, body.work_id))
+    except SeriesNotFoundError as exc:
+        raise series_not_found() from exc
+    except WorkNotFoundError as exc:
+        raise work_not_found() from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+
+
+@router.delete("/series/{series_id}/work")
+async def unlink_work(series_id: str, service: Injected[LibraryService]) -> ProposalsRead:
+    try:
+        return ProposalsRead.model_validate(await service.unlink_work(series_id))
+    except SeriesNotFoundError as exc:
+        raise series_not_found() from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+
+
+@router.get("/series/{series_id}/adoption")
+async def read_adoption(series_id: str, service: Injected[LibraryService]) -> AdoptionRead:
+    try:
+        return AdoptionRead.model_validate(await service.adoption(series_id))
+    except SeriesNotFoundError as exc:
+        raise series_not_found() from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+
+
+@router.post("/series/{series_id}/adoption")
+async def adopt_files(
+    series_id: str, body: AdoptionBody, service: Injected[LibraryService]
+) -> AdoptionResultRead:
+    choices = [
+        AdoptionChoice(
+            item_id=item.item_id, volume=item.volume, chapter=item.chapter, include=item.include
+        )
+        for item in body.items
+    ]
+    try:
+        done = await service.adopt(series_id, choices, place=body.place)
+    except SeriesNotFoundError as exc:
+        raise series_not_found() from exc
+    except AdoptionRefusedError as exc:
+        raise adoption_refused(exc.reason, exc.item_ids) from exc
+    except LibraryUnavailableError as exc:
+        raise jellyfin_unavailable() from exc
+    return AdoptionResultRead.model_validate(done)
 
 
 @router.put("/series/{series_id}")

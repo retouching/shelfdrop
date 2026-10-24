@@ -1,6 +1,7 @@
 """LibraryService: the series of the libraries of Jellyfin, their proposals, their changes, the
 summaries by batch and the scans, on the fake Jellyfin."""
 
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -9,6 +10,7 @@ import pytest
 
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.library.exceptions import (
+    AdoptionRefusedError,
     ImageRefusedError,
     LibraryUnavailableError,
     SeriesNotFoundError,
@@ -16,6 +18,7 @@ from shelfdrop.library.exceptions import (
 )
 from shelfdrop.library.service import LibraryService, missing_numbers, series_folder
 from shelfdrop.library.types import (
+    AdoptionChoice,
     ItemImage,
     LinkImage,
     ScanOrder,
@@ -23,8 +26,10 @@ from shelfdrop.library.types import (
     SeriesChange,
     VolumeChange,
 )
-from shelfdrop.works.exceptions import NoSourceAnsweredError
-from shelfdrop.works.types import Kind, Work, WorkSearch
+from shelfdrop.placement.repository import adopt_order_of
+from shelfdrop.placement.types import PlacedFile
+from shelfdrop.works.exceptions import NoSourceAnsweredError, WorkNotFoundError
+from shelfdrop.works.types import Kind, NameChoice, Work, WorkSearch
 from tests.unit.clients.support import API_KEY, FakeJellyfin
 from tests.unit.placement.support import FakePlacementRepository, libraries_of
 from tests.unit.works.support import FixedClock
@@ -123,13 +128,21 @@ class Settings:
 class Works:
     found: list[Work] = field(default_factory=list)
     down: bool = False
+    cached: dict[str, Work] = field(default_factory=dict)
+    queries: list[str] = field(default_factory=list)
 
     async def search(self, query: str, kind: Kind) -> WorkSearch:
+        self.queries.append(query)
         if self.down:
             raise NoSourceAnsweredError
         return WorkSearch(
             query=query, kind=kind, works=tuple(self.found), other_forms=(), unavailable=()
         )
+
+    async def read_work(self, work_id: str) -> Work:
+        if work_id not in self.cached:
+            raise WorkNotFoundError
+        return self.cached[work_id]
 
 
 @dataclass
@@ -493,3 +506,248 @@ async def test_a_volume_change_refuses_a_folder_and_an_image_that_is_not_one() -
     with pytest.raises(ImageRefusedError):
         await service.change_volume("b2", volume_change(image=SentImage(data=b"<svg/>")))
     assert jellyfin.items["b2"]["Name"] == "Berserk - T02.cbz"
+
+
+def other_work() -> Work:
+    return Work(
+        id="kitsu:9",
+        title="Berserk: The Prototype",
+        shelf_name="Berserk Prototype",
+        authors=("Kentaro Miura",),
+        year=1988,
+        volumes=1,
+        volumes_fr=None,
+        form="oneshot",
+        names=(
+            NameChoice(title="Berserk Prototype", language="en", checked=True, sources=("kitsu",)),
+        ),
+        sources=("kitsu",),
+        cover_url=None,
+        isbns=(),
+        links={},
+        covers={"kitsu": "https://media.kitsu.test/p.jpg"},
+        summaries={},
+        keys=("kitsu:9",),
+    )
+
+
+def placed(
+    path: str, *, volume: int | None = 1, work_id: str | None = "mangaupdates:1"
+) -> PlacedFile:
+    return PlacedFile(
+        download_id=None,
+        kind="manga",
+        work_id=work_id,
+        series="Berserk",
+        author="",
+        volume=volume,
+        chapter=None,
+        path=path,
+    )
+
+
+@pytest.mark.anyio
+async def test_the_proposals_name_their_work_and_its_names() -> None:
+    work = dataclasses.replace(
+        berserk_work(),
+        names=(NameChoice(title="Berserk", language="en", checked=True, sources=("kitsu",)),),
+    )
+    service, _ = service_of(shelf(), Works([work]))
+
+    proposals = await service.proposals("berserk")
+
+    assert proposals.work == work
+    assert not proposals.linked
+    assert [(n.title, n.source) for n in proposals.names] == [("Berserk", "kitsu")]
+
+
+@pytest.mark.anyio
+async def test_a_series_linked_to_another_work_takes_it_and_its_files_follow() -> None:
+    works = Works([berserk_work()], cached={"kitsu:9": other_work()})
+    service, repository = service_of(shelf(), works)
+    repository.add_files(
+        [
+            placed("/data/files/comics/Berserk/Berserk - T01.cbz"),
+            placed("/data/files/comics/Other/Other - T01.cbz", work_id="anilist:3"),
+        ],
+        0,
+    )
+
+    proposals = await service.link_work("berserk", "kitsu:9")
+
+    assert (proposals.work_id, proposals.linked) == ("kitsu:9", True)
+    assert [c.url for c in proposals.covers] == ["https://media.kitsu.test/p.jpg"]
+    assert [n.title for n in proposals.names] == ["Berserk Prototype"]
+    assert [f.work_id for f in repository.files] == ["kitsu:9", "anilist:3"]
+    assert repository.links["berserk"].title == "Berserk Prototype"
+    again = await service.proposals("berserk")
+    assert (again.work_id, again.linked) == ("kitsu:9", True)
+
+
+@pytest.mark.anyio
+async def test_a_link_whose_work_left_the_cache_searches_it_again_by_its_name() -> None:
+    works = Works([berserk_work()], cached={"kitsu:9": other_work()})
+    service, _ = service_of(shelf(), works)
+    await service.link_work("berserk", "kitsu:9")
+    works.cached.clear()
+    works.found = [berserk_work(), other_work()]
+
+    proposals = await service.proposals("berserk")
+
+    assert proposals.work_id == "kitsu:9"
+    assert works.queries[-1] == "Berserk Prototype"
+
+
+@pytest.mark.anyio
+async def test_an_unknown_work_is_refused_and_an_unlink_goes_back_to_the_search() -> None:
+    service, repository = service_of(
+        shelf(), Works([berserk_work()], cached={"kitsu:9": other_work()})
+    )
+
+    with pytest.raises(WorkNotFoundError):
+        await service.link_work("berserk", "kitsu:404")
+    await service.link_work("berserk", "kitsu:9")
+    proposals = await service.unlink_work("berserk")
+
+    assert (proposals.work_id, proposals.linked) == ("mangaupdates:1", False)
+    assert repository.links == {}
+
+
+def adoption_shelf() -> FakeJellyfin:
+    """Berserk with files not placed: a number in Jellyfin, a volume and a chapter in their
+    name, none."""
+    jellyfin = shelf()
+    comics = "/files/comics"
+    for item_id, name, fields in [
+        ("b3", "berserk_v03.cbz", {}),
+        ("c4", "Berserk Ch. 120.cbz", {}),
+        ("x", "Berserk extra.cbz", {}),
+        ("b5", "random.cbz", {"IndexNumber": 5}),
+    ]:
+        jellyfin.items[item_id] = item(
+            item_id, "Book", f"{comics}/Berserk/{name}", "lib-manga", **fields
+        )
+    return jellyfin
+
+
+@pytest.mark.anyio
+async def test_the_preview_of_an_adoption_proposes_a_number_and_a_name() -> None:
+    service, repository = service_of(adoption_shelf(), Works([berserk_work()]))
+    repository.add_files([placed("/data/files/comics/Berserk/Berserk - T01.cbz")], 0)
+
+    preview = await service.adoption("berserk")
+
+    found = {f.item_id: (f.volume, f.chapter, f.origin, f.target, f.adopted) for f in preview.files}
+    assert preview.work_id == "mangaupdates:1"
+    assert found == {
+        "b1": (1, None, "jellyfin", "Berserk - T01.cbz", True),
+        "b2": (2, None, "jellyfin", "Berserk - T02.cbz", False),
+        "b3": (3, None, "name", "Berserk - T03.cbz", False),
+        "c4": (None, 120.0, "name", "Berserk - Ch. 120.cbz", False),
+        "x": (None, None, None, None, False),
+        "b5": (5, None, "jellyfin", "Berserk - T05.cbz", False),
+    }
+
+
+@pytest.mark.anyio
+async def test_an_adoption_records_the_files_without_touching_them() -> None:
+    service, repository = service_of(adoption_shelf(), Works([berserk_work()]))
+
+    done = await service.adopt(
+        "berserk",
+        [
+            AdoptionChoice(item_id="b3", volume=3, chapter=None, include=True),
+            AdoptionChoice(item_id="x", volume=None, chapter=None, include=False),
+        ],
+        place=False,
+    )
+
+    assert (done.adopted, done.renamed, done.conflicts) == (1, False, ())
+    assert [(f.path, f.volume, f.work_id) for f in repository.files] == [
+        ("/data/files/comics/Berserk/berserk_v03.cbz", 3, "mangaupdates:1")
+    ]
+    assert repository.tasks == {}
+
+
+@pytest.mark.anyio
+async def test_an_adoption_to_rename_is_asked_of_the_worker_and_a_name_taken_is_reported() -> None:
+    service, repository = service_of(adoption_shelf(), Works([berserk_work()]))
+
+    done = await service.adopt(
+        "berserk",
+        [
+            AdoptionChoice(item_id="b3", volume=3, chapter=None, include=True),
+            # Left out: its number is not checked.
+            AdoptionChoice(item_id="b5", volume=2, chapter=None, include=False),
+            AdoptionChoice(item_id="x", volume=None, chapter=120.5, include=True),
+        ],
+        place=True,
+    )
+
+    assert (done.adopted, done.renamed) == (2, True)
+    assert repository.files == []
+    [(task, state)] = repository.tasks.values()
+    order = adopt_order_of(task.data)
+    assert (task.kind, state, order.series_id) == ("adopt", "pending", "berserk")
+    assert order.targets == (
+        "/data/files/comics/Berserk/Berserk - T03.cbz",
+        "/data/files/comics/Berserk/Berserk - Ch. 120.5.cbz",
+    )
+
+
+@pytest.mark.anyio
+async def test_a_name_taken_in_the_folder_leaves_the_file_its_name() -> None:
+    service, repository = service_of(adoption_shelf(), Works([berserk_work()]))
+
+    done = await service.adopt(
+        "berserk",
+        [AdoptionChoice(item_id="x", volume=2, chapter=None, include=True)],
+        place=True,
+    )
+
+    assert done.conflicts == ("x",)
+    [(task, _)] = repository.tasks.values()
+    assert adopt_order_of(task.data).targets == ("/data/files/comics/Berserk/Berserk extra.cbz",)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("choices", "reason", "item_ids"),
+    [
+        ([("x", None, None)], "unnumbered", ("x",)),
+        ([("b3", 3, None), ("b5", 3, None)], "duplicate", ("b3", "b5")),
+        ([("b3", 1, None)], "duplicate", ("b3",)),
+        ([("b1", 1, None)], "adopted", ("b1",)),
+        ([("nope", 1, None)], "unknown", ("nope",)),
+    ],
+)
+async def test_an_adoption_refused_does_nothing(
+    choices: list[tuple[str, int | None, float | None]], reason: str, item_ids: tuple[str, ...]
+) -> None:
+    service, repository = service_of(adoption_shelf(), Works([berserk_work()]))
+    repository.add_files([placed("/data/files/comics/Berserk/Berserk - T01.cbz")], 0)
+
+    with pytest.raises(AdoptionRefusedError) as refused:
+        await service.adopt(
+            "berserk",
+            [AdoptionChoice(item_id=i, volume=v, chapter=c, include=True) for i, v, c in choices],
+            place=True,
+        )
+
+    assert (refused.value.reason, refused.value.item_ids) == (reason, item_ids)
+    assert len(repository.files) == 1
+    assert repository.tasks == {}
+
+
+@pytest.mark.anyio
+async def test_a_series_without_a_work_adopts_nothing() -> None:
+    service, _ = service_of(adoption_shelf(), Works([]))
+
+    with pytest.raises(AdoptionRefusedError) as refused:
+        await service.adopt(
+            "berserk",
+            [AdoptionChoice(item_id="b3", volume=3, chapter=None, include=True)],
+            place=False,
+        )
+
+    assert refused.value.reason == "no_work"

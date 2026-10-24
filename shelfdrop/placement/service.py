@@ -4,6 +4,7 @@ is the one process that writes there."""
 
 import logging
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from typing import Protocol
@@ -33,9 +34,21 @@ from shelfdrop.placement.layout import (
 )
 from shelfdrop.placement.metadata import locked_item
 from shelfdrop.placement.paths import destination_label, library_of, to_jellyfin, to_local
-from shelfdrop.placement.repository import PlacementRepository, PlacementRepositoryFactory
-from shelfdrop.placement.shelf import files_of, remove_links, replace_with, write_new
+from shelfdrop.placement.repository import (
+    PlacementRepository,
+    PlacementRepositoryFactory,
+    adopt_order_of,
+)
+from shelfdrop.placement.shelf import (
+    LinkRefusedError,
+    files_of,
+    remove_links,
+    rename_new,
+    replace_with,
+    write_new,
+)
 from shelfdrop.placement.types import (
+    LibraryTask,
     PlacedFile,
     PlacementOptions,
     ShelfFile,
@@ -391,12 +404,12 @@ class PlacementService:
         return len(done)
 
     async def run_tasks(self) -> None:
-        """The `cover.jpg` the page chose, written in the folder of its series."""
-        tasks = [
-            t
-            for t in await self.on_shelf(lambda r: r.read_tasks(), commit=False)
-            if t.kind == "cover"
-        ]
+        """The `cover.jpg` the page chose, written in the folder of its series; the files of a
+        series adopted, renamed."""
+        pending = await self.on_shelf(lambda r: r.read_tasks(), commit=False)
+        for adoption in [t for t in pending if t.kind == "adopt"]:
+            await self.adopt(adoption)
+        tasks = [t for t in pending if t.kind == "cover"]
         if not tasks:
             return
         url, api_key = await self.settings.jellyfin()
@@ -418,6 +431,41 @@ class PlacementService:
                 await self.on_shelf(partial(mark_task, task_id=task.id, state="failed", now=now))
                 continue
             await self.on_shelf(partial(mark_task, task_id=task.id, state="done", now=now))
+
+    async def adopt(self, task: LibraryTask) -> None:
+        """The files of an adoption renamed to their target in their folder, never over a file
+        (a name taken leaves the file as it is, logged), then recorded on the shelf, those
+        already there aside; then the folder of the series refreshed in Jellyfin (F40)."""
+        order = adopt_order_of(task.data)
+        shelved = await self.on_shelf(lambda r: r.read_shelf_paths(), commit=False)
+        placed: list[PlacedFile] = []
+        for adopted, target in zip(order.files, order.targets, strict=True):
+            if adopted.path in shelved or target in shelved:
+                continue
+            try:
+                moved = await anyio.to_thread.run_sync(rename_new, Path(adopted.path), Path(target))
+            except (LinkRefusedError, OSError) as exc:
+                logger.info("Adopted file not renamed", extra={"error": type(exc).__name__})
+                moved = False
+            else:
+                if not moved:
+                    logger.info("Adopted file not renamed", extra={"error": "FileExistsError"})
+            placed.append(replace(adopted, path=target) if moved else adopted)
+        now = int(self.clock.now())
+
+        def record(repository: PlacementRepository) -> None:
+            repository.add_files(placed, now)
+            repository.mark_task(task.id, "done", now)
+
+        await self.on_shelf(record)
+        try:
+            url, api_key = await self.settings.jellyfin()
+            await self.jellyfin.refresh(url, api_key, order.series_id, "changed")
+        except ServiceError as exc:
+            logger.info(
+                "Jellyfin refresh after an adoption failed", extra={"error": type(exc).__name__}
+            )
+        logger.info("Files adopted", extra={"files": len(placed)})
 
     def write_downloads(self, use: Callable[[DownloadRepository], None]) -> None:
         repository = self.downloads()
