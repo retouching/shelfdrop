@@ -12,6 +12,46 @@
 
 shelfdrop sits next to Prowlarr, qBittorrent and Jellyfin on a media server. Type a title: it finds the work in eight metadata sources, searches its releases in Prowlarr under every name the work is published under, sends the ones you pick to qBittorrent, then renames and files the downloaded volumes in your Jellyfin libraries, with their metadata. A web page drives it all; an API and an MCP server let a script or an assistant do the same.
 
+## Screenshots
+
+<p align="center">
+  <a href="docs/screenshots/search-releases.webp"><img src="docs/screenshots/search-releases.webp" alt="The releases of a work, searched under each of its names, scored and ranked"></a>
+  <br><sub>The releases of a work, searched in Prowlarr under each of its names, scored and ranked.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/search-works.webp"><img src="docs/screenshots/search-works.webp" alt="Work search: one result per work, from every source, with its names"></a><br><sub>Work search: one result per work, from every source, with its names</sub></td>
+    <td width="50%"><a href="docs/screenshots/downloads.webp"><img src="docs/screenshots/downloads.webp" alt="Downloads, followed live, and where each was shelved"></a><br><sub>Downloads, followed live, and where each was shelved</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/jellyfin-series.webp"><img src="docs/screenshots/jellyfin-series.webp" alt="Jellyfin page: the series of the libraries"></a><br><sub>Jellyfin page: the series of the libraries</sub></td>
+    <td width="50%"><a href="docs/screenshots/jellyfin-series-dialog.webp"><img src="docs/screenshots/jellyfin-series-dialog.webp" alt="A series: its metadata, covers proposed by the sources, its volumes"></a><br><sub>A series: its metadata, covers proposed by the sources, its volumes</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/ranger.webp"><img src="docs/screenshots/ranger.webp" alt="Ranger: the files to link by hand, and every file of the library"></a><br><sub>Ranger: the files to link by hand, and every file of the library</sub></td>
+    <td width="50%"><a href="docs/screenshots/waiting-list.webp"><img src="docs/screenshots/waiting-list.webp" alt="Waiting list: searches run again until a release shows up"></a><br><sub>Waiting list: searches run again until a release shows up</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/settings-services.webp"><img src="docs/screenshots/settings-services.webp" alt="Settings: Prowlarr, qBittorrent through qui, Jellyfin"></a><br><sub>Settings: Prowlarr, qBittorrent through qui, Jellyfin</sub></td>
+    <td width="50%"><a href="docs/screenshots/settings-logs.webp"><img src="docs/screenshots/settings-logs.webp" alt="Settings: the logs of the API and of the placement worker"></a><br><sub>Settings: the logs of the API and of the placement worker</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/sign-in.webp"><img src="docs/screenshots/sign-in.webp" alt="Sign-in: the internal account or a Jellyfin administrator"></a><br><sub>Sign-in: the internal account or a Jellyfin administrator</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
+On a phone:
+
+<p align="center">
+  <a href="docs/screenshots/mobile-search-menu.webp"><img src="docs/screenshots/mobile-search-menu.webp" alt="The menu over the work search, on a phone" width="260"></a>
+  &nbsp;
+  <a href="docs/screenshots/mobile-downloads.webp"><img src="docs/screenshots/mobile-downloads.webp" alt="The downloads as cards, on a phone" width="260"></a>
+</p>
+
+How to take them again: [CONTRIBUTING.md](CONTRIBUTING.md#screenshots).
+
 ## Features
 
 - **Work search** across MangaUpdates, Kitsu, MyAnimeList, AniList and MangaDex for manga, and the BnF, Open Library and Wikidata for books: one result per work, with every name it is known by and its cover.
