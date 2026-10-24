@@ -38,6 +38,6 @@ Decided on 2026-10-21: an automatic download complete is placed alone, the testa
 ## Consequences
 - A download complete is placed within 30 seconds; the page shows `placing` until then (and the percent of a merge).
 - The libraries of Jellyfin must be named by their folders as the worker names them.
-- A sync never adds the files placed by hand outside shelfdrop: they are not in `files`; a restart of the API forgets the state of the last sync.
+- A sync never reaches the files placed by hand outside shelfdrop until they are adopted: they are not in `files` before; a restart of the API forgets the state of the last sync.
 - A volume of a series kept under another name is not seen as there: it is placed again under its name of the shelf.
 - In `copy` (and for each copy of `hardlink_or_copy`) a file takes its space twice while the torrent is kept, and a change of the file of the torrent (a new check of the torrent client) does not reach the shelf.
