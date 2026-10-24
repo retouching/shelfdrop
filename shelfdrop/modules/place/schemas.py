@@ -82,7 +82,7 @@ class ItemRead(BaseModel):
     # Why it is in Ranger: why its download was not placed (`chapters`, `manual`,
     # `no_volume`...), or why the scan found it (`root`, `naming`, `tracks`, `chapters`).
     reason: str | None
-    # Why the last request failed (`exists`, `link_refused`, `merge_failed`...).
+    # Why the last request failed (`exists`, `link_refused`, `copy_failed`, `merge_failed`...).
     error: str | None
     destination: str | None
     chapters: list[float]
@@ -94,6 +94,9 @@ class ItemRead(BaseModel):
     series: str
     author: str
     work_id: str | None
+    # Placed through a copy of a file of its download rather than a hardlink
+    # (`placement.mode`).
+    copied: bool
 
 
 class ItemsRead(BaseModel):

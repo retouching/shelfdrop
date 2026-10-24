@@ -116,6 +116,16 @@ def torrent_saved(client: httpx.Client) -> Iterator[None]:
 
 
 @pytest.fixture
+def copy_mode(client: httpx.Client) -> Iterator[None]:
+    """The placement in `copy` (`placement.mode`), then back to its default, `hardlink`."""
+    client.put("/api/v1/settings", json={"values": {"placement.mode": "copy"}}).raise_for_status()
+    yield
+    client.put(
+        "/api/v1/settings", json={"values": {"placement.mode": "hardlink"}}
+    ).raise_for_status()
+
+
+@pytest.fixture
 def webhook_saved(client: httpx.Client) -> Iterator[None]:
     """The webhook of the journal saved (the fake one), then cleared again."""
     client.put(

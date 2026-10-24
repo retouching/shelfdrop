@@ -1,6 +1,6 @@
 """Download: a release sent to qBittorrent, what it is for, where it is, and who sent it."""
 
-from sqlalchemy import Integer, LargeBinary, String, Text
+from sqlalchemy import Boolean, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shelfdrop.db.base import Base
@@ -57,3 +57,5 @@ class Download(Base):
     unplaced: Mapped[str | None] = mapped_column(String(20))
     placing_percent: Mapped[int | None] = mapped_column(Integer)
     placed_at: Mapped[int | None] = mapped_column(Integer)
+    # A file of it copied on the shelf rather than hardlinked (`placement.mode`).
+    copied: Mapped[bool] = mapped_column(Boolean, server_default="0")

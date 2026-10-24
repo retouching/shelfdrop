@@ -1,5 +1,6 @@
-"""Where the files of a download go on the shelf, and their hardlinks: what the shelf already holds
-is compared first, and left as it is. Runs in the threadpool: file system alone."""
+"""Where the files of a download go on the shelf, and their hardlinks (or copies,
+`placement.mode`): what the shelf already holds is compared first, and left as it is. Runs in
+the threadpool: file system alone."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -21,15 +22,16 @@ from shelfdrop.placement.naming import (
     volume_title,
 )
 from shelfdrop.placement.shelf import (
+    CopyFailedError,
     LinkRefusedError,
     cover_in,
-    link,
     make_folder,
     names_in,
     pdf_cover,
+    place_file,
     write_new,
 )
-from shelfdrop.placement.types import PlacedFile, Unplaced
+from shelfdrop.placement.types import Outcome, PlacedFile, PlaceMode, Unplaced
 from shelfdrop.releases.types import Volumes
 from shelfdrop.works.types import Kind
 
@@ -91,7 +93,9 @@ def known_volumes(volumes: Volumes) -> int | None:
     return None
 
 
-def placed_file(order: Order, path: Path, volume: int | None) -> PlacedFile:
+def placed_file(
+    order: Order, path: Path, volume: int | None, copied_from: Path | None = None
+) -> PlacedFile:
     return PlacedFile(
         download_id=order.download_id,
         kind=order.kind,
@@ -101,7 +105,26 @@ def placed_file(order: Order, path: Path, volume: int | None) -> PlacedFile:
         volume=volume,
         chapter=None,
         path=str(path),
+        copied_from=None if copied_from is None else str(copied_from),
     )
+
+
+def lay_file(
+    source: Path, target: Path, mode: PlaceMode, placed: Sequence[PlacedFile] = ()
+) -> Outcome:
+    """`source` put as `target` (`shelf.place_file`). Raises NotPlacedError (`link_refused`,
+    `copy_failed`), with the files `placed` before, kept."""
+    try:
+        return place_file(source, target, mode)
+    except LinkRefusedError as exc:
+        raise NotPlacedError("link_refused", placed) from exc
+    except CopyFailedError as exc:
+        raise NotPlacedError("copy_failed", placed) from exc
+
+
+def copy_source(source: Path, outcome: Outcome) -> Path | None:
+    """The file of the torrent a file placed is a copy of."""
+    return source if outcome == "copied" else None
 
 
 def comic_volumes(order: Order, books: Sequence[Path]) -> tuple[list[tuple[str, int]], list[str]]:
@@ -121,7 +144,13 @@ def comic_volumes(order: Order, books: Sequence[Path]) -> tuple[list[tuple[str, 
     return found, unknown
 
 
-def place_comics(order: Order, files: Sequence[Path], root: Path, covers: bool) -> Laid:
+def place_comics(
+    order: Order,
+    files: Sequence[Path],
+    root: Path,
+    covers: bool,
+    mode: PlaceMode = "hardlink",
+) -> Laid:
     """The volumes of a manga as `<Series> - TXX.<ext>` in the folder of its series, those the
     shelf has left aside; the cover of the series (`cover.<ext>`, the first page of its first
     volume) when it has none; a picture of each PDF. The books whose volume it cannot read are
@@ -142,13 +171,11 @@ def place_comics(order: Order, files: Sequence[Path], root: Path, covers: bool) 
     present = list(split.present)
     for source, volume in split.added:
         target = folder / comic_name(order.series, volume, Path(source).suffix)
-        try:
-            if not link(Path(source), target):
-                present.append(volume)
-                continue
-        except LinkRefusedError as exc:
-            raise NotPlacedError("link_refused", placed) from exc
-        placed.append(placed_file(order, target, volume))
+        outcome = lay_file(Path(source), target, mode, placed)
+        if outcome == "exists":
+            present.append(volume)
+            continue
+        placed.append(placed_file(order, target, volume, copy_source(Path(source), outcome)))
         if target.suffix.lower() == ".pdf":
             pdf_cover(target)
     cover = series_cover(folder) if covers else None
@@ -210,7 +237,9 @@ def title_of(order: Order, volume: int, books: Sequence[Path]) -> str:
     return volume_title(books[0].parent.name, volume, order.series)
 
 
-def place_books(order: Order, files: Sequence[Path], root: Path) -> Laid:
+def place_books(
+    order: Order, files: Sequence[Path], root: Path, mode: PlaceMode = "hardlink"
+) -> Laid:
     """The volumes of a book as `<Author>/<Series>/<NN - Title>/<Series> - TNN - <Title>.<ext>`
     (one file a format); a volume whose folder already holds a book is left. The files whose
     volume it cannot read are left (`unknown`), the others placed. Raises NotPlacedError
@@ -240,11 +269,9 @@ def place_books(order: Order, files: Sequence[Path], root: Path) -> Laid:
                 continue
             taken.add(extension)
             target = folder / book_name(order.series, volume, title, extension, None)
-            try:
-                if link(book, target):
-                    placed.append(placed_file(order, target, volume))
-            except LinkRefusedError as exc:
-                raise NotPlacedError("link_refused", placed) from exc
+            outcome = lay_file(book, target, mode, placed)
+            if outcome != "exists":
+                placed.append(placed_file(order, target, volume, copy_source(book, outcome)))
     return Laid(
         folder=folder.parent if placed or present else root,
         files=tuple(placed),
@@ -265,7 +292,11 @@ def torrent_picture(files: Sequence[Path]) -> Path | None:
 
 
 def lay_audio(
-    order: Order, files: Sequence[Path], root: Path, merge: bool
+    order: Order,
+    files: Sequence[Path],
+    root: Path,
+    merge: bool,
+    mode: PlaceMode = "hardlink",
 ) -> tuple[Laid, list[AudioVolume]]:
     """The volumes of an audiobook: one M4B linked as `<Series> - TNN - <Title>.m4b`; MP3
     tracks linked as `... - 001.mp3` in their order, to merge (`merge`) into one M4B; the
@@ -293,23 +324,22 @@ def lay_audio(
             continue
         make_folder(folder)
         if picture is not None:
-            link_or_skip(picture, folder / f"cover{picture.suffix.lower()}")
+            link_or_skip(picture, folder / f"cover{picture.suffix.lower()}", mode)
         single = [t for t in group if t.suffix.lower() in (".m4b", ".m4a")]
-        try:
-            if single:
-                target = folder / book_name(order.series, volume, title, ".m4b", None)
-                if link(single[0], target):
-                    placed.append(placed_file(order, target, volume))
-                continue
-            linked: list[Path] = []
-            for index, track in enumerate(group, 1):
-                target = folder / book_name(
-                    order.series, volume, title, track.suffix, index if len(group) > 1 else None
-                )
-                if link(track, target):
-                    linked.append(target)
-        except LinkRefusedError as exc:
-            raise NotPlacedError("link_refused", placed) from exc
+        if single:
+            target = folder / book_name(order.series, volume, title, ".m4b", None)
+            outcome = lay_file(single[0], target, mode, placed)
+            if outcome != "exists":
+                placed.append(placed_file(order, target, volume, copy_source(single[0], outcome)))
+            continue
+        linked: dict[Path, Path | None] = {}
+        for index, track in enumerate(group, 1):
+            target = folder / book_name(
+                order.series, volume, title, track.suffix, index if len(group) > 1 else None
+            )
+            outcome = lay_file(track, target, mode, placed)
+            if outcome != "exists":
+                linked[target] = copy_source(track, outcome)
         mp3 = [t for t in linked if t.suffix.lower() == ".mp3"]
         if merge and len(mp3) >= 2:
             merges.append(
@@ -323,7 +353,7 @@ def lay_audio(
                 )
             )
         else:
-            placed += [placed_file(order, t, volume) for t in linked]
+            placed += [placed_file(order, t, volume, linked[t]) for t in linked]
     return (
         Laid(
             folder=folder.parent if placed or present or merges else root,
@@ -336,9 +366,10 @@ def lay_audio(
     )
 
 
-def link_or_skip(source: Path, target: Path) -> None:
-    """A picture of the torrent next to the book; a refused link copies it (it is small)."""
+def link_or_skip(source: Path, target: Path, mode: PlaceMode = "hardlink") -> None:
+    """A picture of the torrent next to the book: a refused link copies it (it is small),
+    whatever the mode; a copy in `copy`. A copy that fails leaves the book without it."""
     try:
-        link(source, target)
-    except LinkRefusedError:
-        write_new(target, source.read_bytes())
+        place_file(source, target, "copy" if mode == "copy" else "hardlink_or_copy")
+    except CopyFailedError:
+        return

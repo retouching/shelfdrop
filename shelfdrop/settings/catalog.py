@@ -14,6 +14,8 @@ SERVICES: Final = ("prowlarr", "torrent", "jellyfin")
 # The torrent clients the setting `torrent.client` takes; a client no connector serves yet is
 # refused by the test of the connection (shelfdrop.clients.torrents.factory.CONNECTORS).
 CLIENTS: Final = ("qui", "qbittorrent", "deluge", "transmission")
+# How the placement puts a file of a download on the shelf (`placement.mode`, ADR 0016).
+PLACE_MODES: Final = ("hardlink", "hardlink_or_copy", "copy")
 # The downloads that may have a folder of their own in the torrent client: by kind, and manual.
 TORRENT_FOLDERS: Final = ("manga", "ebook", "audiobook", "manual")
 # The name a secret was sealed under before a revision moved it: it opens under it until it is
@@ -74,6 +76,7 @@ VALUES: Final[Mapping[str, Entry]] = {
         for kind, path in LIBRARIES.items()
     },
     "placement.merge_mp3": Entry(kind="switch", default=True),
+    "placement.mode": Entry(kind="choice", default="hardlink", options=PLACE_MODES),
     "waiting.interval_hours": Entry(kind="number", default=6, choices=WAITING_HOURS),
     "placement.covers": Entry(kind="switch", default=True),
     "placement.lock_jellyfin": Entry(kind="switch", default=True),

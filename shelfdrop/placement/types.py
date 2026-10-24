@@ -14,8 +14,14 @@ type Unplaced = Literal[
     "missing_files",
     "link_refused",
     "merge_failed",
+    "copy_failed",
     "exists",
 ]
+# How a file of a download goes on the shelf (the setting `placement.mode`): a hardlink alone
+# (a link refused leaves it to Ranger), a hardlink or else a copy, a copy always.
+type PlaceMode = Literal["hardlink", "hardlink_or_copy", "copy"]
+# What became of one file: hardlinked, copied, or left (a file had its name).
+type Outcome = Literal["linked", "copied", "exists"]
 # A write the API asks the worker for: a `cover.jpg`, or a scan of the libraries.
 type TaskKind = Literal["cover", "scan"]
 # Where a file of Ranger comes from: a download (hardlinked), the libraries (moved).
@@ -57,6 +63,9 @@ class PlacedFile:
     chapter: float | None
     path: str
     """As the placement sees it (`/data/files/comics/...`)."""
+    copied_from: str | None = None
+    """The file of the torrent it is a copy of (`placement.mode`); None for a hardlink, a
+    file moved or a file made (a merge)."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -73,6 +82,8 @@ class ShelfFile:
     path: str
     locked: bool
     created_at: int
+    copied_from: str | None = None
+    """The file of the torrent it is a copy of; None for a hardlink."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -226,3 +237,5 @@ class PlaceItem:
     destination: str | None
     created_at: int
     updated_at: int
+    copied: bool = False
+    """Placed through a copy of a file of its download (`placement.mode`)."""

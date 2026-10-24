@@ -133,3 +133,10 @@ def test_a_secret_moved_to_another_name_opens_under_its_former_one() -> None:
     assert reader.opened("torrent.api_key", box.seal("torrent.api_key", "new")) == "new"
     # Another name never opens it.
     assert reader.opened("prowlarr.api_key", moved) is None
+
+
+@pytest.mark.anyio
+async def test_the_mode_of_the_placement_is_a_hardlink_until_another_is_saved() -> None:
+    assert await FakeSettingsReader().place_mode() == "hardlink"
+    for mode in ("hardlink_or_copy", "copy"):
+        assert await FakeSettingsReader({"placement.mode": mode}).place_mode() == mode

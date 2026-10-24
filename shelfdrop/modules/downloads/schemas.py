@@ -73,8 +73,12 @@ class ProgressRead(BaseModel):
     reason: Failure | None
     # Placed: where (the library, then the series).
     destination: str | None
-    # To place: why ("manual", "chapters", "no_volume", "missing_files", "link_refused"...).
+    # To place: why ("manual", "chapters", "no_volume", "missing_files", "link_refused",
+    # "copy_failed"...).
     unplaced: str | None
+    # Placed (or placed in part): a file of it copied rather than hardlinked
+    # (`placement.mode`).
+    copied: bool
 
 
 class DownloadRead(BaseModel):

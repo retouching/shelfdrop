@@ -216,3 +216,38 @@ async def test_a_cover_the_page_chose_is_written_in_its_series(tmp_path: Path) -
 
     assert (bench.roots["manga"] / "Gunnm" / "cover.jpg").read_bytes() == JPEG + b"chosen"
     assert sorted(state for _, state in bench.shelf.tasks.values()) == ["done", "failed"]
+
+
+@pytest.mark.anyio
+async def test_a_download_copied_says_so_on_the_page_and_in_the_journal(tmp_path: Path) -> None:
+    bench = new_bench(tmp_path, mode="copy")
+    torrent = berserk(bench, tmp_path)
+    download = completed(bench, torrent)
+
+    await bench.service.round()
+
+    row = bench.downloads.rows[download.id]
+    assert (row.stage, row.copied) == ("placed", True)
+    placed = bench.roots["manga"] / "Berserk" / "Berserk - T41.cbz"
+    source = torrent / "Berserk.T41.FRENCH.CBZ.cbz"
+    assert placed.stat().st_ino != source.stat().st_ino
+    assert [f.copied_from for f in bench.shelf.files] == [
+        str(source),
+        str(torrent / "Berserk.T42.FRENCH.CBZ.cbz"),
+    ]
+    [event] = bench.journal.of("placed")
+    assert event.facts["copied"] is True
+
+
+@pytest.mark.anyio
+async def test_a_mode_it_does_not_know_hardlinks(tmp_path: Path) -> None:
+    bench = new_bench(tmp_path, mode="move")
+    torrent = berserk(bench, tmp_path)
+    download = completed(bench, torrent)
+
+    await bench.service.round()
+
+    assert bench.downloads.rows[download.id].copied is False
+    placed = bench.roots["manga"] / "Berserk" / "Berserk - T41.cbz"
+    assert placed.stat().st_ino == (torrent / "Berserk.T41.FRENCH.CBZ.cbz").stat().st_ino
+    assert "copied" not in bench.journal.of("placed")[0].facts

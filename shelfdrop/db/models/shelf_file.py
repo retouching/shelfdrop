@@ -27,3 +27,6 @@ class ShelfFile(Base):
     locked: Mapped[bool] = mapped_column(Boolean)
     # Unix seconds.
     created_at: Mapped[int] = mapped_column(Integer)
+    # The file of the torrent it is a copy of (`placement.mode`); None for a hardlink, a file
+    # moved or a file made (a merge).
+    copied_from: Mapped[str | None] = mapped_column(Text)

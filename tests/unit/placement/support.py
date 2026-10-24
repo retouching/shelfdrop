@@ -96,6 +96,7 @@ class FakePlacementRepository(PlacementRepository):
                     path=placed.path,
                     locked=False,
                     created_at=now,
+                    copied_from=placed.copied_from,
                 )
             )
 
@@ -230,8 +231,17 @@ class FakePlacementRepository(PlacementRepository):
         return [i for i in self.items.values() if i.request is not None and i.state in OPEN]
 
     @override
-    def mark_item_placed(self, item_id: int, destination: str, now: int) -> None:
-        self.change(item_id, state="placed", request=None, error=None, destination=destination)
+    def mark_item_placed(
+        self, item_id: int, destination: str, now: int, *, copied: bool = False
+    ) -> None:
+        self.change(
+            item_id,
+            state="placed",
+            request=None,
+            error=None,
+            destination=destination,
+            copied=copied,
+        )
 
     @override
     def mark_item_ignored(self, item_id: int, now: int) -> None:
@@ -335,6 +345,7 @@ class FakePlacementSettings:
     scan_at: tuple[int, int] = (4, 30)
     uploads_at: str = "/nowhere/envois"
     keep_days: int = 7
+    mode: str = "hardlink"
 
     async def jellyfin(self) -> tuple[str | None, str | None]:
         return JELLYFIN_URL, JELLYFIN_KEY
@@ -347,6 +358,9 @@ class FakePlacementSettings:
 
     async def covers(self) -> bool:
         return self.covers_on
+
+    async def place_mode(self) -> str:
+        return self.mode
 
     async def lock_jellyfin(self) -> bool:
         return self.lock_on
@@ -397,6 +411,7 @@ def new_bench(
     tools: FakeTools | None = None,
     covers: FakeCovers | None = None,
     merge: bool = True,
+    mode: str = "hardlink",
 ) -> Bench:
     roots: dict[Kind, Path] = {
         "manga": tmp_path / "files" / "comics",
@@ -409,6 +424,7 @@ def new_bench(
         {k: str(v) for k, v in roots.items()},
         merge=merge,
         uploads_at=str(tmp_path / "files" / "envois"),
+        mode=mode,
     )
     shelf = FakePlacementRepository()
     downloads = FakeDownloadRepository()

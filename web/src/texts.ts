@@ -2,7 +2,7 @@
 // (vérifiée par TypeScript). Règles : docs/agents/writing.md. La langue : i18n/language.ts.
 import { en } from "./i18n/en";
 import { language } from "./i18n/language";
-import type { Kind, TorrentClient } from "./types";
+import type { Kind, PlaceMode, TorrentClient } from "./types";
 
 function plural(n: number, one: string, many: string): string {
   return n === 1 ? `1 ${one}` : `${String(n)} ${many}`;
@@ -438,6 +438,17 @@ const fr = {
     libraries: "Bibliothèques",
     libraryPath: (name: string): string => `Dossier de ${name}`,
     uploadsPath: "Dossier des envois",
+    placeMode: "Mode de rangement",
+    placeModes: {
+      hardlink: "Lien dur",
+      hardlink_or_copy: "Lien dur, sinon copie",
+      copy: "Copie",
+    } satisfies Record<PlaceMode, string>,
+    placeModeHints: {
+      hardlink: "Aucun espace en plus. Torrents et bibliothèques sur le même système de fichiers.",
+      hardlink_or_copy: "Copie quand le lien dur est refusé : espace doublé pour ces fichiers.",
+      copy: "Toujours une copie : espace doublé.",
+    } satisfies Record<PlaceMode, string>,
     mergeMp3: "Fusionner les MP3 en un M4B chapitré",
     covers: "Créer les couvertures (1re page du T01)",
     lockJellyfin: "Verrouiller les métadonnées dans Jellyfin",
@@ -563,6 +574,7 @@ const fr = {
     misplaced: (reason: string): string => `Mal rangé : ${reason}`,
     placing: "Rangement en cours",
     placed: (destination: string): string => `Rangé dans ${destination}`,
+    copied: "copié",
     ignored: "Ignoré",
     ignore: "Ignorer",
     ignoreFor: (name: string): string => `Ignorer ${name}`,
@@ -606,6 +618,7 @@ const fr = {
     errors: {
       exists: "Un fichier porte déjà ce nom à la destination : rien d'écrasé.",
       link_refused: "Lien refusé par le système de fichiers.",
+      copy_failed: "Copie interrompue : rien d'écrit.",
       merge_failed: "Fusion impossible.",
       no_files: "Aucun fichier de livre.",
       missing_files: "Fichiers introuvables.",
@@ -744,6 +757,7 @@ const fr = {
     waiting: (client: string): string => `En attente de ${client}`,
     placing: "Rangement en cours",
     placed: (library: string): string => `Rangé dans ${library}`,
+    copied: "copié",
     toPlace: "Terminé, à associer dans Ranger",
     notReceived: (client: string): string => `${client} n'a pas reçu le torrent.`,
     retry: "Réessayer",

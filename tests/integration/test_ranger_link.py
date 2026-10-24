@@ -2,7 +2,9 @@
 place is listed with its files; each file linked to a work is placed by the worker as a
 volume, hardlinked (the torrent seeds on); a name taken refuses, and nothing is replaced; a
 file of the shelf searched is corrected, moved; the rest of a download placed in part is listed
-alone, ignored (nothing touched, the download placed), then taken back."""
+alone, ignored (nothing touched, the download placed), then taken back; in `copy`
+(`placement.mode`), a file of a download linked is a copy of its own, the download and the file
+marked copied."""
 
 import httpx
 import pytest
@@ -153,3 +155,48 @@ def test_the_rest_of_a_download_placed_in_part_is_ignored_then_taken_back(
     assert resumed.json()["state"] == "unlinked"
     again = client.post(f"/api/v1/place/items/{number}/resume")
     assert (again.status_code, again.json()["code"]) == (409, "place_item_not_ignored")
+
+
+@pytest.mark.usefixtures("media", "torrent_saved", "copy_mode")
+def test_in_copy_a_file_linked_is_a_copy_marked_so(
+    client: httpx.Client, fake_sources: FakeSources, stack: Stack
+) -> None:
+    series = "Shelfdrop Copy Link Test"
+    torrent = f"/data/torrents/manga/{series}"
+    stack.exec_placement(
+        "python", "-c", MAKE_CBZ, f"{torrent}/Prologue.cbz", f"{torrent}/Extra.cbz"
+    )
+    download, _ = send_completed(
+        client,
+        fake_sources,
+        name=series,
+        kind="manga",
+        content_path=torrent,
+        volumes={"kind": "unknown"},
+        author="Shelfdrop Author",
+    )
+    items = named(wait_for_items(client, lambda i: len(named(i, torrent)) == 2), torrent)
+    [item] = [i for i in items if i["name"] == "Prologue.cbz"]
+    volume = {
+        "type": "volume",
+        "kind": "manga",
+        "work_id": None,
+        "series": series,
+        "author": "Shelfdrop Author",
+        "volume": 1,
+    }
+    number = item["id"].removeprefix("item-")
+    assert client.post(f"/api/v1/place/items/{number}/link", json=volume).status_code == 202
+
+    placed = wait_for_items(
+        client, lambda i: named(i, f"{torrent}/Prologue.cbz")[0]["state"] == "placed"
+    )
+    [done] = named(placed, f"{torrent}/Prologue.cbz")
+    assert done["copied"] is True
+    shelf = f"/data/files/comics/{series}/{series} - T01.cbz"
+    inodes = stack.exec_placement("stat", "-c", "%i", shelf, f"{torrent}/Prologue.cbz")
+    [copied, seeding] = inodes.stdout.splitlines()
+    assert copied != seeding
+    # The download waits for its other file, marked copied already.
+    after = wait_for_download(client, download["id"], lambda d: d["progress"]["copied"])
+    assert (after["progress"]["state"], after["progress"]["copied"]) == ("to_place", True)

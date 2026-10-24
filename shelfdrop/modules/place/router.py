@@ -62,6 +62,7 @@ def item_read(item: PlaceItem) -> ItemRead:
         series=item.series,
         author=item.author,
         work_id=item.work_id,
+        copied=item.copied,
     )
 
 
@@ -83,6 +84,7 @@ def shelved_read(shelved: ShelfFile) -> ItemRead:
         series=shelved.series,
         author=shelved.author,
         work_id=shelved.work_id,
+        copied=shelved.copied_from is not None,
     )
 
 

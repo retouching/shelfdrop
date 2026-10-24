@@ -48,6 +48,7 @@ def file_of(row: ShelfFileRow) -> ShelfFile:
         path=row.path,
         locked=row.locked,
         created_at=row.created_at,
+        copied_from=row.copied_from,
     )
 
 
@@ -74,6 +75,7 @@ def item_of(row: PlaceItemRow) -> PlaceItem:
         destination=row.destination,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        copied=row.copied,
     )
 
 
@@ -95,6 +97,7 @@ class PlacementRepository:
                     path=placed.path,
                     locked=False,
                     created_at=now,
+                    copied_from=placed.copied_from,
                 )
             )
 
@@ -321,12 +324,19 @@ class PlacementRepository:
         )
         return [item_of(row) for row in rows]
 
-    def mark_item_placed(self, item_id: int, destination: str, now: int) -> None:
+    def mark_item_placed(
+        self, item_id: int, destination: str, now: int, *, copied: bool = False
+    ) -> None:
         self.session.execute(
             update(PlaceItemRow)
             .where(PlaceItemRow.id == item_id)
             .values(
-                state="placed", request=None, error=None, destination=destination, updated_at=now
+                state="placed",
+                request=None,
+                error=None,
+                destination=destination,
+                updated_at=now,
+                copied=copied,
             )
         )
 

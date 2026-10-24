@@ -18,6 +18,8 @@ type ProgressRead = {
   readonly reason: "not_received" | "duplicate" | null;
   /** Rangé : la bibliothèque et la série. */
   readonly destination: string | null;
+  /** Un fichier copié plutôt que lié (mode de rangement). */
+  readonly copied: boolean;
 };
 
 type DownloadRead = {
@@ -75,7 +77,7 @@ function stateOf(read: ProgressRead): DownloadState {
     case "placing":
       return { kind: "placing" };
     case "placed":
-      return { kind: "placed", library: read.destination ?? "" };
+      return { kind: "placed", library: read.destination ?? "", copied: read.copied };
     case "to_place":
       return { kind: "toPlace" };
     case "failed":

@@ -36,9 +36,11 @@ def progress_of(download: Download, info: TorrentInfo | None) -> Progress:
         case "failed":
             return Progress(state="failed", reason=download.failure or "not_received")
         case "placed":
-            return Progress(state="placed", destination=download.destination)
+            return Progress(
+                state="placed", destination=download.destination, copied=download.copied
+            )
         case "unplaced":
-            return Progress(state="to_place", unplaced=download.unplaced)
+            return Progress(state="to_place", unplaced=download.unplaced, copied=download.copied)
         case "completed":
             return finished(download)
         case "sending":

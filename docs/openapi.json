@@ -4992,6 +4992,10 @@
               }
             ],
             "title": "Work Id"
+          },
+          "copied": {
+            "type": "boolean",
+            "title": "Copied"
           }
         },
         "type": "object",
@@ -5011,7 +5015,8 @@
           "loose",
           "series",
           "author",
-          "work_id"
+          "work_id",
+          "copied"
         ],
         "title": "ItemRead"
       },
@@ -5535,6 +5540,10 @@
               }
             ],
             "title": "Unplaced"
+          },
+          "copied": {
+            "type": "boolean",
+            "title": "Copied"
           }
         },
         "type": "object",
@@ -5545,7 +5554,8 @@
           "eta",
           "reason",
           "destination",
-          "unplaced"
+          "unplaced",
+          "copied"
         ],
         "title": "ProgressRead"
       },

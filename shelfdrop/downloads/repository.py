@@ -52,6 +52,7 @@ def download_of(row: DownloadRow) -> Download:
         destination=row.destination,
         unplaced=row.unplaced,
         placing_percent=row.placing_percent,
+        copied=row.copied,
     )
 
 
@@ -193,6 +194,12 @@ class DownloadRepository:
             update(DownloadRow)
             .where(DownloadRow.id == download_id)
             .values(stage="placed", destination=destination, placing_percent=None, placed_at=now)
+        )
+
+    def mark_copied(self, download_id: int) -> None:
+        """A file of it copied on the shelf rather than hardlinked."""
+        self.session.execute(
+            update(DownloadRow).where(DownloadRow.id == download_id).values(copied=True)
         )
 
     def mark_unplaced(self, download_id: int, reason: str, now: int) -> None:

@@ -2,6 +2,8 @@ export type Kind = "manga" | "ebook" | "audiobook";
 
 /** Le client torrent choisi dans Paramètres (`torrent.client`). */
 export type TorrentClient = "qui" | "qbittorrent" | "deluge" | "transmission";
+/** Le mode de rangement (`placement.mode`) : lien dur, lien dur sinon copie, copie. */
+export type PlaceMode = "hardlink" | "hardlink_or_copy" | "copy";
 
 /** Tomes couverts par une release : un seul, une plage (pack), ou une intégrale sans numéros. */
 export type Volumes =
@@ -65,7 +67,8 @@ export type DownloadState =
     }
   | { readonly kind: "waiting" }
   | { readonly kind: "placing" }
-  | { readonly kind: "placed"; readonly library: string }
+  /** `copied` : un fichier copié plutôt que lié (mode de rangement). */
+  | { readonly kind: "placed"; readonly library: string; readonly copied: boolean }
   | { readonly kind: "toPlace" }
   | { readonly kind: "failed"; readonly reason: "not_received" | "duplicate" };
 
@@ -99,7 +102,7 @@ export type FileState =
   | { readonly kind: "chapters" }
   | { readonly kind: "misplaced"; readonly reason: string }
   | { readonly kind: "placing"; readonly destination: string }
-  | { readonly kind: "placed"; readonly destination: string }
+  | { readonly kind: "placed"; readonly destination: string; readonly copied: boolean }
   | { readonly kind: "ignored" };
 
 export type ShelfFile = {

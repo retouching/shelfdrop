@@ -1,7 +1,9 @@
 """shelfdrop.placement.layout: the files of a download on the shelf, in hardlinks, what is there
 left as it is."""
 
+import errno
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -189,3 +191,64 @@ def test_the_tracks_of_an_audiobook_are_linked_in_their_order_to_merge(tmp_path:
     assert merge.cover is not None
     assert merge.cover.name == "cover.jpg"
     assert laid.files == ()
+
+
+def test_a_copy_names_the_file_of_the_torrent_it_copies(tmp_path: Path) -> None:
+    torrent = tmp_path / "torrents" / "Berserk T41-T42"
+    files = [cbz(torrent / f"Berserk T{n}.cbz", ["1.jpg"]) for n in (41, 42)]
+    root = tmp_path / "comics"
+
+    laid = place_comics(order(), files, root, False, "copy")
+
+    placed = root / "Berserk" / "Berserk - T41.cbz"
+    assert os.stat(placed).st_ino != os.stat(files[0]).st_ino
+    assert placed.read_bytes() == files[0].read_bytes()
+    assert [f.copied_from for f in laid.files] == [str(f) for f in files]
+
+
+def test_a_link_refused_leaves_the_download_to_ranger_in_hardlink_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    torrent = tmp_path / "torrents" / "Berserk T41-T42"
+    files = [cbz(torrent / f"Berserk T{n}.cbz", ["1.jpg"]) for n in (41, 42)]
+    real = os.link
+
+    def refused(src: object, dst: object, *args: object, **kwargs: object) -> None:
+        if str(src).startswith(str(torrent)):
+            raise OSError(errno.EXDEV, os.strerror(errno.EXDEV))
+        real(str(src), str(dst))
+
+    monkeypatch.setattr(os, "link", refused)
+
+    with pytest.raises(NotPlacedError) as refusal:
+        place_comics(order(), files, tmp_path / "hard", False, "hardlink")
+    assert (refusal.value.reason, refusal.value.placed) == ("link_refused", ())
+
+    laid = place_comics(order(), files, tmp_path / "either", False, "hardlink_or_copy")
+    assert [f.copied_from for f in laid.files] == [str(f) for f in files]
+    assert laid.volumes == (41, 42)
+
+
+def test_a_copy_cut_leaves_the_download_to_ranger(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    torrent = tmp_path / "torrents" / "Never Finished"
+    book = torrent / "Never Finished.epub"
+    book.parent.mkdir(parents=True)
+    book.write_bytes(b"book")
+
+    def cut(*args: object, **kwargs: object) -> None:
+        raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
+
+    monkeypatch.setattr(shutil, "copyfileobj", cut)
+    ebook = order(
+        kind="ebook",
+        series="Never Finished",
+        author="David Goggins",
+        volumes=Volumes(kind="single", first=1, last=1),
+    )
+
+    with pytest.raises(NotPlacedError) as refusal:
+        place_books(ebook, [book], tmp_path / "ebooks", "copy")
+    assert refusal.value.reason == "copy_failed"
+    assert [p for p in (tmp_path / "ebooks").rglob("*") if p.is_file()] == []

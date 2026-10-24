@@ -50,7 +50,9 @@ function stateText(state: FileState, kind: Kind | null): string {
     case "placing":
       return texts.place.placing;
     case "placed":
-      return texts.place.placed(state.destination);
+      return state.copied
+        ? `${texts.place.placed(state.destination)} · ${texts.place.copied}`
+        : texts.place.placed(state.destination);
     case "ignored":
       return texts.place.ignored;
   }
