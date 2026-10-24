@@ -36,7 +36,7 @@ for path in sys.argv[1:]:
 """
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved", "jellyfin_saved", "webhook_saved")
+@pytest.mark.usefixtures("media", "torrent_saved", "jellyfin_saved", "webhook_saved")
 def test_the_volumes_missing_are_linked_tagged_scanned_locked_and_journaled(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
@@ -125,7 +125,7 @@ def test_the_volumes_missing_are_linked_tagged_scanned_locked_and_journaled(
     assert embed["thumbnail"] == {"url": "attachment://cover.jpg"}
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved")
+@pytest.mark.usefixtures("media", "torrent_saved")
 def test_a_release_in_chapters_is_left_to_ranger(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
@@ -157,7 +157,7 @@ def test_a_release_in_chapters_is_left_to_ranger(
     assert "No such file" in shelf.stdout
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved")
+@pytest.mark.usefixtures("media", "torrent_saved")
 def test_a_torrent_with_a_book_without_a_volume_is_placed_in_part(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:

@@ -21,7 +21,7 @@ from tests.unit.support import torrent_file
 pytestmark = [pytest.mark.downloads, pytest.mark.downloads_manual]
 
 
-@pytest.mark.usefixtures("qbittorrent_saved")
+@pytest.mark.usefixtures("torrent_saved")
 def test_a_manual_download_goes_to_its_category_and_ends_to_place(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:

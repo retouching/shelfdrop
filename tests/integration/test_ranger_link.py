@@ -20,7 +20,7 @@ from tests.integration.support import (
 pytestmark = [pytest.mark.ranger, pytest.mark.ranger_link]
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved")
+@pytest.mark.usefixtures("media", "torrent_saved")
 def test_files_left_by_the_worker_are_linked_placed_refused_and_corrected(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
@@ -99,7 +99,7 @@ def test_files_left_by_the_worker_are_linked_placed_refused_and_corrected(
     assert download["id"] > 0
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved")
+@pytest.mark.usefixtures("media", "torrent_saved")
 def test_the_rest_of_a_download_placed_in_part_is_ignored_then_taken_back(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:

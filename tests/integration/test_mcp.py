@@ -64,7 +64,7 @@ def structured(result: CallToolResult) -> dict[str, Any]:
     return found
 
 
-@pytest.mark.usefixtures("qbittorrent_saved")
+@pytest.mark.usefixtures("torrent_saved")
 def test_a_token_finds_a_work_its_releases_and_sends_one_under_its_name(
     stack: Stack, client: httpx.Client, fake_sources: FakeSources
 ) -> None:

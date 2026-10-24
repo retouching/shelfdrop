@@ -21,7 +21,7 @@ from tests.unit.support import torrent_file
 pytestmark = [pytest.mark.downloads, pytest.mark.downloads_follow]
 
 
-@pytest.mark.usefixtures("qbittorrent_saved")
+@pytest.mark.usefixtures("torrent_saved")
 def test_a_download_shows_the_figures_of_qbittorrent_then_completes(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:

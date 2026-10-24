@@ -102,8 +102,9 @@ def anonymous(stack: Stack) -> Iterator[httpx.Client]:
 
 
 @pytest.fixture
-def qbittorrent_saved(client: httpx.Client) -> Iterator[None]:
-    """qBittorrent saved in the settings (the fake one, behind qui), then cleared again."""
+def torrent_saved(client: httpx.Client) -> Iterator[None]:
+    """The torrent client saved in the settings (the fake qBittorrent, behind qui), then cleared
+    again."""
     saved = {
         "values": {"torrent.url": FAKE_ORIGIN},
         "secrets": {"torrent.api_key": QUI_KEY},

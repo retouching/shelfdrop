@@ -12,7 +12,7 @@ from tests.integration.support import FakeSources, Stack, send_completed, wait_f
 pytestmark = [pytest.mark.ranger, pytest.mark.ranger_chapters]
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved")
+@pytest.mark.usefixtures("media", "torrent_saved")
 def test_chapters_linked_to_volumes_are_merged_placed_as_they_are_or_without_a_volume(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:

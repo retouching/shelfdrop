@@ -20,7 +20,7 @@ from tests.unit.support import torrent_file
 pytestmark = [pytest.mark.downloads, pytest.mark.downloads_retry]
 
 
-@pytest.mark.usefixtures("qbittorrent_saved")
+@pytest.mark.usefixtures("torrent_saved")
 def test_a_torrent_lost_is_not_received_then_sent_again_as_it_is(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:

@@ -34,7 +34,7 @@ def work_search(
     return run_search(client, {"mode": "work", "kind": "manga", "title": name, "names": [name]})
 
 
-@pytest.mark.usefixtures("qbittorrent_saved")
+@pytest.mark.usefixtures("torrent_saved")
 def test_a_release_of_a_work_is_sent_with_what_it_is_for_and_found_by_its_hash(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
@@ -111,7 +111,7 @@ def test_a_release_of_a_work_is_sent_with_what_it_is_for_and_found_by_its_hash(
     assert done["progress"]["state"] in ("placing", "to_place")
 
 
-@pytest.mark.usefixtures("qbittorrent_saved")
+@pytest.mark.usefixtures("torrent_saved")
 def test_a_torrent_already_in_qbittorrent_is_a_duplicate_never_sent_again(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:

@@ -93,7 +93,7 @@ def send_volumes(
     return downloads
 
 
-@pytest.mark.usefixtures("qbittorrent_saved", "webhook_saved")
+@pytest.mark.usefixtures("torrent_saved", "webhook_saved")
 def test_the_volumes_sent_by_one_request_make_one_embed(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:
@@ -116,7 +116,7 @@ def test_the_volumes_sent_by_one_request_make_one_embed(
     assert "apikey" not in str(messages)
 
 
-@pytest.mark.usefixtures("qbittorrent_saved", "webhook_saved")
+@pytest.mark.usefixtures("torrent_saved", "webhook_saved")
 def test_a_type_switched_off_is_not_posted_and_a_failure_is(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:
@@ -172,7 +172,7 @@ def test_a_type_switched_off_is_not_posted_and_a_failure_is(
         ).raise_for_status()
 
 
-@pytest.mark.usefixtures("qbittorrent_saved", "webhook_saved")
+@pytest.mark.usefixtures("torrent_saved", "webhook_saved")
 def test_a_send_of_a_work_shows_its_cover_in_the_journal_and_on_the_page(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:
@@ -204,7 +204,7 @@ def test_a_send_of_a_work_shows_its_cover_in_the_journal_and_on_the_page(
     assert fake_sources.count(origin, source.path) - before == 1
 
 
-@pytest.mark.usefixtures("qbittorrent_saved", "webhook_saved")
+@pytest.mark.usefixtures("torrent_saved", "webhook_saved")
 def test_a_send_without_a_work_has_no_cover(
     client: httpx.Client, fake_sources: FakeSources
 ) -> None:

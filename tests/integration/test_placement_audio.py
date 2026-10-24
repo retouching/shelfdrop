@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.placement, pytest.mark.placement_audio]
 TONE = "sine=frequency={}:duration=2"
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved")
+@pytest.mark.usefixtures("media", "torrent_saved")
 def test_mp3_tracks_become_one_m4b_with_its_chapters_its_length_and_its_cover(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
@@ -102,7 +102,7 @@ def test_mp3_tracks_become_one_m4b_with_its_chapters_its_length_and_its_cover(
     assert len(stack.exec_placement("ls", torrent).stdout.split(".mp3")) == 4
 
 
-@pytest.mark.usefixtures("media", "qbittorrent_saved")
+@pytest.mark.usefixtures("media", "torrent_saved")
 def test_a_book_goes_under_its_author_its_series_and_its_volume(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
