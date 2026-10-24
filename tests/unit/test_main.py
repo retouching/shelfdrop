@@ -147,6 +147,7 @@ async def test_without_a_build_no_page_is_served(tmp_path: Path) -> None:
         ("POST", "/api/v1/downloads"),
         ("POST", "/api/v1/downloads/1/retry"),
         ("GET", "/api/v1/downloads/1/cover"),
+        ("GET", "/api/v1/works/cover?id=anilist:1"),
         ("PUT", "/api/v1/filters"),
         ("GET", "/api/v1/session"),
         ("DELETE", "/api/v1/session"),

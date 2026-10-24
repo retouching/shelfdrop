@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { texts } from "../texts";
 import type { Work } from "../types";
 import { CheckIcon, MergeIcon } from "./icons";
+import { Cover as Picture } from "./library/Cover";
 import { Spinner } from "./Skeletons";
 
 type Props = {
@@ -24,8 +25,11 @@ function initials(title: string): string {
     .join("");
 }
 
-/** Couverture de remplacement : la vraie viendra des API, servie par shelfdrop (CSP : img-src 'self'). */
+/** La couverture de l'œuvre, par la file des vignettes ; ses initiales quand elle n'en a pas. */
 function Cover({ work }: { readonly work: Work }): ReactElement {
+  if (work.cover !== null) {
+    return <Picture src={work.cover} label={work.title} className="h-24 w-16" bare />;
+  }
   return (
     <span
       aria-hidden="true"

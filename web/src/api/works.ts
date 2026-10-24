@@ -14,6 +14,7 @@ type WorkRead = {
   readonly volumes_fr: number | null;
   readonly names: readonly NameRead[];
   readonly sources: readonly string[];
+  readonly cover_url: string | null;
   readonly merge_id: number | null;
   readonly parts: readonly PartRead[];
 };
@@ -65,6 +66,7 @@ function partOf(part: PartRead): Work {
     year: null,
     volumeCount: null,
     titles: [],
+    cover: null,
   };
 }
 
@@ -78,6 +80,7 @@ function workOf(read: WorkRead): Work {
     author: read.authors.join(", "),
     year: read.year,
     volumeCount: read.volumes,
+    cover: read.cover_url === null ? null : `/api/v1/works/cover?id=${encodeURIComponent(read.id)}`,
     titles: read.names.map((name) => ({
       title: name.title,
       language: languageLabel(name.language),

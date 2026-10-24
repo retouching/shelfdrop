@@ -3,7 +3,7 @@ every metadata source at once."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
@@ -12,6 +12,7 @@ from shelfdrop.modules.works.errors import (
     merge_refused,
     query_too_short,
     sources_unavailable,
+    work_cover_not_found,
     work_not_found,
 )
 from shelfdrop.modules.works.schemas import (
@@ -20,6 +21,8 @@ from shelfdrop.modules.works.schemas import (
     WorkRead,
     WorkSearchRead,
 )
+from shelfdrop.utils.pictures import picture_of
+from shelfdrop.works.covers import WorkCovers
 from shelfdrop.works.exceptions import (
     MergeNotFoundError,
     MergeRefusedError,
@@ -65,6 +68,22 @@ async def split_works(service: Injected[WorkService], merge_id: int) -> None:
         await service.split_works(merge_id)
     except MergeNotFoundError as exc:
         raise merge_not_found() from exc
+
+
+@router.get("/cover")
+async def read_work_cover(
+    covers: Injected[WorkCovers], work_id: Annotated[str, Query(alias="id", min_length=1)]
+) -> Response:
+    """The cover of a work kept from a search (7 days), read at its source by the API so that
+    the page loads no picture from another site. In the query, since an id may hold slashes
+    (`bnf:http://...`)."""
+    data = await covers.cover(work_id)
+    found = None if data is None else picture_of(data)
+    if data is None or found is None:
+        raise work_cover_not_found()
+    return Response(
+        content=data, media_type=found[1], headers={"Cache-Control": "private, max-age=86400"}
+    )
 
 
 @router.get("/{work_id}")

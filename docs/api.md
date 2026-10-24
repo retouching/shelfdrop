@@ -193,6 +193,10 @@ The indexers of Prowlarr, in their order, with their categories: `{"trackers": [
 ## GET /api/v1/filters, PUT /api/v1/filters
 `{"rules": [{"name": "Français", "pattern": "\\b(FRENCH|VF)\\b", "regex": true, "score": 100, "kinds": [], "enabled": true}], "minimum": -100}`. A rule of words matches whole words, any case, separated by commas; `kinds` empty: every kind. `PUT` replaces them; a rule whose expression is empty or invalid: `422 invalid_filter_rule`, `data.positions` its places, nothing saved.
 
+## GET /api/v1/works/cover
+
+`?id=<work id>`: the cover of a work kept from a search (7 days), read by the API at its source (a JPEG, a PNG or a WebP, 5 MB at most), `Cache-Control: private, max-age=86400`. The id goes in the query, since some hold slashes (`bnf:http://...`). A work unknown, older than its search, or whose sources give no picture: `404 work_cover_not_found`. The search page loads it for each work whose `cover_url` is not `null`.
+
 ## GET /api/v1/works/{id}
 A work a search returned in the last 7 days, the same object as an item of `works`. `404 work_not_found` otherwise.
 

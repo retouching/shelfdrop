@@ -9,6 +9,10 @@ def work_not_found() -> ApiError:
     return not_found(ErrorCode.WORK_NOT_FOUND, "Work not found")
 
 
+def work_cover_not_found() -> ApiError:
+    return not_found(ErrorCode.WORK_COVER_NOT_FOUND, "No cover for this work")
+
+
 def query_too_short() -> ApiError:
     return unprocessable(ErrorCode.QUERY_TOO_SHORT, "The search needs 2 letters or digits")
 
