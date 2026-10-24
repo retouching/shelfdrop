@@ -45,11 +45,26 @@ const worksQuery = setting("SHELFDROP_SHOTS_WORKS_QUERY", "Call of the Night");
 const phoneQuery = setting("SHELFDROP_SHOTS_PHONE_QUERY", "Monster");
 const series = setting("SHELFDROP_SHOTS_SERIES", "Kaguya-sama");
 // The neutral address shown for each service, by the start of the title of its card.
-const ADDRESSES = { Prowlarr: "http://prowlarr:9696", qBittorrent: "http://qui:7476", Jellyfin: "http://jellyfin:8096" };
+// The language of the page shot (SHELFDROP_SHOTS_LANGUAGE, English by default: the README is in
+// English), and the words of the page the script looks for in it.
+const language = setting("SHELFDROP_SHOTS_LANGUAGE", "en") === "fr" ? "fr" : "en";
+const WORDS = {
+  en: { choose: "Choose ", edit: "Edit ", wholeLibrary: "Whole library", searching: "Searching the sources", torrent: "Torrent client" },
+  fr: { choose: "Choisir ", edit: "Modifier ", wholeLibrary: "Toute la bibliothèque", searching: "Recherche dans les sources", torrent: "Client torrent" },
+}[language];
+const ADDRESSES = { Prowlarr: "http://prowlarr:9696", [WORDS.torrent]: "http://qui:7476", Jellyfin: "http://jellyfin:8096" };
 
 /** A context in the light theme, whose writes are aborted but READ_ONLY_WRITES. */
 async function newContext(browser, device, storageState) {
-  const context = await browser.newContext({ ...device, colorScheme: "light", locale: "fr-FR", storageState });
+  const context = await browser.newContext({
+    ...device,
+    colorScheme: "light",
+    locale: language === "fr" ? "fr-FR" : "en-GB",
+    storageState,
+  });
+  await context.addInitScript((chosen) => {
+    window.localStorage.setItem("shelfdrop.language", chosen);
+  }, language);
   await context.addInitScript(() => {
     window.localStorage.setItem("shelfdrop.theme", "light");
   });
@@ -120,7 +135,7 @@ async function searchWorks(page, text = query) {
   const field = page.locator("#query");
   await field.fill(text);
   await field.press("Enter");
-  await page.locator('button[aria-label^="Choisir "]').first().waitFor({ timeout: 90_000 });
+  await page.locator(`button[aria-label^="${WORDS.choose}"]`).first().waitFor({ timeout: 90_000 });
   await settle(page);
 }
 
@@ -138,7 +153,7 @@ async function desktop(browser) {
   await shoot(page, "search-works");
   await page.waitForTimeout(2000);
   await searchWorks(page);
-  await page.locator("li").filter({ hasText: author }).locator('button[aria-label^="Choisir "]').first().click();
+  await page.locator("li").filter({ hasText: author }).locator(`button[aria-label^="${WORDS.choose}"]`).first().click();
   await page.locator("#results-title").waitFor({ timeout: 120_000 });
   await settle(page, 2);
   // From the top of the page: the search typed, the work chosen, its names, then its releases.
@@ -150,7 +165,7 @@ async function desktop(browser) {
 
   const pages = [
     ["downloads", "/downloads"],
-    ["ranger", "/place"],
+    ["place", "/place"],
     ["waiting-list", "/waiting"],
     ["settings-services", "/settings"],
     ["settings-logs", "/settings/logs"],
@@ -160,9 +175,9 @@ async function desktop(browser) {
     await page.waitForTimeout(2000);
     await page.goto(`${base}${address}`);
     await settle(page, 2.5);
-    if (name === "ranger") {
+    if (name === "place") {
       // A filter of the page alone: every file of the library, not only those to place.
-      await page.getByRole("radio", { name: "Toute la bibliothèque" }).click();
+      await page.getByRole("radio", { name: WORDS.wholeLibrary }).click();
       await settle(page, 1);
     }
     if (name === "settings-services") {
@@ -182,13 +197,13 @@ async function desktop(browser) {
     await shoot(page, name);
   }
 
-  const chosen = page.locator(`button[aria-label^="Modifier ${series}"]`);
-  const opened = (await chosen.count()) > 0 ? chosen : page.locator('button[aria-label^="Modifier "]');
+  const chosen = page.locator(`button[aria-label^="${WORDS.edit}${series}"]`);
+  const opened = (await chosen.count()) > 0 ? chosen : page.locator(`button[aria-label^="${WORDS.edit}"]`);
   await opened.first().click();
   await page.locator("dialog[open]").waitFor();
   // The covers proposed by the sources come after the dialog.
   await page
-    .getByText("Recherche dans les sources")
+    .getByText(WORDS.searching)
     .waitFor({ state: "hidden", timeout: 60_000 })
     .catch(() => console.log("covers still searched, shot anyway"));
   await settle(page, 2);

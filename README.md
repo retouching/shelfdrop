@@ -26,14 +26,14 @@ shelfdrop sits next to Prowlarr, a torrent client and Jellyfin on a media server
   </tr>
   <tr>
     <td width="50%"><a href="docs/screenshots/jellyfin-series.webp"><img src="docs/screenshots/jellyfin-series.webp" alt="Jellyfin page: the series of the libraries"></a><br><sub>Jellyfin page: the series of the libraries</sub></td>
-    <td width="50%"><a href="docs/screenshots/jellyfin-series-dialog.webp"><img src="docs/screenshots/jellyfin-series-dialog.webp" alt="A series: its metadata, covers proposed by the sources, its volumes"></a><br><sub>A series: its metadata, covers proposed by the sources, its volumes</sub></td>
+    <td width="50%"><a href="docs/screenshots/jellyfin-series-dialog.webp"><img src="docs/screenshots/jellyfin-series-dialog.webp" alt="A series: its work, the names, covers and summaries proposed by the sources, its volumes"></a><br><sub>A series: its work, the names, covers and summaries proposed by the sources, its volumes</sub></td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/ranger.webp"><img src="docs/screenshots/ranger.webp" alt="Ranger: the files to link by hand, and every file of the library"></a><br><sub>Ranger: the files to link by hand, and every file of the library</sub></td>
+    <td width="50%"><a href="docs/screenshots/place.webp"><img src="docs/screenshots/place.webp" alt="Place: the files to match by hand, and every file of the library"></a><br><sub>Place: the files to match by hand, and every file of the library</sub></td>
     <td width="50%"><a href="docs/screenshots/waiting-list.webp"><img src="docs/screenshots/waiting-list.webp" alt="Waiting list: searches run again until a release shows up"></a><br><sub>Waiting list: searches run again until a release shows up</sub></td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/settings-services.webp"><img src="docs/screenshots/settings-services.webp" alt="Settings: Prowlarr, qBittorrent through qui, Jellyfin"></a><br><sub>Settings: Prowlarr, qBittorrent through qui, Jellyfin</sub></td>
+    <td width="50%"><a href="docs/screenshots/settings-services.webp"><img src="docs/screenshots/settings-services.webp" alt="Settings: Prowlarr, the torrent client (qBittorrent, qui, Deluge, Transmission), Jellyfin"></a><br><sub>Settings: Prowlarr, the torrent client (qBittorrent, qui, Deluge, Transmission), Jellyfin</sub></td>
     <td width="50%"><a href="docs/screenshots/settings-logs.webp"><img src="docs/screenshots/settings-logs.webp" alt="Settings: the logs of the API and of the placement worker"></a><br><sub>Settings: the logs of the API and of the placement worker</sub></td>
   </tr>
   <tr>
