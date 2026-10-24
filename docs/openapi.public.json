@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "shelfdrop",
-    "version": "0.12.1",
+    "version": "0.12.2",
     "description": "The API of shelfdrop for a program: the work search, the releases of Prowlarr, the downloads, Ranger, the waiting searches. Every request sends an access token created on the page Paramètres, Accès: `Authorization: Bearer sd_...`. Each operation names the scope it needs in `x-access`: `read` (any token) or `write` (a token `write`). Every error body is `{\"code\", \"detail\", \"data\"}`; the codes are listed in the schema `ErrorCode`."
   },
   "paths": {
@@ -496,6 +496,74 @@
           }
         },
         "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/works/cover": {
+      "get": {
+        "tags": [
+          "works"
+        ],
+        "summary": "Read Work Cover",
+        "description": "The cover of a work kept from a search (7 days), read at its source by the API so that\nthe page loads no picture from another site. In the query, since an id may hold slashes\n(`bnf:http://...`).",
+        "operationId": "read_work_cover_api_v1_works_cover_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
         "security": [
           {
             "token": []
@@ -5304,6 +5372,7 @@
           "release_not_found",
           "download_not_found",
           "download_cover_not_found",
+          "work_cover_not_found",
           "method_not_allowed",
           "http_error",
           "validation_failed",
