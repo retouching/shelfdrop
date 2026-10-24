@@ -4,11 +4,11 @@ Retours sur la 0.10.0 en production (22/10/2026).
 
 ## Bugs
 
-- [ ] `GET /api/v1/library/series/<id>` répond 503.
-- [ ] La fenêtre de la fiche d'une série a un double scroll.
-- [ ] La recherche ne doit pas partir quand la barre de recherche est vide.
-- [ ] Quand on quitte la page de recherche puis qu'on y revient, ne pas garder la recherche précédente, ou alors la garder sans la relancer.
-- [ ] Pouvoir effacer toute la recherche (texte, filtres et résultats), pas seulement le texte tapé.
+- [x] `GET /api/v1/library/series/<id>` répond 503.
+- [x] La fenêtre de la fiche d'une série a un double scroll.
+- [x] La recherche ne doit pas partir quand la barre de recherche est vide.
+- [x] Quand on quitte la page de recherche puis qu'on y revient, ne pas garder la recherche précédente, ou alors la garder sans la relancer.
+- [x] Pouvoir effacer toute la recherche (texte, filtres et résultats), pas seulement le texte tapé.
 
 ## Fonctionnalités
 
@@ -19,7 +19,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
   - si ce n'est pas déjà le cas, prendre les trackers depuis les indexeurs réels de Prowlarr, sans filtre ;
   - pouvoir choisir sur le site, pour chaque indexeur, la ou les catégories à utiliser et à quel type elles correspondent (par exemple Nyaa : « Literature » pour les mangas). Une ou plusieurs catégories par type.
 - [ ] Servir la vraie doc d'API générée par FastAPI (Swagger UI / ReDoc depuis l'OpenAPI) à la place de la page actuelle de `/api/docs`. Elle ne décrit que l'API publique (accès par jeton) : rien sur la partie session du site.
-- [ ] Journal Discord : ne plus mettre d'adresse IP dans les embeds (champ « Adresse IP » du message « Connexion »).
+- [x] Journal Discord : ne plus mettre d'adresse IP dans les embeds (champ « Adresse IP » du message « Connexion »).
 - [ ] Bibliothèque : voir un aperçu des fichiers rangés et pouvoir les télécharger depuis le site.
 - [ ] Pouvoir lire les logs depuis le site.
 - [ ] Prévoir un compte interne (admin propre à shelfdrop) pour se connecter quand Jellyfin n'est pas encore branché, et revoir les textes de la page de connexion en conséquence (aujourd'hui elle ne parle que du compte Jellyfin).
@@ -33,7 +33,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
 ## Interface
 
 - [ ] Faire le front en mobile first.
-- [ ] Les boutons n'ont parfois pas la même taille que les composants à côté.
-- [ ] Paramètres : aligner « Enregistré » et « Tout testé ».
-- [ ] Renommer la section « Métadonnées » en « Jellyfin ».
-- [ ] Catégories : renommer « Manga » en « Manga & BD ».
+- [x] Les boutons n'ont parfois pas la même taille que les composants à côté.
+- [x] Paramètres : aligner « Enregistré » et « Tout testé ».
+- [x] Renommer la section « Métadonnées » en « Jellyfin ».
+- [x] Catégories : renommer « Manga » en « Manga & BD ».
