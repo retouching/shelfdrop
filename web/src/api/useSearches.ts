@@ -8,14 +8,29 @@ import { searchWorks } from "./works";
 export type WorksState =
   | { readonly status: "idle" }
   | { readonly status: "loading" }
-  | { readonly status: "done"; readonly works: readonly Work[] };
+  | {
+      readonly status: "done";
+      readonly works: readonly Work[];
+      /** Les sources qui n'ont pas répondu, par leur nom ; les œuvres viennent des autres. */
+      readonly unavailable: readonly string[];
+      /** Aucune source n'a répondu. */
+      readonly failed: boolean;
+    };
 
-type WorksAnswer = { readonly key: string; readonly works: readonly Work[] };
+type WorksAnswer = {
+  readonly key: string;
+  readonly works: readonly Work[];
+  readonly unavailable: readonly string[];
+  readonly failed: boolean;
+};
 
-/** Les œuvres de `query` ; aucune recherche sans texte. `round` relance la même recherche. */
-export function useWorks(query: string, kind: Kind, round: number, enabled: boolean): WorksState {
+/**
+ * Les œuvres de `query` ; aucune recherche sans texte. `round` relance la même recherche, `retry`
+ * aussi (le bouton Réessayer quand des sources n'ont pas répondu).
+ */
+export function useWorks(query: string, kind: Kind, round: number, retry: number, enabled: boolean): WorksState {
   const active = enabled && query.trim().length >= 2;
-  const key = `${kind}|${query}|${String(round)}`;
+  const key = `${kind}|${query}|${String(round)}|${String(retry)}`;
   const [answer, setAnswer] = useState<WorksAnswer | null>(null);
 
   useEffect(() => {
@@ -23,28 +38,30 @@ export function useWorks(query: string, kind: Kind, round: number, enabled: bool
       return undefined;
     }
     let current = true;
-    searchWorks(query, kind).then(
+    searchWorks(query, kind, retry > 0).then(
       (found) => {
         if (current) {
-          setAnswer({ key, works: found.works });
+          setAnswer({ key, works: found.works, unavailable: found.unavailable, failed: false });
         }
       },
       () => {
-        // Aucune source ne répond : la liste reste vide, avec son message.
+        // Aucune source ne répond : la liste reste vide, avec son message et Réessayer.
         if (current) {
-          setAnswer({ key, works: [] });
+          setAnswer({ key, works: [], unavailable: [], failed: true });
         }
       },
     );
     return () => {
       current = false;
     };
-  }, [active, key, query, kind]);
+  }, [active, key, query, kind, retry]);
 
   if (!active) {
     return { status: "idle" };
   }
-  return answer?.key === key ? { status: "done", works: answer.works } : { status: "loading" };
+  return answer?.key === key
+    ? { status: "done", works: answer.works, unavailable: answer.unavailable, failed: answer.failed }
+    : { status: "loading" };
 }
 
 export type ReleasesState =

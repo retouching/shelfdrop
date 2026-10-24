@@ -603,6 +603,10 @@ export const texts = {
     volumeCount: (n: number): string => plural(n, "tome", "tomes"),
     names: "Noms cherchés",
     none: (query: string): string => `Aucune œuvre trouvée pour « ${query} ».`,
+    unavailable: (sources: readonly string[]): string =>
+      `${sources.length > 1 ? "Sources sans réponse" : "Source sans réponse"} : ${sources.join(", ")}.`,
+    noSource: "Aucune source n'a répondu.",
+    retry: "Réessayer",
     choose: (title: string): string => `Choisir ${title}`,
     merge: "Fusionner",
     mergeLabel: (title: string): string => `Fusionner ${title} avec une autre œuvre`,

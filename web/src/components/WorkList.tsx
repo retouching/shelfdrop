@@ -14,6 +14,11 @@ type Props = {
   readonly onChoose: (work: Work) => void;
   readonly onMerge: (work: Work) => void;
   readonly onSplit: (work: Work) => void;
+  /** Les sources qui n'ont pas répondu, par leur nom. */
+  readonly unavailable: readonly string[];
+  /** Aucune source n'a répondu. */
+  readonly failed: boolean;
+  readonly onRetry: () => void;
 };
 
 function initials(title: string): string {
@@ -40,7 +45,19 @@ function Cover({ work }: { readonly work: Work }): ReactElement {
   );
 }
 
-export function WorkList({ query, works, selectedId, loading, onChoose, onMerge, onSplit }: Props): ReactElement {
+export function WorkList({
+  query,
+  works,
+  selectedId,
+  loading,
+  onChoose,
+  onMerge,
+  onSplit,
+  unavailable,
+  failed,
+  onRetry,
+}: Props): ReactElement {
+  const silent = failed ? texts.works.noSource : unavailable.length > 0 ? texts.works.unavailable(unavailable) : null;
   return (
     <section aria-labelledby="works-title" className="space-y-3">
       <div>
@@ -48,7 +65,22 @@ export function WorkList({ query, works, selectedId, loading, onChoose, onMerge,
           {texts.works.caption(query)}
         </h2>
       </div>
-      {works.length === 0 ? (
+      {silent === null ? null : (
+        <p
+          role="status"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          <span className="min-w-0 flex-1">{silent}</span>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-lg border border-amber-300 bg-surface px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100"
+          >
+            {texts.works.retry}
+          </button>
+        </p>
+      )}
+      {failed ? null : works.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-300 px-5 py-8 text-center text-sm text-slate-500">
           {texts.works.none(query)}
         </p>

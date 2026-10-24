@@ -91,8 +91,12 @@ function workOf(read: WorkRead): Work {
 
 export type FoundWorks = { readonly works: readonly Work[]; readonly unavailable: readonly string[] };
 
-export async function searchWorks(query: string, kind: Kind): Promise<FoundWorks> {
+/** Les œuvres de `query` ; `retry` interroge aussi les sources mises de côté après leurs échecs. */
+export async function searchWorks(query: string, kind: Kind, retry = false): Promise<FoundWorks> {
   const params = new URLSearchParams({ q: query, kind });
+  if (retry) {
+    params.set("retry", "true");
+  }
   const found = await request<WorkSearchRead>("GET", `/v1/works?${params.toString()}`);
   return {
     works: [...found.works, ...found.other_forms].map(workOf),

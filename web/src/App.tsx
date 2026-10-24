@@ -116,7 +116,8 @@ export function App(): ReactElement | null {
   const [searchId, setSearchId] = useState(0);
   const [refreshRound, setRefreshRound] = useState(0);
   const manual = page === "manual";
-  const worksState = useWorks(query, kind, searchId, ready && page === "auto");
+  const [worksRetry, setWorksRetry] = useState(0);
+  const worksState = useWorks(query, kind, searchId, worksRetry, ready && page === "auto");
   const worksLoading = worksState.status === "loading";
   const searchedNames = manual
     ? query === ""
@@ -452,6 +453,11 @@ export function App(): ReactElement | null {
                       onChoose={chooseWork}
                       onMerge={setMerging}
                       onSplit={split}
+                      unavailable={worksState.status === "done" ? worksState.unavailable : []}
+                      failed={worksState.status === "done" && worksState.failed}
+                      onRetry={() => {
+                        setWorksRetry((n) => n + 1);
+                      }}
                     />
                     {work === null ? null : (
                       <>
