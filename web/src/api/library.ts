@@ -166,3 +166,127 @@ export async function base64Of(file: File): Promise<string> {
   }
   return btoa(binary);
 }
+
+/** Un tome d'une série : un livre ou un livre audio de Jellyfin. */
+export type Volume = {
+  readonly id: string;
+  readonly name: string;
+  readonly number: number | null;
+  readonly summary: string;
+  readonly authors: readonly string[];
+  readonly hasImage: boolean;
+  readonly fileName: string;
+  /** La taille du fichier en octets ; null quand Jellyfin ne la donne pas. */
+  readonly size: number | null;
+};
+
+export type SeriesVolumes = {
+  readonly series: Series;
+  readonly volumes: readonly Volume[];
+  /** Les numéros entre 1 et le plus haut présent qu'aucun tome ne porte. */
+  readonly missing: readonly number[];
+};
+
+type VolumeRead = {
+  readonly id: string;
+  readonly name: string;
+  readonly number: number | null;
+  readonly summary: string;
+  readonly authors: readonly string[];
+  readonly has_image: boolean;
+  readonly file_name: string;
+  readonly size: number | null;
+};
+
+function volumeOf(read: VolumeRead): Volume {
+  return {
+    id: read.id,
+    name: read.name,
+    number: read.number,
+    summary: read.summary,
+    authors: read.authors,
+    hasImage: read.has_image,
+    fileName: read.file_name,
+    size: read.size,
+  };
+}
+
+export async function readVolumes(id: string): Promise<SeriesVolumes> {
+  const body = await request<{
+    readonly series: SeriesRead;
+    readonly volumes: readonly VolumeRead[];
+    readonly missing: readonly number[];
+  }>("GET", `/v1/library/series/${encodeURIComponent(id)}/volumes`);
+  return { series: seriesOf(body.series), volumes: body.volumes.map(volumeOf), missing: body.missing };
+}
+
+/** Le fichier d'un tome, lu dans Jellyfin par l'API. */
+export function volumeFile(id: string): string {
+  return `/api/v1/library/items/${encodeURIComponent(id)}/file`;
+}
+
+export type VolumeChange = {
+  readonly name: string;
+  readonly number: number | null;
+  readonly summary: string;
+  readonly authors: readonly string[];
+  readonly lock: boolean;
+  readonly image: ImageChoice | null;
+};
+
+export async function changeVolume(id: string, change: VolumeChange): Promise<Volume> {
+  const read = await request<VolumeRead>("PUT", `/v1/library/items/${encodeURIComponent(id)}`, {
+    name: change.name,
+    number: change.number,
+    summary: change.summary,
+    authors: change.authors,
+    lock: change.lock,
+    image: imageBody(change.image),
+  });
+  return volumeOf(read);
+}
+
+/** La dernière synchronisation des métadonnées vers Jellyfin. */
+export type SyncState = {
+  readonly stage: "idle" | "running" | "done" | "failed";
+  readonly seriesId: string | null;
+  readonly changed: number;
+  readonly unchanged: number;
+  readonly notFound: number;
+};
+
+type SyncRead = {
+  readonly stage: SyncState["stage"];
+  readonly series_id: string | null;
+  readonly changed: number;
+  readonly unchanged: number;
+  readonly not_found: number;
+};
+
+function syncOf(read: SyncRead): SyncState {
+  return {
+    stage: read.stage,
+    seriesId: read.series_id,
+    changed: read.changed,
+    unchanged: read.unchanged,
+    notFound: read.not_found,
+  };
+}
+
+export async function startSync(seriesId: string | null): Promise<SyncState> {
+  return syncOf(await request<SyncRead>("POST", "/v1/library/sync", { series_id: seriesId }));
+}
+
+export async function readSync(): Promise<SyncState> {
+  return syncOf(await request<SyncRead>("GET", "/v1/library/sync"));
+}
+
+/** Une synchronisation lancée, suivie jusqu'à sa fin (relue chaque seconde). */
+export async function runSync(seriesId: string | null): Promise<SyncState> {
+  let state = await startSync(seriesId);
+  while (state.stage === "running") {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    state = await readSync();
+  }
+  return state;
+}

@@ -19,6 +19,7 @@ import { field } from "../WorkPicker";
 import { Cover } from "./Cover";
 import { scanModes, type ScanMode } from "./scan";
 import { SeriesEditor } from "./SeriesEditor";
+import { SyncButton } from "./SyncButton";
 
 type Filter = "all" | "noImage" | "noSummary";
 const filters: readonly Filter[] = ["all", "noImage", "noSummary"];
@@ -173,6 +174,18 @@ export function LibraryPage(): ReactElement {
                 : texts.scan.scanLibrary(texts.library.libraries[library])
               : texts.scan.scanning(scan)}
           </button>
+          <SyncButton
+            seriesId={null}
+            question={texts.sync.confirmAll}
+            onDone={(message, failed) => {
+              if (failed) {
+                setError(message);
+              } else {
+                setNotice(message);
+                void refresh();
+              }
+            }}
+          />
         </span>
       </RefreshBar>
       {scan === null ? null : (

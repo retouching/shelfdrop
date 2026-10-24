@@ -138,6 +138,43 @@ export const texts = {
     updatedAt: (clock: string): string => `Mis à jour à ${clock}`,
     liveEvery: (n: number): string => `En direct · toutes les ${String(n)} s`,
   },
+  volumes: {
+    title: "Tomes",
+    loading: "Lecture des tomes…",
+    empty: "Aucun tome.",
+    number: (n: number): string => `Tome ${String(n)}`,
+    noNumber: "Sans numéro",
+    missing: (numbers: string): string => `Manquants : ${numbers}`,
+    complete: "Aucun tome manquant.",
+    unknownSize: "Taille inconnue",
+    download: "Télécharger",
+    downloadLabel: (name: string): string => `Télécharger ${name}`,
+    edit: "Modifier",
+    editLabel: (name: string): string => `Modifier ${name}`,
+    editorTitle: "Fiche du tome",
+    name: "Titre",
+    numberLabel: "Numéro",
+    authors: "Auteurs",
+    summary: "Résumé",
+    image: "Image",
+    keepImage: "Garder l'image",
+    lock: "Verrouiller les champs modifiés",
+    applied: (name: string): string => `${name} : tome mis à jour dans Jellyfin.`,
+  },
+  sync: {
+    action: "Synchroniser vers Jellyfin",
+    confirmSeries: (name: string): string =>
+      `Réécrire dans Jellyfin le nom, la série, le numéro et les auteurs des tomes de ${name} rangés par shelfdrop ?`,
+    confirmAll:
+      "Réécrire dans Jellyfin le nom, la série, le numéro et les auteurs de tous les fichiers rangés par shelfdrop ?",
+    confirmHint: "Les auteurs de shelfdrop remplacent ceux de Jellyfin. Les images restent.",
+    confirm: "Synchroniser",
+    running: "Synchronisation…",
+    done: (changed: number, unchanged: number, notFound: number): string =>
+      `Synchronisation terminée : ${plural(changed, "tome modifié", "tomes modifiés")}, ${String(unchanged)} déjà à jour` +
+      (notFound === 0 ? "." : `, ${plural(notFound, "fichier absent", "fichiers absents")} de Jellyfin.`),
+    failed: "Échec de la synchronisation : Jellyfin ne répond pas.",
+  },
   scan: {
     scan: "Scanner dans Jellyfin",
     scanLibrary: (name: string): string => `Scanner ${name}`,

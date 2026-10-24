@@ -17,6 +17,8 @@ import { Spinner } from "../Skeletons";
 import { field } from "../WorkPicker";
 import { Cover } from "./Cover";
 import { scanModes, type ScanMode } from "./scan";
+import { SyncButton } from "./SyncButton";
+import { VolumesSection } from "./VolumesSection";
 
 type Props = {
   readonly series: Series;
@@ -104,6 +106,9 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
   const [rescanning, setRescanning] = useState(false);
   const [scanMode, setScanMode] = useState<ScanMode>("missing");
   const [proposals, setProposals] = useState<Proposals | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Relit les tomes après une synchronisation.
+  const [volumesRead, setVolumesRead] = useState(0);
 
   useEffect(() => {
     ref.current?.showModal();
@@ -215,7 +220,12 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      onClose={(event) => {
+        // Les fiches d'un tome et la confirmation se ferment sans fermer celle de la série.
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
       aria-labelledby="editor-title"
       className="m-auto max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
     >
@@ -268,6 +278,19 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
               {rescanning ? <Spinner className="size-3.5" /> : null}
               {texts.scan.series}
             </button>
+            <SyncButton
+              seriesId={series.id}
+              question={texts.sync.confirmSeries(series.name)}
+              onDone={(message, failed) => {
+                if (failed) {
+                  setError(message);
+                } else {
+                  setError(null);
+                  setNotice(message);
+                  setVolumesRead((count) => count + 1);
+                }
+              }}
+            />
           </span>
         </div>
 
@@ -434,11 +457,15 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
               <Check checked={lock} onChange={setLock} label={texts.editor.lock} hint={texts.editor.lockHint} />
             </div>
           </section>
+
+          <VolumesSection series={series} version={volumesRead} onNotice={setNotice} />
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-6 py-4">
           {error === null ? (
-            <span className="text-sm text-slate-500">{changed === 0 ? null : texts.editor.changed(changed)}</span>
+            <span role="status" className="text-sm text-slate-500">
+              {changed === 0 ? notice : texts.editor.changed(changed)}
+            </span>
           ) : (
             <p role="alert" className="text-sm text-rose-700">
               {error}
