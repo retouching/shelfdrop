@@ -3,25 +3,25 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user on 2026-10-21. A release is posted under one name among many (French, English, romaji): searching the indexers with the text typed alone missed releases, and once fetched the wrong manga ("Amnesia" for "Dusk Maiden of Amnesia"). The library must use the name of the French edition. MyAnimeList must be a source; if two people search the same title, one search must serve both.
+Decided on 2026-10-21. A release is posted under one name among many (French, English, romaji): searching the indexers with the text typed alone missed releases, and once fetched the wrong manga ("Amnesia" for "Dusk Maiden of Amnesia"). The library must use the name of the French edition. MyAnimeList must be a source; if two people search the same title, one search must serve both.
 
 ## Decision
 - A search asks every source of its family at once: MangaUpdates, Kitsu, MyAnimeList (its official API, only with a Client ID), AniList and MangaDex for manga; Open Library and Wikidata for books; the BnF for both. A source that fails or takes more than 5 seconds is left out and named, and rests 5 minutes.
-- The candidates merge by a shared id (the MyAnimeList id is the pivot), a shared ISBN, or a shared precise name with compatible authors and years. The name on the shelf is the title of the French edition at the BnF, otherwise a French, English or romaji name. At most 6 names are checked for the indexers: French, English, romaji and the title of the work; a name in another language, or in none known, is shown unchecked (decided by the user on 2026-10-21, after the first review: MangaUpdates gives no language, and Turkish, Polish or Indonesian names were searched). A name no source gave a language for gets the one its letters and its small words tell, prudently: when nothing tells, it stays unknown.
-- The BnF knows a French edition by its French title alone: it is asked again, under a name the other sources gave, for the best works it did not find (decided by the user on 2026-10-21, after the first review: "Battle Angel Alita" missed Gunnm and its 9 French volumes).
-- A work keeps the cover and the summary (without its markup) of each source that serves one (`Work.covers`, `Work.summaries`): the proposals of the page Jellyfin (plan section 3, point 4 bis); its `cover_url` stays the one shown in the results.
-- **Works merged by hand** (plan section 3, point 9; decided by the user on 2026-10-21): the page joins several works the merge above kept apart, under the name on the shelf it chooses; the link is kept (`work_merges`: the keys `<source>:<id>` of their members, by family) and applied to every search after, by `shelfdrop.works.merge.join_merges` before the ranking: the works it joins become one, in the place of the first, built again from all their members, with its `merge_id` and its `parts`. A work added to a merge replaces it; the page splits a merge (Séparer), and the next searches find its works apart.
+- The candidates merge by a shared id (the MyAnimeList id is the pivot), a shared ISBN, or a shared precise name with compatible authors and years. The name on the shelf is the title of the French edition at the BnF, otherwise a French, English or romaji name. At most 6 names are checked for the indexers: French, English, romaji and the title of the work; a name in another language, or in none known, is shown unchecked (decided on 2026-10-21, after the first review: MangaUpdates gives no language, and Turkish, Polish or Indonesian names were searched). A name no source gave a language for gets the one its letters and its small words tell, prudently: when nothing tells, it stays unknown.
+- The BnF knows a French edition by its French title alone: it is asked again, under a name the other sources gave, for the best works it did not find (decided on 2026-10-21, after the first review: "Battle Angel Alita" missed Gunnm and its 9 French volumes).
+- A work keeps the cover and the summary (without its markup) of each source that serves one (`Work.covers`, `Work.summaries`): the proposals of the page Jellyfin; its `cover_url` stays the one shown in the results.
+- **Works merged by hand** (decided on 2026-10-21): the page joins several works the merge above kept apart, under the name on the shelf it chooses; the link is kept (`work_merges`: the keys `<source>:<id>` of their members, by family) and applied to every search after, by `shelfdrop.works.merge.join_merges` before the ranking: the works it joins become one, in the place of the first, built again from all their members, with its `merge_id` and its `parts`. A work added to a merge replaces it; the page splits a merge (Séparer), and the next searches find its works apart.
 - Two identical searches at the same time share one run; the answers of the sources are cached a day (a setting, [ADR 0012](0012-settings-and-secrets.md)), the works a week, in SQLite.
 - The two routes of the search are `async`: a search waits on every source at once on the event loop; the service runs the repository in the threadpool.
 - The tests replay the real exchanges recorded from the sources; a failure at recording replays as a failure.
 
 ## Rejected alternatives
-- A merge by hand kept in the page alone: it was lost at the next search, and the plan wants it applied to every search after.
+- A merge by hand kept in the page alone: it was lost at the next search, and it must apply to every search after.
 - Searching the indexers with the typed text alone: the mistake above.
-- Hardcover: refused by the user.
+- Hardcover: refused.
 - Every Latin name of 4 characters or more checked by default: the names in Turkish, Polish, Indonesian... of MangaUpdates went to the indexers.
 - A language detection library: the names are a few words long, where such libraries guess wrong, and a dependency for this alone.
-- Jikan, the unofficial mirror of MyAnimeList, without a Client ID: refused by the user on 2026-10-21.
+- Jikan, the unofficial mirror of MyAnimeList, without a Client ID: refused on 2026-10-21.
 - Sync routes with a thread per source: the search is I/O alone, and the event loop already runs it.
 
 ## Consequences

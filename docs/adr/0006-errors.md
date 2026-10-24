@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user: the error contract of medusa. A client branches on a code, never on a message.
+Decided at the start of the project: one error contract. A client branches on a code, never on a message.
 
 ## Decision
 - Every HTTP error is an `ApiError` built by the factories of `shelfdrop/http/errors/errors.py`, through the `errors.py` of its feature.

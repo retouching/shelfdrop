@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user: a SQLite database. The schema of medusa goes through SQLAlchemy models and Alembic revisions.
+Decided at the start of the project: a SQLite database, its schema through SQLAlchemy models and Alembic revisions.
 
 ## Decision
 - One SQLite file, `shelfdrop.db`, in `SHELFDROP_DATA_DIR`; every connection in WAL mode, with the foreign keys on and a 5 second wait for a writer.

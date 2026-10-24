@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-24
 
 ## Context
-Decided by the user on 2026-10-21 (plan section 3, point 7), the covers of the sends and of the ends on 2026-10-24: each event of shelfdrop (a send, the end of a download, a placement, a file to place, a retry, a failure, a sign-in...) goes to the webhook of Discord the user already has, as an embed, with a color per type (the Radix palette of the site). 22 volumes sent are one message, not 22: the events of one batch are grouped for 30 seconds. A webhook takes 30 messages a minute; a message that fails 3 times is dropped and logged, and never holds up a download nor a placement. Each type can be switched off. No secret, no URL of a tracker with its key, never the name typed for a sign-in refused.
+Decided on 2026-10-21, the covers of the sends and of the ends on 2026-10-24: each event of shelfdrop (a send, the end of a download, a placement, a file to place, a retry, a failure, a sign-in...) goes to a webhook of Discord, as an embed, with a color per type (the Radix palette of the site). 22 volumes sent are one message, not 22: the events of one batch are grouped for 30 seconds. A webhook takes 30 messages a minute; a message that fails 3 times is dropped and logged, and never holds up a download nor a placement. Each type can be switched off. No secret, no URL of a tracker with its key, never the name typed for a sign-in refused.
 
 ## Decision
 - An event is a row of `events`: its type, its group, its facts (JSON), a picture, the state of its message (`pending`, `sent`, `skipped`, `dropped`) and its attempts. Every process records its events (`Journal.record`, on a session of its own, from the threadpool); the domains receive it through a protocol of their own (`AuthEvents`, `DownloadEvents`).

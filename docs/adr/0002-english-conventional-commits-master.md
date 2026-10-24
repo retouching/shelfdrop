@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user: commits pushed to `git.oh.rip/sylvain/shelfdrop` carry his name alone, with no co-author line; regular commits, a push every 9 commits; the rules of medusa for the rest.
+Decided at the start of the project: commits carry the name of the owner of the repository alone, with no co-author line; regular commits, a push every 9 commits.
 
 ## Decision
 - Code, comments, logs, API messages and docs in English; the visible texts in French (ADR 0008).

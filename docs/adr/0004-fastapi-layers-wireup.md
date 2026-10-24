@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user: the structure of medusa. A route must stay thin, the rules must be testable without HTTP nor database, and the composition must live in one place.
+Decided at the start of the project. A route must stay thin, the rules must be testable without HTTP nor database, and the composition must live in one place.
 
 ## Decision
 - FastAPI on uvicorn. HTTP features in `shelfdrop/modules/<feature>/` (`router.py`, `schemas.py`, `errors.py`); domains directly under `shelfdrop/` (`works/`: service, repository, types, exceptions, pure rules, clients).

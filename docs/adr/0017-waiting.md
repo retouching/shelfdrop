@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user on 2026-10-21 (plan section 3, point 11): a search can be kept waiting for a volume, chapters or any release, searched again at an interval of 1, 3, 6, 12 or 24 hours under every name of its work, in the queue of the other searches. A release that answers makes it « Trouvé », with a badge in the sidebar and a message on Discord; nothing is downloaded alone. A search of a volume leaves the list once the volume is placed; « Ch. 233 et suivants » stays, and moves to the first chapter not placed.
+Decided on 2026-10-21: a search can be kept waiting for a volume, chapters or any release, searched again at an interval of 1, 3, 6, 12 or 24 hours under every name of its work, in the queue of the other searches. A release that answers makes it « Trouvé », with a badge in the sidebar and a message on Discord; nothing is downloaded alone. A search of a volume leaves the list once the volume is placed; « Ch. 233 et suivants » stays, and moves to the first chapter not placed.
 
 ## Decision
 - `waiting_searches` keeps each search: its work (its id, its name on the shelf, its author, its kind, the names searched), what it waits for (`any`, a `volume`, `chapters` from one to another or every one after), its state (`waiting`, `found` and the releases of its last search), its attempts, its last search, and when it left the list (`done_at`: removed, or placed).
@@ -15,7 +15,7 @@ Decided by the user on 2026-10-21 (plan section 3, point 11): a search can be ke
 - The page proposes the volumes not on the shelf: those placed, and those of the series of the same name in the library of its kind in Jellyfin (`LibraryReader.volumes_of`).
 
 ## Rejected alternatives
-- A download of what is found: refused by the user (« Rien n'est téléchargé seul »).
+- A download of what is found: refused (« Rien n'est téléchargé seul »).
 - The rounds in the placement worker: the searches share the queue and the cache of the board of the API.
 - A search of every volume in one row: a volume found or placed could not leave the list alone.
 

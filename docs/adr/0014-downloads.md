@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user on 2026-10-21 (plan section 3, points 1 to 3 and 10, section 2.5): the releases chosen on the Automatic page are downloaded with their author, their series and their volumes, to be placed alone later; those of the Manual page are placed by hand, in Ranger. Sends to qBittorrent have been lost before (accepted, then never there): a send counts only once qBittorrent lists its torrent, looked for by its hash 3 times, 8 seconds apart. A torrent qBittorrent already has is a duplicate, with no button; a torrent not received can be sent again, the same one with the same settings, and another release of the same work searched. The page follows the downloads by hand or live (every 2, 5, 10 or 30 seconds), with the speed and the time left of qBittorrent. A release under the minimum score, or from a tracker not allowed for the automatic downloads, is never taken in automatic.
+Decided on 2026-10-21: the releases chosen on the Automatic page are downloaded with their author, their series and their volumes, to be placed alone later; those of the Manual page are placed by hand, in Ranger. Sends to qBittorrent have been lost before (accepted, then never there): a send counts only once qBittorrent lists its torrent, looked for by its hash 3 times, 8 seconds apart. A torrent qBittorrent already has is a duplicate, with no button; a torrent not received can be sent again, the same one with the same settings, and another release of the same work searched. The page follows the downloads by hand or live (every 2, 5, 10 or 30 seconds), with the speed and the time left of qBittorrent. A release under the minimum score, or from a tracker not allowed for the automatic downloads, is never taken in automatic.
 
 ## Decision
 - `POST /api/v1/downloads` takes releases of a search kept, by their id, with their volumes, and the work, the author and the series. The search decides the mode: a search of a work gives automatic downloads (category of qBittorrent `manga`, `ebook` or `audiobook`, the kind), a manual search manual ones (`shelfdrop-manual`, no work, no author, no series). An automatic download takes only releases `automatic` ([ADR 0011](0011-release-search.md)): otherwise `422 release_not_automatic`, and nothing is sent. Each release is a row of `downloads`, with the account of the session.
@@ -14,7 +14,7 @@ Decided by the user on 2026-10-21 (plan section 3, points 1 to 3 and 10, section
 
 ## Rejected alternatives
 - The grab of Prowlarr (`POST /api/v1/search` with `guid` and `indexerId`): Prowlarr sends the release to a download client of its own, without the category of shelfdrop nor its id.
-- The send in the request: 22 volumes, each looked for during up to 16 seconds, outlast the request (and the 100 seconds of Cloudflare).
+- The send in the request: 22 volumes, each looked for during up to 16 seconds, outlast the request (and the timeout of a reverse proxy, often 100 seconds).
 - The infohash Prowlarr gives (`infoHash`): many trackers give none, and the torrent sent must be the one looked for.
 - Asking qBittorrent each torrent apart: one request for every download sent.
 

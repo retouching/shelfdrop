@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-24
 
 ## Context
-Decided by the user on 2026-10-21 (plan section 3 quater): the routes of the page are documented in OpenAPI, at `/api/docs`; a program reaches them with the session or an access token ([ADR 0020](0020-access-tokens.md)). The pages and the API load nothing from another origin, and the API answers carry `Content-Security-Policy: default-src 'none'`. Decided by the user on 2026-10-24: `/api/docs` is the real documentation an OpenAPI tool shows, Swagger UI or ReDoc, and describes the public API alone, the one of the access tokens; nothing of the part of the session.
+Decided on 2026-10-21: the routes of the page are documented in OpenAPI, at `/api/docs`; a program reaches them with the session or an access token ([ADR 0020](0020-access-tokens.md)). The pages and the API load nothing from another origin, and the API answers carry `Content-Security-Policy: default-src 'none'`. Decided on 2026-10-24: `/api/docs` is the real documentation an OpenAPI tool shows, Swagger UI or ReDoc, and describes the public API alone, the one of the access tokens; nothing of the part of the session.
 
 ## Decision
 - **The document** is the schema FastAPI builds from the routes and their Pydantic models (`shelfdrop.http.openapi.DocumentedApi.openapi`), with:

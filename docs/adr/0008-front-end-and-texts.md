@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user: React and Tailwind, with strict TypeScript and ESLint rules; a panel at `shelfdrop.maigo.party`; the texts impersonal, short and without technical sentences, following the rules of no-ai-slop.
+Decided at the start of the project: React and Tailwind, with strict TypeScript and ESLint rules; a panel served by the API itself; the texts impersonal, short and without technical sentences, following the rules of no-ai-slop.
 
 ## Decision
 - `web/`: React, Vite, Tailwind, TypeScript strict, ESLint and Prettier, built by pnpm; the font Outfit is served from the build, never from a third party.

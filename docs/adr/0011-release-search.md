@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user on 2026-10-21. A release is found only under the name it was posted under: a work is searched in Prowlarr under each of its names checked; searching a short name brought another manga ("Amnesia"). Two people who run the same search must follow one search; Prowlarr must not be flooded; the trackers must come from Prowlarr, not from the code; the user wants rules with points, as the custom formats of Sonarr, to set releases aside.
+Decided on 2026-10-21. A release is found only under the name it was posted under: a work is searched in Prowlarr under each of its names checked; searching a short name brought another manga ("Amnesia"). Two people who run the same search must follow one search; Prowlarr must not be flooded; the trackers must come from Prowlarr, not from the code; releases are set aside by rules with points, as the custom formats of Sonarr, to set releases aside.
 
 ## Decision
 - One Prowlarr request per name, in the categories of the kind (7030 manga, 7020 book, 3030 audiobook), on the trackers asked alone (`indexerIds`). The query loses `: ! ?` and quotes; "×" becomes "x".
@@ -20,7 +20,7 @@ Decided by the user on 2026-10-21. A release is found only under the name it was
 ## Rejected alternatives
 - One request with every name: Prowlarr ORs nothing; a search per name is what the trackers understand.
 - Scoring when the answer arrives: a change of the filters would wait 10 minutes.
-- A list of trackers in the code: the user adds and removes indexers in Prowlarr.
+- A list of trackers in the code: the operator adds and removes indexers in Prowlarr.
 
 ## Consequences
 - The front-end reads the releases only once the search ends; the events give the progress before.

@@ -4,11 +4,11 @@ These rules hold for every text the interface shows: titles, descriptions, butto
 
 ## Rules of shelfdrop (they come first)
 
-Decided by the user on 2026-10-21.
+Decided on 2026-10-21.
 
-- **Impersonal tone.** No text speaks to the user: no « tu », no « ton », no imperative. « Cherche avec ton propre texte, ou envoie tes fichiers. Tu les ranges ensuite dans Ranger. » is the counter-example. Buttons stay in the infinitive: « Chercher », « Télécharger ».
+- **Impersonal tone.** No text speaks to the reader: no « tu », no « ton », no imperative. « Cherche avec ton propre texte, ou envoie tes fichiers. Tu les ranges ensuite dans Ranger. » is the counter-example. Buttons stay in the infinitive: « Chercher », « Télécharger ».
 - **A description describes, it does not explain.** A few words (« Recherche libre et envoi de fichiers. », « Fichiers à associer. »), never how it works inside.
-- **No technical sentence and no mention of a mock-up.** Nothing like « jamais renvoyé au navigateur », an explained sort order, the source a value comes from, or an internal delay. The help under a field is a format (« Ex. 6 ou 1-41 ») or something the user cannot do without (« Affiché une seule fois. »).
+- **No technical sentence and no mention of a mock-up.** Nothing like « jamais renvoyé au navigateur », an explained sort order, the source a value comes from, or an internal delay. The help under a field is a format (« Ex. 6 ou 1-41 ») or something the reader cannot do without (« Affiché une seule fois. »).
 - **Short error messages:** what happened, without advice (« Prowlarr ne répond pas. », « Clé API manquante »).
 
 ## General rules: no AI slop

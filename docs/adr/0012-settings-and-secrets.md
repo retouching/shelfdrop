@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user on 2026-10-21: every setting is changed from the settings page, without a restart: the addresses and the keys of Prowlarr, qBittorrent and Jellyfin, the metadata sources, the search. The `.env` file keeps the bootstrap alone: the key of the secrets and the place of the database. The keys already in a `.env` (taken over from Shelfarr) are imported once. A secret never goes back to the browser, nor to a log, an event or the audit.
+Decided on 2026-10-21: every setting is changed from the settings page, without a restart: the addresses and the keys of Prowlarr, qBittorrent and Jellyfin, the metadata sources, the search. The `.env` file keeps the bootstrap alone: the key of the secrets and the place of the database. The keys already in a `.env` (taken over from an earlier tool) are imported once. A secret never goes back to the browser, nor to a log, an event or the audit.
 
 ## Decision
 - The settings live in SQLite: `settings` (a JSON value by key, when and by whom it changed last), `secrets` (a sealed value by key) and `audit` (who changed which setting, and when; never a value). `shelfdrop.settings.catalog` is the one list of their keys, kinds, defaults and bounds.

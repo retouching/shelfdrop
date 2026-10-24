@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user on 2026-10-21 (plan section 5): shelfdrop is for the administrators of Jellyfin alone, without accounts of its own. Credentials are never kept nor logged; a refusal never says what is missing. The API is reached through Cloudflare from anywhere: every route but the sign-in, the liveness probe and the pages needs a session, and the writes must come from the pages themselves.
+Decided on 2026-10-21: shelfdrop is for the administrators of Jellyfin alone, without accounts of its own. Credentials are never kept nor logged; a refusal never says what is missing. The API is reached from anywhere, through a reverse proxy: every route but the sign-in, the liveness probe and the pages needs a session, and the writes must come from the pages themselves.
 
 ## Decision
 - `POST /api/v1/session` sends the name and the password to `POST /Users/AuthenticateByName` of Jellyfin (its address is the setting `jellyfin.url`), with a device id drawn for this sign-in. The account must have `Policy.IsAdministrator` and not `Policy.IsDisabled`; otherwise the session Jellyfin opened is closed at once (`POST /Sessions/Logout`) and the answer is the same `401 login_refused` as for wrong credentials.

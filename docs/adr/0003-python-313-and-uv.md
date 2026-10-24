@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-21
 
 ## Context
-Decided by the user: the stack of medusa.
+Decided at the start of the project: a current Python and one tool for its environment and its dependencies.
 
 ## Decision
 - Python 3.13 (`requires-python = ">=3.13"`, `.python-version`), a flat layout built by `uv_build`, the dependencies and the tools locked in `uv.lock`.

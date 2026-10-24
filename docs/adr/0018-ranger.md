@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-24
 
 ## Context
-Decided by the user on 2026-10-21 (plan section 3, points 4 bis and 5): what the placement worker does not place alone (a manual download, a release in chapters, a volume it cannot read, a link refused) and the files of the libraries out of their names go to the page Ranger. There a file is linked to a work (the work search) and placed by the same rules as the worker; a release in chapters is linked to its real volumes by hand (MangaDex is wrong on Chainsaw Man, ADR 0016), a complete volume merged into one CBZ, an incomplete one placed as it is. Nothing is replaced: a file at the destination refuses the request. A scan, every day and on a button, finds the files misplaced, the folders of chapters and the MP3 tracks not merged already on the shelf.
+Decided on 2026-10-21: what the placement worker does not place alone (a manual download, a release in chapters, a volume it cannot read, a link refused) and the files of the libraries out of their names go to the page Ranger. There a file is linked to a work (the work search) and placed by the same rules as the worker; a release in chapters is linked to its real volumes by hand (MangaDex is wrong on Chainsaw Man, ADR 0016), a complete volume merged into one CBZ, an incomplete one placed as it is. Nothing is replaced: a file at the destination refuses the request. A scan, every day and on a button, finds the files misplaced, the folders of chapters and the MP3 tracks not merged already on the shelf.
 
 ## Decision
 - The files of Ranger are the rows of `place_items` (`shelfdrop.db.models.place_item`): their origin (`download`, `library`), their files (the paths of the worker), their size, their state (`unlinked`, `chapters`, `misplaced`, `placed`, `ignored`), why they are there, their chapters, the series their download or their folder gives and its volumes on the shelf.
@@ -20,7 +20,7 @@ Decided by the user on 2026-10-21 (plan section 3, points 4 bis and 5): what the
 - The files listed by the API: it does not see the libraries nor the torrents (no mount), and must not.
 - A cover a volume from MangaDex: not reliable (ADR 0016); the first page of the first chapter, as the page says.
 - A copy of a file of the libraries: a move keeps one file; a hardlink then the removal of the old name never replaces anything.
-- An ignored file removed: a file of a download seeds on, and the user may want it back.
+- An ignored file removed: a file of a download seeds on, and it may be wanted back.
 - An ignored file taken back by the worker, its download made `unplaced` again: a tag of qBittorrent to remove and an event for a file put aside by hand; the row comes back at once, its download stays placed.
 - The placed files of a download listed again by their path: `files` keeps their path on the shelf, not in the torrent; their inode is the one of their hardlink.
 
