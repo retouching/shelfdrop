@@ -9,8 +9,8 @@ import pytest
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.torrents.client import TorrentConnection
 from shelfdrop.clients.torrents.factory import TorrentClients
-from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 from shelfdrop.clients.torrents.qui import QuiClient
+from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
 from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.works.clients.kitsu import KitsuClient
