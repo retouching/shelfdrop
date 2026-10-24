@@ -35,6 +35,18 @@ A change of a route or of a schema writes the OpenAPI documents again: `uv run p
 
 `uv run pytest tests/integration -m "<block>"` builds the image, starts an isolated stack (the API, the placement worker, a fake qBittorrent and recorded metadata sources, with no way out to the internet), sends real requests, then removes it. Run the blocks your change touches, one at a time; the blocks and what calls for each are listed in [docs/agents/development.md](docs/agents/development.md#parts-of-the-integration-suite).
 
+## Screenshots
+
+The screenshots of the README (`docs/screenshots/`) are taken by `scripts/screenshots.cjs` with Playwright, from a running shelfdrop, in the official Playwright image. Put the address and an account of that shelfdrop in a file outside the repository (`SHELFDROP_SHOTS_URL`, `SHELFDROP_SHOTS_USERNAME`, `SHELFDROP_SHOTS_PASSWORD`, one `KEY=value` per line, `chmod 600`), then, from the repository root:
+
+```bash
+docker run --rm --network host --user "$(id -u):$(id -g)" -e HOME=/tmp --env-file ~/shots.env \
+  -v "$PWD:$PWD" -w "$PWD" mcr.microsoft.com/playwright:v1.56.0-noble \
+  sh -c 'npm install --prefix /tmp/shots --no-save --silent playwright@1.56.0 && NODE_PATH=/tmp/shots/node_modules node scripts/screenshots.cjs'
+```
+
+It writes ten pages at 1920x1080 and two at 390x844 (twice the density) in WebP. It only reads: it signs in, opens the pages, searches a title (`SHELFDROP_SHOTS_QUERY`, Berserk by default) and opens a series (`SHELFDROP_SHOTS_SERIES`, Kaguya-sama by default); any other write of the pages is aborted in the browser. The addresses of the services are replaced by neutral ones before their shot; read every image before committing it, the rest of the data is that of the target.
+
 ## Code and commits
 
 - The rules of the code (layers, naming, errors, logging, tests) are in [CLAUDE.md](CLAUDE.md); they hold for humans and coding agents alike.
