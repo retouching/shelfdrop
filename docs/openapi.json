@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "shelfdrop",
-    "version": "0.11.1",
+    "version": "0.12.0",
     "description": "The API of shelfdrop: the work search, the releases of Prowlarr, the downloads, Ranger, the waiting searches. A browser signs in with the session cookie; a program sends `Authorization: Bearer <token>`. Each operation names the access it needs in `x-access`: `public`, `session` (the cookie alone), `read` (the cookie or any token), `write` (the cookie or a token `write`). Every error body is `{\"code\", \"detail\", \"data\"}`; the codes are listed in the schema `ErrorCode`."
   },
   "paths": {
