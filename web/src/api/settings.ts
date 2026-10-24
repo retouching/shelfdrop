@@ -83,6 +83,8 @@ export type SettingsRead = {
   readonly values: Readonly<Record<string, SettingValue>>;
   /** Date de définition de chaque secret (secondes Unix), ou null : jamais sa valeur. */
   readonly secrets: Readonly<Record<string, number | null>>;
+  /** Les clients torrent que cette version sait utiliser. */
+  readonly torrent_clients: readonly string[];
 };
 
 export type SettingsUpdate = {
@@ -91,7 +93,16 @@ export type SettingsUpdate = {
   readonly secrets: Readonly<Record<string, string | null>>;
 };
 
-export type ProbeState = "connected" | "no_address" | "no_key" | "refused" | "unavailable";
+export type ProbeState =
+  | "connected"
+  | "no_address"
+  | "no_key"
+  | "refused"
+  | "unavailable"
+  /** Le client torrent répond, mais shelfdrop ne peut pas lui envoyer : `reason` dit pourquoi. */
+  | "unsupported"
+  /** Aucun connecteur de cette version pour le client torrent choisi. */
+  | "no_connector";
 
 export type ProbeRead = {
   readonly service: string;
@@ -102,14 +113,22 @@ export type ProbeRead = {
   readonly count: number | null;
   readonly missing: readonly string[];
   readonly elapsed_ms: number | null;
+  /** Le client torrent testé ; null pour les autres services. */
+  readonly client: string | null;
+  /** `unsupported` : `label-plugin`, `transmission-version`… */
+  readonly reason: string | null;
 };
 
 export type ProbeBody = {
   readonly service: string;
   /** Adresse saisie ; null : celle enregistrée. */
   readonly url: string | null;
-  /** Clé saisie ; null : celle enregistrée ; "" : aucune. */
+  /** Clé saisie (le mot de passe d'un client torrent autre que qui) ; null : celle enregistrée ; "" : aucune. */
   readonly secret: string | null;
+  /** Client torrent saisi ; null : celui enregistré. */
+  readonly client?: string | null;
+  /** Identifiant du client torrent saisi ; null : celui enregistré ; "" : aucun. */
+  readonly username?: string | null;
 };
 
 type HealthRead = { readonly services: readonly ProbeRead[]; readonly checked_at: number | null };

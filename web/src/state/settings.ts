@@ -3,6 +3,8 @@
 import { useSyncExternalStore } from "react";
 
 import { readSettings, saveSettings, type SettingValue, type SettingsRead } from "../api/settings";
+import { texts } from "../texts";
+import type { TorrentClient } from "../types";
 
 /** Modification d'un secret : une nouvelle valeur, ou null pour l'effacer. */
 export type SecretEdit = string | null;
@@ -37,6 +39,23 @@ export function useSettings(): State {
 /** La valeur affichée : celle modifiée sur la page, sinon celle enregistrée. */
 export function valueOf(current: State, key: string): SettingValue | undefined {
   return key in current.values ? current.values[key] : current.saved?.values[key];
+}
+
+export const torrentClients: readonly TorrentClient[] = ["qui", "qbittorrent", "deluge", "transmission"];
+
+export function isTorrentClient(value: unknown): value is TorrentClient {
+  return torrentClients.some((client) => client === value);
+}
+
+/** Le client torrent : celui choisi sur la page, sinon celui enregistré (`saved` : celui enregistré seul). */
+export function torrentClientOf(current: State, saved = false): TorrentClient {
+  const value = saved ? current.saved?.values["torrent.client"] : valueOf(current, "torrent.client");
+  return isTorrentClient(value) ? value : "qui";
+}
+
+/** Le nom du client torrent enregistré, pour les messages des téléchargements. */
+export function useTorrentClientName(): string {
+  return texts.torrentClients[torrentClientOf(useSettings(), true)];
 }
 
 export async function loadSettings(): Promise<void> {

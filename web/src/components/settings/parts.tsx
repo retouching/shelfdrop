@@ -37,15 +37,21 @@ export function Card({
 export function Field({
   label,
   hint,
+  note,
   children,
 }: {
   readonly label: string;
   readonly hint?: string;
+  /** À côté du nom : « Facultatif ». */
+  readonly note?: string | undefined;
   readonly children: ReactNode;
 }): ReactElement {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-ink">{label}</span>
+      <span className="text-sm font-medium text-ink">
+        {label}
+        {note === undefined ? null : <span className="font-normal text-slate-500"> · {note}</span>}
+      </span>
       {children}
       {hint === undefined ? null : <span className="block text-xs text-slate-500">{hint}</span>}
     </label>
@@ -102,21 +108,25 @@ export function SecretField({
   edit,
   onEdit,
   optional,
+  note,
 }: {
   readonly label: string;
   readonly setAt: number | null;
   readonly edit: string | null | undefined;
   readonly onEdit: (edit: string | null | undefined) => void;
   readonly optional?: boolean;
+  /** À côté du nom, à la place de « Clé facultative ». */
+  readonly note?: string | undefined;
 }): ReactElement {
   const editing = typeof edit === "string";
   const isSet = setAt !== null && edit !== null;
+  const suffix = note ?? (optional === true ? texts.settings.optionalKey : undefined);
 
   return (
     <div className="space-y-1.5">
       <span className="block text-sm font-medium text-ink">
         {label}
-        {optional === true ? <span className="font-normal text-slate-500"> · {texts.settings.optionalKey}</span> : null}
+        {suffix === undefined ? null : <span className="font-normal text-slate-500"> · {suffix}</span>}
       </span>
       {editing ? (
         <div className="flex gap-2">
@@ -188,6 +198,8 @@ function shortVersion(version: string | null): string {
 /** Le message d'un test, avec les textes de la page ; `name` : le nom du service. */
 export function probeMessage(probe: ProbeRead, name: string): TestResult {
   const results = texts.settings.results;
+  // Un client torrent autre que qui se connecte avec un mot de passe, pas une clé.
+  const password = probe.service === "torrent" && probe.client !== null && probe.client !== "qui";
   switch (probe.state) {
     case "connected": {
       if (probe.elapsed_ms !== null) {
@@ -205,11 +217,27 @@ export function probeMessage(probe: ProbeRead, name: string): TestResult {
     }
     case "no_address":
     case "no_key":
-      return { ok: false, message: results.keyMissing };
+      if (!password) {
+        return { ok: false, message: results.keyMissing };
+      }
+      return {
+        ok: false,
+        message: probe.client === "deluge" ? results.passwordMissing : results.credentialsMissing,
+      };
     case "refused":
-      return { ok: false, message: results.refused(probe.status ?? 401, name) };
+      return {
+        ok: false,
+        message: (password ? results.credentialsRefused : results.refused)(probe.status ?? 401, name),
+      };
     case "unavailable":
       return { ok: false, message: results.noAnswer(probe.status) };
+    case "unsupported":
+      return {
+        ok: false,
+        message: results.unsupported[probe.reason ?? ""] ?? results.unsupportedOther(name),
+      };
+    case "no_connector":
+      return { ok: false, message: results.noConnector };
   }
 }
 

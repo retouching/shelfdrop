@@ -31,7 +31,7 @@ import { readSetup, type SetupState } from "./api/setup";
 import { SetupPanel } from "./components/SetupPanel";
 import { readHealth } from "./api/settings";
 import { sectionRoute, useRoute, type Page, type Route } from "./state/route";
-import { loadSettings, useSettings, valueOf } from "./state/settings";
+import { loadSettings, torrentClientOf, useSettings, valueOf } from "./state/settings";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
 import { retryDownload } from "./api/downloads";
 import { splitWorks } from "./api/works";
@@ -311,7 +311,7 @@ export function App(): ReactElement | null {
     setSelected(new Set());
   }
 
-  /** Le même torrent renvoyé à qBittorrent ; un refus laisse la ligne telle quelle. */
+  /** Le même torrent renvoyé au client torrent ; un refus laisse la ligne telle quelle. */
   async function retry(download: Download): Promise<void> {
     setRetrying((current) => new Set(current).add(download.id));
     try {
@@ -653,7 +653,11 @@ export function App(): ReactElement | null {
           onSent={(sent) => {
             setDialogOpen(false);
             setSelected(new Set());
-            setNotice(manual ? texts.dialog.manualNote : texts.dialog.sent(sent.length));
+            setNotice(
+              manual
+                ? texts.dialog.manualNote
+                : texts.dialog.sent(sent.length, texts.torrentClients[torrentClientOf(settings, true)]),
+            );
             downloadsList.merge(sent);
           }}
         />

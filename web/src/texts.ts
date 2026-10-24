@@ -1,5 +1,5 @@
 // Tous les textes visibles de la page. Règles : docs/agents/writing.md (no-ai-slop en français).
-import type { Kind } from "./types";
+import type { Kind, TorrentClient } from "./types";
 
 function plural(n: number, one: string, many: string): string {
   return n === 1 ? `1 ${one}` : `${String(n)} ${many}`;
@@ -8,6 +8,13 @@ function plural(n: number, one: string, many: string): string {
 export const texts = {
   appName: "shelfdrop",
   appTagline: "Livres, BD et audio",
+  /** Le nom du client torrent dans les messages. */
+  torrentClients: {
+    qui: "qBittorrent",
+    qbittorrent: "qBittorrent",
+    deluge: "Deluge",
+    transmission: "Transmission",
+  } satisfies Record<TorrentClient, string>,
   login: {
     title: "Connexion",
     hint: "Compte interne de shelfdrop, ou compte administrateur de Jellyfin.",
@@ -24,7 +31,7 @@ export const texts = {
     steps: {
       account: "Compte",
       prowlarr: "Prowlarr",
-      torrent: "qBittorrent",
+      torrent: "Client torrent",
       jellyfin: "Jellyfin",
       libraries: "Bibliothèques",
       finish: "Fin",
@@ -358,7 +365,7 @@ export const texts = {
     services: {
       prowlarr: { name: "Prowlarr", hint: "Recherche des releases." },
       torrent: {
-        name: "qBittorrent (qui)",
+        name: "Client torrent",
         hint: "Téléchargements.",
       },
       jellyfin: {
@@ -366,6 +373,18 @@ export const texts = {
         hint: "Connexion et bibliothèques.",
       },
     },
+    torrentClient: "Client",
+    torrentChoices: {
+      qui: "qBittorrent via qui",
+      qbittorrent: "qBittorrent",
+      deluge: "Deluge",
+      transmission: "Transmission",
+    } satisfies Record<TorrentClient, string>,
+    optional: "Facultatif",
+    torrentFolders: "Dossiers de téléchargement",
+    torrentFoldersHint: "Vide : dossier par défaut du client.",
+    manualFolder: "Téléchargements manuels",
+    categoryFolder: (client: string): string => `Dossier : celui de la catégorie dans ${client}.`,
     sourceKinds: { manga: "Mangas", books: "Livres" },
     clientId: "Client ID",
     noKey: "Sans clé",
@@ -411,7 +430,17 @@ export const texts = {
       categories: (n: number): string => plural(n, "catégorie trouvée", "catégories trouvées"),
       libraries: (n: number): string => plural(n, "bibliothèque trouvée", "bibliothèques trouvées"),
       keyMissing: "Clé API manquante",
+      passwordMissing: "Mot de passe manquant",
+      credentialsMissing: "Identifiant ou mot de passe manquant",
       refused: (status: number, service: string): string => `${String(status)} : clé refusée par ${service}`,
+      credentialsRefused: (status: number, service: string): string =>
+        `${String(status)} : identifiants refusés par ${service}`,
+      noConnector: "Client non pris en charge",
+      unsupported: {
+        "label-plugin": "Le plugin Label doit être activé dans Deluge.",
+        "transmission-version": "Transmission 3.00 ou plus est requis (labels).",
+      } as Readonly<Record<string, string>>,
+      unsupportedOther: (client: string): string => `Envoi impossible à ${client}.`,
       noAnswer: (status: number | null): string =>
         status === null ? "Ne répond pas" : `Ne répond pas (${String(status)})`,
       answersIn: (seconds: string): string => `Répond en ${seconds} s`,
@@ -601,7 +630,7 @@ export const texts = {
       `${String(done)} ${done > 1 ? "noms cherchés" : "nom cherché"} sur ${String(total)}`,
     downloads: "Chargement des téléchargements…",
     signingIn: "Connexion…",
-    sending: "Envoi à qBittorrent…",
+    sending: (client: string): string => `Envoi à ${client}…`,
     searching: "Recherche…",
   },
   works: {
@@ -664,7 +693,7 @@ export const texts = {
     summary: (n: number, coverage: string): string => `${plural(n, "torrent", "torrents")}, ${coverage}.`,
     submit: "Envoyer",
     cancel: "Annuler",
-    sent: (n: number): string => `${plural(n, "torrent envoyé", "torrents envoyés")} à qBittorrent.`,
+    sent: (n: number, client: string): string => `${plural(n, "torrent envoyé", "torrents envoyés")} à ${client}.`,
     failed: "Envoi impossible.",
   },
   downloads: {
@@ -676,17 +705,17 @@ export const texts = {
     empty: "Rien en cours.",
     downloading: (percent: number): string => `${String(percent)} %`,
     pace: (speed: string, left: string): string => `${speed} · reste ${left}`,
-    waiting: "En attente de qBittorrent",
+    waiting: (client: string): string => `En attente de ${client}`,
     placing: "Rangement en cours",
     placed: (library: string): string => `Rangé dans ${library}`,
     toPlace: "Terminé, à associer dans Ranger",
-    notReceived: "qBittorrent n'a pas reçu le torrent.",
+    notReceived: (client: string): string => `${client} n'a pas reçu le torrent.`,
     retry: "Réessayer",
     retrying: "Nouvel envoi…",
     otherRelease: "Autre release",
-    retryFor: (label: string): string => `Renvoyer ${label} à qBittorrent`,
+    retryFor: (label: string, client: string): string => `Renvoyer ${label} à ${client}`,
     otherFor: (label: string): string => `Chercher une autre release pour ${label}`,
     actions: "Actions",
-    duplicate: "Ce torrent est déjà dans qBittorrent.",
+    duplicate: (client: string): string => `Ce torrent est déjà dans ${client}.`,
   },
 } as const;

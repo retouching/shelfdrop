@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 
 import { sendDownloads } from "../api/downloads";
+import { useTorrentClientName } from "../state/settings";
 import { texts } from "../texts";
 import type { Download, Kind, Release } from "../types";
 import { Spinner } from "./Skeletons";
@@ -23,6 +24,7 @@ const field =
   "w-full rounded-lg border border-slate-200 px-3 py-2 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-ring";
 
 export function DownloadDialog({ kind, searchId, workId, releases, manual, onClose, onSent }: Props): ReactElement {
+  const client = useTorrentClientName();
   const ref = useRef<HTMLDialogElement>(null);
   const first = releases[0];
   const [author, setAuthor] = useState(first?.author ?? "");
@@ -161,7 +163,7 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
             className="flex items-center gap-2 rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <Spinner /> : null}
-            {pending ? texts.loading.sending : texts.dialog.submit}
+            {pending ? texts.loading.sending(client) : texts.dialog.submit}
           </button>
         </div>
       </form>

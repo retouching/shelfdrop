@@ -1,4 +1,4 @@
-// Installation du premier lancement : le compte interne, puis Prowlarr, qBittorrent, Jellyfin
+// Installation du premier lancement : le compte interne, puis Prowlarr, le client torrent, Jellyfin
 // (requis), les bibliothèques et le dossier des envois. Chaque étape enregistre ses paramètres :
 // on peut revenir en arrière, et une installation reprise repart de la première étape à faire.
 import { useEffect, useState, type ReactElement, type SubmitEvent } from "react";

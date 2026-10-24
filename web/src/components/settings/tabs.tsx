@@ -3,10 +3,10 @@
 import { Fragment, useEffect, useState, type ReactElement } from "react";
 
 import { testConnection, type SettingValue, type Tracker } from "../../api/settings";
-import { setSecret, setValue, useSettings, valueOf } from "../../state/settings";
+import { isTorrentClient, setSecret, setValue, torrentClientOf, useSettings, valueOf } from "../../state/settings";
 import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } from "../../state/searchSettings";
 import { texts } from "../../texts";
-import type { Kind } from "../../types";
+import type { Kind, TorrentClient } from "../../types";
 import { Spinner } from "../Skeletons";
 import { stacked } from "../stacked";
 import {
@@ -39,20 +39,146 @@ function typedSecret(edit: string | null | undefined): string | null {
   return edit;
 }
 
+/** Le secret d'un client torrent : la clé de qui, le mot de passe des autres. */
+function torrentSecretKey(client: TorrentClient): string {
+  return client === "qui" ? "torrent.api_key" : "torrent.password";
+}
+
 function useServiceTest(id: ServiceId): ConnectionTest {
   const settings = useSettings();
   const url = textOf(valueOf(settings, `${id}.url`));
-  const edit = settings.secrets[`${id}.api_key`];
-  const name = texts.settings.services[id].name.split(" ")[0] ?? id;
+  const client = torrentClientOf(settings);
+  const secretKey = id === "torrent" ? torrentSecretKey(client) : `${id}.api_key`;
+  const edit = settings.secrets[secretKey];
+  // Le client et l'identifiant saisis ; l'identifiant non modifié : celui enregistré.
+  const torrent =
+    id === "torrent"
+      ? {
+          client,
+          username: "torrent.username" in settings.values ? textOf(settings.values["torrent.username"]) : null,
+        }
+      : {};
+  const name = id === "torrent" ? texts.torrentClients[client] : texts.settings.services[id].name;
   return useConnectionTest(async () =>
     probeMessage(
       await testConnection({
         service: id,
         url: url === "" ? null : url,
         secret: edit === null ? "" : typedSecret(edit),
+        ...torrent,
       }),
       name,
     ),
+  );
+}
+
+/** Un dossier facultatif : vide, aucun. */
+function OptionalPathField({
+  label,
+  settingKey,
+}: {
+  readonly label: string;
+  readonly settingKey: string;
+}): ReactElement {
+  const settings = useSettings();
+  return (
+    <Field label={label}>
+      <input
+        value={textOf(valueOf(settings, settingKey))}
+        onChange={(event) => {
+          const value = event.target.value.trim();
+          setValue(settingKey, value === "" ? null : value);
+        }}
+        className={input}
+      />
+    </Field>
+  );
+}
+
+function TorrentSecret({
+  client,
+  note,
+}: {
+  readonly client: TorrentClient;
+  readonly note?: string | undefined;
+}): ReactElement {
+  const settings = useSettings();
+  const key = torrentSecretKey(client);
+  return (
+    <SecretField
+      label={client === "qui" ? texts.settings.apiKey : texts.settings.password}
+      note={note}
+      setAt={settings.saved?.secrets[key] ?? null}
+      edit={settings.secrets[key]}
+      onEdit={(next) => {
+        setSecret(key, next);
+      }}
+    />
+  );
+}
+
+/** Le client torrent : son type, puis les champs qui vont avec. */
+function TorrentFields(): ReactElement {
+  const settings = useSettings();
+  const client = torrentClientOf(settings);
+  const name = texts.torrentClients[client];
+  // Les clients de cette version, et celui choisi s'il n'en fait pas partie.
+  const offered = (settings.saved?.torrent_clients ?? []).filter(isTorrentClient);
+  const choices = offered.includes(client) ? offered : [...offered, client];
+  const username = textOf(valueOf(settings, "torrent.username"));
+  const optional = client === "transmission" ? texts.settings.optional : undefined;
+  const folders = client === "deluge" || client === "transmission";
+  return (
+    <>
+      <Field label={texts.settings.torrentClient}>
+        <select
+          value={client}
+          onChange={(event) => {
+            setValue("torrent.client", event.target.value);
+          }}
+          className={input}
+        >
+          {choices.map((choice) => (
+            <option key={choice} value={choice}>
+              {texts.settings.torrentChoices[choice]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {client === "qbittorrent" || client === "transmission" ? (
+        <Field label={texts.settings.username} note={optional}>
+          <input
+            value={username}
+            autoComplete="off"
+            onChange={(event) => {
+              setValue("torrent.username", event.target.value === "" ? null : event.target.value);
+            }}
+            onBlur={() => {
+              const trimmed = username.trim();
+              if (trimmed !== username) {
+                setValue("torrent.username", trimmed === "" ? null : trimmed);
+              }
+            }}
+            className={input}
+          />
+        </Field>
+      ) : null}
+      <TorrentSecret client={client} note={optional} />
+      {folders ? (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium text-ink">{texts.settings.torrentFolders}</h3>
+            <p className="text-xs text-slate-500">{texts.settings.torrentFoldersHint}</p>
+          </div>
+          {kinds.map((kind) => (
+            <OptionalPathField key={kind} label={texts.libraries[kind]} settingKey={`torrent.folder.${kind}`} />
+          ))}
+          <OptionalPathField label={texts.settings.manualFolder} settingKey="torrent.folder.manual" />
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">{texts.settings.categoryFolder(name)}</p>
+      )}
+    </>
   );
 }
 
@@ -86,14 +212,18 @@ export function ServiceCard({ id, test }: { readonly id: ServiceId; readonly tes
           className={input}
         />
       </Field>
-      <SecretField
-        label={texts.settings.apiKey}
-        setAt={settings.saved?.secrets[secretKey] ?? null}
-        edit={settings.secrets[secretKey]}
-        onEdit={(next) => {
-          setSecret(secretKey, next);
-        }}
-      />
+      {id === "torrent" ? (
+        <TorrentFields />
+      ) : (
+        <SecretField
+          label={texts.settings.apiKey}
+          setAt={settings.saved?.secrets[secretKey] ?? null}
+          edit={settings.secrets[secretKey]}
+          onEdit={(next) => {
+            setSecret(secretKey, next);
+          }}
+        />
+      )}
     </Card>
   );
 }

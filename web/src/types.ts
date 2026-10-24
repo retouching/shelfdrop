@@ -1,5 +1,8 @@
 export type Kind = "manga" | "ebook" | "audiobook";
 
+/** Le client torrent choisi dans Paramètres (`torrent.client`). */
+export type TorrentClient = "qui" | "qbittorrent" | "deluge" | "transmission";
+
 /** Tomes couverts par une release : un seul, une plage (pack), ou une intégrale sans numéros. */
 export type Volumes =
   | { readonly kind: "single"; readonly number: number }

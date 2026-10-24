@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 
+import { useTorrentClientName } from "../state/settings";
 import { texts } from "../texts";
 import type { Download, DownloadState } from "../types";
 import { formatDuration, formatSpeed } from "../utils/format";
@@ -7,12 +8,13 @@ import { Cover } from "./library/Cover";
 import { Spinner } from "./Skeletons";
 import { stacked } from "./stacked";
 
-function stateText(state: DownloadState): string {
+/** `client` : le nom du client torrent. */
+function stateText(state: DownloadState, client: string): string {
   switch (state.kind) {
     case "downloading":
       return texts.downloads.downloading(state.percent);
     case "waiting":
-      return texts.downloads.waiting;
+      return texts.downloads.waiting(client);
     case "placing":
       return texts.downloads.placing;
     case "placed":
@@ -20,7 +22,7 @@ function stateText(state: DownloadState): string {
     case "toPlace":
       return texts.downloads.toPlace;
     case "failed":
-      return state.reason === "duplicate" ? texts.downloads.duplicate : texts.downloads.notReceived;
+      return state.reason === "duplicate" ? texts.downloads.duplicate(client) : texts.downloads.notReceived(client);
   }
 }
 
@@ -58,6 +60,7 @@ export function DownloadsTable({
   onShowAll,
 }: Props): ReactElement {
   const shown = limit === undefined ? downloads : downloads.slice(0, limit);
+  const client = useTorrentClientName();
 
   return (
     <section
@@ -126,7 +129,7 @@ export function DownloadsTable({
                   <span
                     className={`inline-block rounded-md px-2 py-0.5 text-xs ring-1 ring-inset ${stateTone(download.state)}`}
                   >
-                    {stateText(download.state)}
+                    {stateText(download.state, client)}
                   </span>
                   {download.state.kind === "downloading" && download.state.speed > 0 ? (
                     <span className="ml-2 text-xs text-slate-500 tabular-nums">
@@ -161,7 +164,7 @@ export function DownloadsTable({
                         onClick={() => {
                           onRetry(download);
                         }}
-                        aria-label={texts.downloads.retryFor(download.label)}
+                        aria-label={texts.downloads.retryFor(download.label, client)}
                         className="flex items-center gap-1.5 rounded-lg border border-transparent bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80"
                       >
                         {retrying.has(download.id) ? <Spinner className="size-3.5" /> : null}

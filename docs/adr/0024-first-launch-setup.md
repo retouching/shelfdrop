@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-24
 
 ## Context
-Decided on 2026-10-24: a new installation is set up from the pages, step by step, before the rest of the site opens: the internal account first ([ADR 0013](0013-sign-in-and-sessions.md)), then Prowlarr, qBittorrent (qui) and Jellyfin, each with its test, then the libraries and the folder of the uploads. Jellyfin is required: the set-up does not end without it. An installation already set up (signed in through Jellyfin) never sees it.
+Decided on 2026-10-24: a new installation is set up from the pages, step by step, before the rest of the site opens: the internal account first ([ADR 0013](0013-sign-in-and-sessions.md)), then Prowlarr, the torrent client and Jellyfin, each with its test, then the libraries and the folder of the uploads. Jellyfin is required: the set-up does not end without it. An installation already set up (signed in through Jellyfin) never sees it.
 
 ## Decision
 - **The rule** (`shelfdrop.accounts.rules.setup_needed`): without an internal account, the set-up is needed while `jellyfin.url` is not set; with one, while its `setup_finished_at` is empty. An account created from the page Paramètres › Accès is finished at its creation; the one of the first step is not, until the end. So an installation with the address of Jellyfin, saved or imported from `SHELFDROP_JELLYFIN_URL` ([ADR 0012](0012-settings-and-secrets.md)), keeps signing in through Jellyfin, and a set-up started stays open across restarts until its end.
