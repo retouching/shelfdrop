@@ -33,7 +33,7 @@ A change of a route or of a schema writes the OpenAPI documents again: `uv run p
 
 ## Integration tests
 
-`uv run pytest tests/integration -m "<block>"` builds the image, starts an isolated stack (the API, the placement worker, a fake qBittorrent and recorded metadata sources, with no way out to the internet), sends real requests, then removes it. Run the blocks your change touches, one at a time; the blocks and what calls for each are listed in [docs/agents/development.md](docs/agents/development.md#parts-of-the-integration-suite).
+`uv run pytest tests/integration -m "<block>"` builds the image, starts an isolated stack (the API, the placement worker, a fake qBittorrent, a real Deluge and a real Transmission, and recorded metadata sources, with no way out to the internet), sends real requests, then removes it. Run the blocks your change touches, one at a time; the blocks and what calls for each are listed in [docs/agents/development.md](docs/agents/development.md#parts-of-the-integration-suite).
 
 ## Screenshots
 

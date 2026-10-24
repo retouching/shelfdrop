@@ -10,7 +10,7 @@
   <img alt="Run with Docker" src="https://img.shields.io/badge/run%20with-Docker-2496ED.svg">
 </p>
 
-shelfdrop sits next to Prowlarr, qBittorrent and Jellyfin on a media server. Type a title: it finds the work in eight metadata sources, searches its releases in Prowlarr under every name the work is published under, sends the ones you pick to qBittorrent, then renames and files the downloaded volumes in your Jellyfin libraries, with their metadata. A web page drives it all; an API and an MCP server let a script or an assistant do the same.
+shelfdrop sits next to Prowlarr, a torrent client and Jellyfin on a media server. Type a title: it finds the work in eight metadata sources, searches its releases in Prowlarr under every name the work is published under, sends the ones you pick to the torrent client, then renames and files the downloaded volumes in your Jellyfin libraries, with their metadata. A web page drives it all; an API and an MCP server let a script or an assistant do the same.
 
 ## Screenshots
 
@@ -56,7 +56,7 @@ How to take them again: [CONTRIBUTING.md](CONTRIBUTING.md#screenshots).
 
 - **Work search** across MangaUpdates, Kitsu, MyAnimeList, AniList and MangaDex for manga, and the BnF, Open Library and Wikidata for books: one result per work, with every name it is known by and its cover.
 - **Release search** in Prowlarr under each name of the work, scored by your filters, ranked by your trackers, in the categories you choose for each indexer.
-- **Downloads** sent to qBittorrent through [qui](https://github.com/autobrr/qui), followed live, sent again when a torrent did not arrive.
+- **Downloads** sent to qBittorrent (directly or through [qui](https://github.com/autobrr/qui)), Deluge or Transmission, followed live, sent again when a torrent did not arrive.
 - **Automatic placement**: volumes renamed and hard-linked into the right library (manga and comics, books, audiobooks), MP3 tracks merged into one M4B with its chapters and cover, metadata written and locked in Jellyfin.
 - **Ranger**: the files shelfdrop could not place alone, linked by hand to a work, a volume or chapters, or ignored; files uploaded from the browser land there too.
 - **Jellyfin page**: the series of your libraries, their volumes and missing numbers, each file downloadable and editable, and a forced sync of the metadata.
@@ -64,14 +64,14 @@ How to take them again: [CONTRIBUTING.md](CONTRIBUTING.md#screenshots).
 - **Discord journal** of the sends, downloads and placements, with covers.
 - **Accounts**: one internal administrator account, and the administrators of your Jellyfin server.
 - **API and MCP server** with access tokens (read, or read and download), documented in OpenAPI with Swagger UI at `/api/docs`.
-- **Guided first launch** from the browser: the account, Prowlarr, qBittorrent, Jellyfin, the libraries.
+- **Guided first launch** from the browser: the account, Prowlarr, the torrent client, Jellyfin, the libraries.
 - Pages that work on a phone, settings changed live, logs readable from the settings.
 
 ## Requirements
 
 - Docker with Compose.
-- Prowlarr, qBittorrent with qui, and Jellyfin, reachable from the shelfdrop containers.
-- One folder holding both the torrents of qBittorrent and your book libraries, so that placement can use hard links.
+- Prowlarr, a torrent client and Jellyfin, reachable from the shelfdrop containers. The torrent client: qBittorrent, directly or through qui; Deluge 2 with its plugin Label enabled; or Transmission 3.00 or later ([installation](docs/installation.md#the-torrent-client)).
+- One folder holding both the torrents of the client and your book libraries, seen by the client at the same path as by shelfdrop, so that placement can use hard links.
 
 ## Quick start
 
@@ -83,7 +83,7 @@ cp .env.example .env && chmod 600 .env
 docker compose --env-file .env -f docker/compose.yaml up -d --build --wait
 ```
 
-Open `http://127.0.0.1:8000`. The first launch walks you through the set-up: create the internal account, connect Prowlarr, qBittorrent and Jellyfin, then pick the libraries. Put a reverse proxy with TLS in front of it before exposing it: [installation](docs/installation.md) lists what shelfdrop expects from it.
+Open `http://127.0.0.1:8000`. The first launch walks you through the set-up: create the internal account, connect Prowlarr, the torrent client and Jellyfin, then pick the libraries. Put a reverse proxy with TLS in front of it before exposing it: [installation](docs/installation.md) lists what shelfdrop expects from it.
 
 ## Documentation
 
