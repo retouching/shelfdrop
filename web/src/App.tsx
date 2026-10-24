@@ -403,7 +403,7 @@ export function App(): ReactElement | null {
                   }}
                 />
               )
-            ) : (
+            ) : query === "" ? null : (
               <>
                 {worksLoading ? (
                   <section aria-busy="true" aria-labelledby="works-loading" className="space-y-3">
