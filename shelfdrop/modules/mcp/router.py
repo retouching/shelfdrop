@@ -41,7 +41,7 @@ INSTRUCTIONS: Final = (
     "shelves them in Jellyfin. Find the work first (search_works), then its releases under its "
     "names (search_releases, mode work), and send the ones chosen (grab_releases) with the "
     "author, the series and the volumes; follow them with list_downloads. A text that finds no "
-    "work goes to a manual search (mode manual): its downloads wait in Ranger "
+    "work goes to a manual search (mode manual): its downloads wait in Place "
     "(list_files_to_place, place_file). Propose the releases to the user before sending any."
 )
 READ: Final = ToolAnnotations(read_only_hint=True, open_world_hint=True)
@@ -177,7 +177,7 @@ def new_mcp_server(app: FastAPI, version: str) -> MCPServer:
 
     @server.tool(annotations=READ)
     async def list_files_to_place(query: str = "") -> ItemsRead:
-        """The files of Ranger: manual downloads complete, files sent, downloads the placement
+        """The files of Place: manual downloads complete, files sent, downloads the placement
         left, files misplaced; with a query, the files of the shelf whose name or path holds it
         too."""
         async with scope_of(app) as scope:
@@ -191,7 +191,7 @@ def new_mcp_server(app: FastAPI, version: str) -> MCPServer:
 
     @server.tool(annotations=WRITE)
     async def place_file(ctx: Context, item_id: int, request: PlaceBody) -> ItemRead:
-        """Link a file of Ranger (the number of its id `item-<n>`) to a work and shelve it: a
+        """Link a file of Place (the number of its id `item-<n>`) to a work and shelve it: a
         volume, chapters, or the volumes of a release in chapters; or ignore it (`ignore`: left
         where it is, out of the files to place). The placement worker does it within a minute;
         list_files_to_place shows the result."""
@@ -201,7 +201,7 @@ def new_mcp_server(app: FastAPI, version: str) -> MCPServer:
             try:
                 return item_read(await service.link(item_id, request_of(request)))
             except ItemNotFoundError as exc:
-                raise ToolError("place_item_not_found: no file of Ranger with this id") from exc
+                raise ToolError("place_item_not_found: no file of Place with this id") from exc
             except ItemBusyError as exc:
                 raise ToolError("place_item_busy: placed already, or being placed") from exc
             except RequestRefusedError as exc:

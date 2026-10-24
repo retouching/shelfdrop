@@ -40,7 +40,7 @@ SECURITY_SCHEMES: Final = {
     },
 }
 DESCRIPTION: Final = (
-    "The API of shelfdrop: the work search, the releases of Prowlarr, the downloads, Ranger, "
+    "The API of shelfdrop: the work search, the releases of Prowlarr, the downloads, Place, "
     "the waiting searches. A browser signs in with the session cookie; a program sends "
     "`Authorization: Bearer <token>`. Each operation names the access it needs in "
     "`x-access`: `public`, `session` (the cookie alone), `read` (the cookie or any token), "
@@ -75,7 +75,7 @@ SCHEMA_PREFIX: Final = "#/components/schemas/"
 PUBLIC_ACCESSES: Final[frozenset[Access]] = frozenset({"read", "write"})
 PUBLIC_DESCRIPTION: Final = (
     "The API of shelfdrop for a program: the work search, the releases of Prowlarr, the "
-    "downloads, Ranger, the waiting searches. Every request sends an access token created on "
+    "downloads, Place, the waiting searches. Every request sends an access token created on "
     "the page Paramètres, Accès: `Authorization: Bearer sd_...`. Each operation names the "
     "scope it needs in `x-access`: `read` (any token) or `write` (a token `write`). Every error "
     'body is `{"code", "detail", "data"}`; the codes are listed in the schema `ErrorCode`.'
