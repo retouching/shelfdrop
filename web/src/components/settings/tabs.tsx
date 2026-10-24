@@ -8,6 +8,7 @@ import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } fr
 import { texts } from "../../texts";
 import type { Kind } from "../../types";
 import { Spinner } from "../Skeletons";
+import { stacked } from "../stacked";
 import {
   Card,
   Field,
@@ -380,8 +381,8 @@ export function SearchTab(): ReactElement {
           </button>
         }
       >
-        <table className="w-full rounded-lg border border-slate-200 text-sm">
-          <thead className="bg-band text-left text-ink">
+        <table className={`${stacked.table} rounded-lg border border-slate-200`}>
+          <thead className={stacked.head}>
             <tr>
               <th scope="col" className="w-10 px-3 py-2 font-semibold">
                 #
@@ -406,40 +407,52 @@ export function SearchTab(): ReactElement {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className={stacked.body}>
             {shown.map((tracker, index) => (
               <Fragment key={tracker.indexer_id}>
-                <tr className={tracker.used ? "" : "text-slate-400"}>
-                  <td className="px-3 py-2 tabular-nums">{tracker.used ? index + 1 : "–"}</td>
-                  <td className="px-3 py-2 font-medium">{tracker.name}</td>
-                  <td className="px-3 py-2 text-slate-500">{languageOf(tracker)}</td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={tracker.used}
-                      aria-label={`${texts.settings.trackerUsed} : ${tracker.name}`}
-                      onChange={(event) => {
-                        update(tracker.indexer_id, {
-                          used: event.target.checked,
-                          auto: event.target.checked && tracker.auto,
-                        });
-                      }}
-                      className="size-4 accent-accent"
-                    />
+                <tr className={`${stacked.row} ${tracker.used ? "" : "text-slate-400"}`}>
+                  <td className={`${stacked.cell} order-first tabular-nums md:px-3 md:py-2`}>
+                    {tracker.used ? index + 1 : "–"}
                   </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={tracker.auto}
-                      disabled={!tracker.used}
-                      aria-label={`${texts.settings.trackerAuto} : ${tracker.name}`}
-                      onChange={(event) => {
-                        update(tracker.indexer_id, { auto: event.target.checked });
-                      }}
-                      className="size-4 accent-accent disabled:opacity-40"
-                    />
+                  <td className={`${stacked.cell} order-first flex-1 font-medium wrap-anywhere md:px-3 md:py-2`}>
+                    {tracker.name}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className={`${stacked.cell} order-first text-slate-500 md:px-3 md:py-2`}>
+                    {languageOf(tracker)}
+                  </td>
+                  <td className={`${stacked.cell} md:px-3 md:py-2`}>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={tracker.used}
+                        aria-label={`${texts.settings.trackerUsed} : ${tracker.name}`}
+                        onChange={(event) => {
+                          update(tracker.indexer_id, {
+                            used: event.target.checked,
+                            auto: event.target.checked && tracker.auto,
+                          });
+                        }}
+                        className="size-4 accent-accent"
+                      />
+                      <span className={stacked.label}>{texts.settings.trackerUsed}</span>
+                    </label>
+                  </td>
+                  <td className={`${stacked.cell} md:px-3 md:py-2`}>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={tracker.auto}
+                        disabled={!tracker.used}
+                        aria-label={`${texts.settings.trackerAuto} : ${tracker.name}`}
+                        onChange={(event) => {
+                          update(tracker.indexer_id, { auto: event.target.checked });
+                        }}
+                        className="size-4 accent-accent disabled:opacity-40"
+                      />
+                      <span className={stacked.label}>{texts.settings.trackerAuto}</span>
+                    </label>
+                  </td>
+                  <td className={`${stacked.cell} md:px-3 md:py-2`}>
                     <button
                       type="button"
                       aria-expanded={opened === tracker.indexer_id}
@@ -455,7 +468,7 @@ export function SearchTab(): ReactElement {
                       {opened === tracker.indexer_id ? "▴" : "▾"}
                     </button>
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className={`${stacked.cell} order-first md:px-3 md:py-2 md:text-right`}>
                     <button
                       type="button"
                       disabled={index === 0}
@@ -481,8 +494,8 @@ export function SearchTab(): ReactElement {
                   </td>
                 </tr>
                 {opened === tracker.indexer_id ? (
-                  <tr>
-                    <td colSpan={7} className="bg-slate-50 px-3 py-3">
+                  <tr className="block md:table-row">
+                    <td colSpan={7} className="block bg-slate-50 px-3 py-3 md:table-cell">
                       <TrackerCategories
                         tracker={tracker}
                         onChange={(kind, ids) => {

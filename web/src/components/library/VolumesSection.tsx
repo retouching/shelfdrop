@@ -76,40 +76,42 @@ export function VolumesSection({ series, version, onNotice, onChanged }: Props):
           ) : (
             <ul className="divide-y divide-slate-100">
               {read.volumes.map((volume) => (
-                <li key={volume.id} className="flex items-center gap-3 py-2">
+                <li key={volume.id} className="flex flex-wrap items-center gap-3 py-2 md:flex-nowrap">
                   <Cover
                     src={volume.hasImage ? itemImage(volume.id, volume.imageTag, 120) : null}
                     label={volume.name}
                     className="h-16 w-11"
                     bare
                   />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium">
+                  <span className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] md:basis-0">
+                    <span className="block text-sm font-medium wrap-anywhere">
                       {volume.number === null ? texts.volumes.noNumber : texts.volumes.number(volume.number)}
                       <span className="ml-2 font-normal text-slate-600">{volume.name}</span>
                     </span>
-                    <span className="block truncate text-xs text-slate-500">
+                    <span className="block text-xs wrap-anywhere text-slate-500 md:truncate">
                       {volume.fileName} · {volume.size === null ? texts.volumes.unknownSize : formatSize(volume.size)}
                     </span>
                   </span>
-                  <a
-                    href={volumeFile(volume.id)}
-                    download={volume.fileName}
-                    aria-label={texts.volumes.downloadLabel(volume.fileName)}
-                    className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
-                  >
-                    {texts.volumes.download}
-                  </a>
-                  <button
-                    type="button"
-                    aria-label={texts.volumes.editLabel(volume.name)}
-                    onClick={() => {
-                      setEditing(volume);
-                    }}
-                    className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
-                  >
-                    {texts.volumes.edit}
-                  </button>
+                  <span className="ml-14 flex shrink-0 gap-2 md:ml-0">
+                    <a
+                      href={volumeFile(volume.id)}
+                      download={volume.fileName}
+                      aria-label={texts.volumes.downloadLabel(volume.fileName)}
+                      className="flex min-h-11 items-center rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50 md:min-h-0"
+                    >
+                      {texts.volumes.download}
+                    </a>
+                    <button
+                      type="button"
+                      aria-label={texts.volumes.editLabel(volume.name)}
+                      onClick={() => {
+                        setEditing(volume);
+                      }}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
+                    >
+                      {texts.volumes.edit}
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>

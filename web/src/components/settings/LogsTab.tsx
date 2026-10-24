@@ -40,8 +40,8 @@ function EntryRow({ entry }: { readonly entry: LogEntry }): ReactElement {
   const [open, setOpen] = useState(false);
   const hasFields = Object.keys(entry.fields).length > 0;
   return (
-    <li className="px-5 py-2">
-      <div className="flex items-start gap-3 text-sm">
+    <li className="px-4 py-2 md:px-5">
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-1 text-sm md:flex-nowrap">
         <time dateTime={entry.timestamp} className="shrink-0 font-mono text-xs leading-5 text-slate-500 tabular-nums">
           {timeOf(entry.timestamp)}
         </time>
@@ -50,9 +50,9 @@ function EntryRow({ entry }: { readonly entry: LogEntry }): ReactElement {
         >
           {levelLabel(entry.level)}
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-mono text-xs leading-5 break-words whitespace-pre-wrap text-ink">{entry.message}</p>
-          <p className="text-xs text-slate-500">
+        <div className="order-last min-w-0 flex-1 basis-full md:order-none md:basis-0">
+          <p className="font-mono text-xs leading-5 wrap-anywhere whitespace-pre-wrap text-ink">{entry.message}</p>
+          <p className="text-xs wrap-anywhere text-slate-500">
             {entry.logger}
             {entry.requestId === null ? null : ` · ${texts.logs.request(entry.requestId)}`}
           </p>
@@ -64,7 +64,7 @@ function EntryRow({ entry }: { readonly entry: LogEntry }): ReactElement {
             onClick={() => {
               setOpen(!open);
             }}
-            className="shrink-0 text-xs text-slate-500 hover:text-ink"
+            className="ml-auto shrink-0 text-xs text-slate-500 hover:text-ink md:ml-0"
           >
             {open ? texts.logs.hideFields : texts.logs.showFields}
           </button>
@@ -241,14 +241,14 @@ export function LogsTab(): ReactElement {
           onRefresh={refresh}
           live={{ on: live, every, onToggle: setLive, onEvery: setEvery }}
         />
-        <div className="-mx-5 -mb-4 border-t border-slate-200">
+        <div className="-mx-4 -mb-4 border-t border-slate-200 md:-mx-5">
           {entries === null && !failed ? (
             <div className="flex justify-center py-6">
               <Spinner />
             </div>
           ) : null}
           {entries !== null && entries.length === 0 ? (
-            <p className="px-5 py-6 text-center text-sm text-slate-500">{texts.logs.empty}</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-500 md:px-5">{texts.logs.empty}</p>
           ) : null}
           {entries !== null && entries.length > 0 ? (
             <ul className="divide-y divide-slate-200">
@@ -258,7 +258,7 @@ export function LogsTab(): ReactElement {
               ))}
             </ul>
           ) : null}
-          {failed ? <p className="px-5 py-3 text-sm text-rose-700">{texts.logs.failed}</p> : null}
+          {failed ? <p className="px-4 py-3 text-sm text-rose-700 md:px-5">{texts.logs.failed}</p> : null}
           {next === null ? null : (
             <div className="flex justify-center border-t border-slate-200 px-5 py-3">
               <button

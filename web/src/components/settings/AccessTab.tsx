@@ -6,6 +6,7 @@ import { ApiError } from "../../api/http";
 import { createToken, readTokens, revokeToken, type AccessToken, type Scope } from "../../api/tokens";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
+import { stacked } from "../stacked";
 import { AccountCard } from "./AccountCard";
 import { Card, Field, input } from "./parts";
 
@@ -249,8 +250,8 @@ export function AccessTab(): ReactElement {
           </button>
         }
       >
-        <table className="-mx-5 -my-4 w-[calc(100%+2.5rem)] text-sm">
-          <thead className="bg-band text-left text-ink">
+        <table className={`${stacked.table} -mx-4 -my-4 w-[calc(100%+2rem)] md:-mx-5 md:w-[calc(100%+2.5rem)]`}>
+          <thead className={stacked.head}>
             <tr>
               <th scope="col" className="px-5 py-2.5 font-semibold">
                 {texts.settings.tokenName}
@@ -269,18 +270,24 @@ export function AccessTab(): ReactElement {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className={`${stacked.body} divide-slate-200`}>
             {(tokens ?? []).map((token) => (
-              <tr key={token.id}>
-                <td className="px-5 py-3 font-medium text-ink">{token.name}</td>
-                <td className="px-3 py-3 text-slate-600">{texts.settings.scopes[token.scope]}</td>
-                <td className="px-3 py-3 text-slate-600">
+              <tr key={token.id} className={stacked.row}>
+                <td className={`${stacked.cell} order-first grow font-medium wrap-anywhere text-ink md:px-5 md:py-3`}>
+                  {token.name}
+                </td>
+                <td className={`${stacked.cell} basis-full text-slate-600 md:px-3 md:py-3`}>
+                  {texts.settings.scopes[token.scope]}
+                </td>
+                <td className={`${stacked.cell} text-xs text-slate-600 md:px-3 md:py-3 md:text-sm`}>
+                  <span className={stacked.label}>{texts.settings.tokenLastUsed} : </span>
                   {token.lastUsedAt === null ? texts.settings.never : usedAt(token.lastUsedAt)}
                 </td>
-                <td className="px-3 py-3 text-slate-600">
+                <td className={`${stacked.cell} text-xs text-slate-600 md:px-3 md:py-3 md:text-sm`}>
+                  <span className={stacked.label}>{texts.settings.tokenExpires} : </span>
                   {token.expiresAt === null ? texts.settings.never : dayOf(token.expiresAt)}
                 </td>
-                <td className="px-5 py-3 text-right">
+                <td className={`${stacked.cell} order-first ml-auto md:ml-0 md:px-5 md:py-3 md:text-right`}>
                   <button
                     type="button"
                     onClick={() => {

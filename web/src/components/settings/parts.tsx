@@ -22,14 +22,14 @@ export function Card({
 }): ReactElement {
   return (
     <section className="rounded-xl border border-slate-200 bg-surface">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
-        <div>
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 md:px-5">
+        <div className="min-w-0">
           <h2 className="font-semibold text-ink">{title}</h2>
           {hint === undefined ? null : <p className="mt-0.5 text-sm text-slate-500">{hint}</p>}
         </div>
         {aside}
       </header>
-      <div className="space-y-4 px-5 py-4">{children}</div>
+      <div className="space-y-4 px-4 py-4 md:px-5">{children}</div>
     </section>
   );
 }

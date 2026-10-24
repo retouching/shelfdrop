@@ -5,6 +5,7 @@ import type { Download, DownloadState } from "../types";
 import { formatDuration, formatSpeed } from "../utils/format";
 import { Cover } from "./library/Cover";
 import { Spinner } from "./Skeletons";
+import { stacked } from "./stacked";
 
 function stateText(state: DownloadState): string {
   switch (state.kind) {
@@ -63,7 +64,7 @@ export function DownloadsTable({
       aria-labelledby="downloads-title"
       className="overflow-hidden rounded-xl border border-slate-200 bg-surface"
     >
-      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-4 md:px-5">
         <h2 id="downloads-title" className="font-semibold text-ink">
           {texts.downloads.caption}
         </h2>
@@ -76,15 +77,15 @@ export function DownloadsTable({
       {shown.length === 0 ? (
         <p className="px-5 py-8 text-center text-sm text-slate-500">{texts.downloads.empty}</p>
       ) : (
-        <table className="w-full table-fixed text-sm">
-          <colgroup>
+        <table className={`${stacked.table} md:table-fixed`}>
+          <colgroup className={stacked.columns}>
             <col className="w-24" />
             <col />
             <col className="w-32" />
             <col className="w-80" />
             <col className="w-56" />
           </colgroup>
-          <thead className="bg-band text-left text-ink">
+          <thead className={stacked.head}>
             <tr>
               <th scope="col" className="px-5 py-3 font-semibold">
                 {texts.downloads.added}
@@ -103,18 +104,25 @@ export function DownloadsTable({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className={stacked.body}>
             {shown.map((download) => (
-              <tr key={download.id}>
-                <td className="px-5 py-3 text-slate-500 tabular-nums">{download.addedAt}</td>
-                <td className="px-3 py-2 font-medium text-ink" title={download.label}>
+              <tr key={download.id} className={stacked.row}>
+                <td className={`${stacked.cell} text-xs text-slate-500 tabular-nums md:px-5 md:py-3 md:text-sm`}>
+                  {download.addedAt}
+                </td>
+                <td
+                  className={`${stacked.cell} order-first basis-full font-medium text-ink md:px-3 md:py-2`}
+                  title={download.label}
+                >
                   <span className="flex items-center gap-3">
-                    <Cover src={download.cover} label={download.label} className="h-14 w-10" bare />
-                    <span className="min-w-0 truncate">{download.label}</span>
+                    <Cover src={download.cover} label={download.label} className="h-14 w-10 shrink-0" bare />
+                    <span className="min-w-0 wrap-anywhere md:truncate">{download.label}</span>
                   </span>
                 </td>
-                <td className="px-3 py-3 text-slate-600">{texts.kinds[download.kind]}</td>
-                <td className="px-3 py-3">
+                <td className={`${stacked.cell} text-xs text-slate-600 md:px-3 md:py-3 md:text-sm`}>
+                  {texts.kinds[download.kind]}
+                </td>
+                <td className={`${stacked.cell} basis-full md:px-3 md:py-3`}>
                   <span
                     className={`inline-block rounded-md px-2 py-0.5 text-xs ring-1 ring-inset ${stateTone(download.state)}`}
                   >
@@ -134,9 +142,9 @@ export function DownloadsTable({
                     />
                   ) : null}
                 </td>
-                <td className="px-5 py-3">
+                <td className={`${stacked.cell} basis-full max-md:empty:hidden md:px-5 md:py-3`}>
                   {download.state.kind === "failed" && download.state.reason === "not_received" ? (
-                    <span className="flex justify-end gap-2">
+                    <span className="flex flex-wrap gap-2 md:justify-end">
                       <button
                         type="button"
                         onClick={() => {

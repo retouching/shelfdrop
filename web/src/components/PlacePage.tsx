@@ -5,6 +5,7 @@ import { texts } from "../texts";
 import type { FileState, Kind, ShelfFile } from "../types";
 import { formatSize } from "../utils/format";
 import { SearchIcon } from "./icons";
+import { stacked } from "./stacked";
 import { ChaptersDialog } from "./ChaptersDialog";
 import { LinkDialog } from "./LinkDialog";
 
@@ -115,7 +116,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
   return (
     <div className="space-y-6">
       <section aria-labelledby="files-title" className="overflow-hidden rounded-xl border border-slate-200 bg-surface">
-        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-4 md:px-5">
           <h2 id="files-title" className="mr-auto font-semibold text-ink">
             {texts.place.filesTitle}
           </h2>
@@ -132,7 +133,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
           >
             {scanAsked ? texts.place.scanAsked : texts.place.scan}
           </button>
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
@@ -146,13 +147,13 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
               }}
               aria-label={texts.place.filter}
               placeholder={texts.place.filterPlaceholder}
-              className="w-72 rounded-lg border border-slate-200 py-1.5 pr-3 pl-9 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-ring"
+              className="w-full rounded-lg border border-slate-200 py-1.5 pr-3 pl-9 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-ring md:w-72"
             />
           </div>
           <div
             role="radiogroup"
             aria-label={texts.place.filesTitle}
-            className="inline-flex rounded-lg bg-slate-100 p-1"
+            className="flex w-full rounded-lg bg-slate-100 p-1 md:inline-flex md:w-auto"
           >
             {(["todo", "ignored", "all"] as const).map((option) => (
               <button
@@ -165,8 +166,8 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
                 }}
                 className={
                   option === filter
-                    ? "rounded-md bg-surface px-3 py-1 text-sm font-medium text-ink shadow-sm"
-                    : "rounded-md px-3 py-1 text-sm text-slate-500 hover:text-ink"
+                    ? "flex-1 rounded-md bg-surface px-3 py-1 text-sm font-medium text-ink shadow-sm md:flex-none"
+                    : "flex-1 rounded-md px-3 py-1 text-sm text-slate-500 hover:text-ink md:flex-none"
                 }
               >
                 {texts.place.filters[option]}
@@ -179,15 +180,15 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
             {needle === "" && filter !== "ignored" ? texts.place.allPlaced : texts.place.none}
           </p>
         ) : (
-          <table className="w-full table-fixed text-sm">
-            <colgroup>
+          <table className={`${stacked.table} md:table-fixed`}>
+            <colgroup className={stacked.columns}>
               <col />
               <col className="w-32" />
               <col className="w-24" />
               <col className="w-72" />
               <col className="w-48" />
             </colgroup>
-            <thead className="bg-band text-left text-ink">
+            <thead className={stacked.head}>
               <tr>
                 <th scope="col" className="px-5 py-3 font-semibold">
                   {texts.place.file}
@@ -206,30 +207,37 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className={stacked.body}>
               {shown.map((file) => (
-                <tr key={file.id}>
-                  <td className="px-5 py-2.5">
-                    <span className="block truncate font-medium text-ink" title={file.name}>
+                <tr key={file.id} className={stacked.row}>
+                  <td className={`${stacked.cell} basis-full md:px-5 md:py-2.5`}>
+                    <span className="block font-medium wrap-anywhere text-ink md:truncate" title={file.name}>
                       {file.name}
                     </span>
-                    <span className="block truncate text-xs text-slate-500" title={file.path}>
+                    <span className="block text-xs wrap-anywhere text-slate-500 md:truncate" title={file.path}>
                       {file.kind === null ? texts.place.unknownKind : texts.kinds[file.kind]} · {file.path}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-slate-600">{texts.place.origins[file.origin]}</td>
-                  <td className="px-3 py-3 text-right whitespace-nowrap text-slate-500 tabular-nums">
+                  <td className={`${stacked.cell} text-xs text-slate-600 md:px-3 md:py-3 md:text-sm`}>
+                    {texts.place.origins[file.origin]}
+                  </td>
+                  <td
+                    className={`${stacked.cell} text-xs whitespace-nowrap text-slate-500 tabular-nums md:px-3 md:py-3 md:text-right md:text-sm`}
+                  >
                     {formatSize(file.sizeBytes)}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className={`${stacked.cell} basis-full md:px-3 md:py-3`}>
                     <span
-                      className={`inline-block max-w-full truncate rounded-md px-2 py-0.5 text-xs ring-1 ring-inset ${stateTone(file.state)}`}
+                      className={`inline-block max-w-full rounded-md px-2 py-0.5 text-xs ring-1 ring-inset md:truncate ${stateTone(file.state)}`}
                       title={stateText(file.state, file.kind)}
                     >
                       {stateText(file.state, file.kind)}
                     </span>
                     {file.error === undefined || file.error === null ? null : (
-                      <span className="mt-1 block truncate text-xs text-rose-700" title={errorText(file.error)}>
+                      <span
+                        className="mt-1 block text-xs wrap-anywhere text-rose-700 md:truncate"
+                        title={errorText(file.error)}
+                      >
                         {errorText(file.error)}
                       </span>
                     )}
@@ -242,9 +250,9 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
                       />
                     ) : null}
                   </td>
-                  <td className="px-5 py-3 text-right">
+                  <td className={`${stacked.cell} basis-full max-md:empty:hidden md:px-5 md:py-3 md:text-right`}>
                     {confirming === file.id ? (
-                      <span className="flex flex-col items-end gap-1.5">
+                      <span className="flex flex-col gap-1.5 md:items-end">
                         <span className="text-xs text-slate-500">{texts.place.ignoreConfirm}</span>
                         <span className="flex gap-1.5">
                           <button
@@ -282,7 +290,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
                         {texts.place.resume}
                       </button>
                     ) : (
-                      <span className="flex justify-end gap-1.5">
+                      <span className="flex flex-wrap gap-1.5 md:justify-end">
                         {needsAction(file) && file.id.startsWith("item-") ? (
                           <button
                             type="button"

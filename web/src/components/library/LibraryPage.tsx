@@ -156,7 +156,7 @@ export function LibraryPage(): ReactElement {
           void refresh();
         }}
       >
-        <span className="flex items-center gap-2 border-l border-slate-200 pl-3">
+        <span className="flex flex-wrap items-center gap-2 md:border-l md:border-slate-200 md:pl-3">
           <label className="text-sm">
             <span className="sr-only">{texts.scan.mode}</span>
             <select
@@ -212,7 +212,11 @@ export function LibraryPage(): ReactElement {
         />
       )}
       <div className="flex flex-wrap items-end gap-4">
-        <div role="radiogroup" aria-label={texts.library.filter} className="flex rounded-lg bg-slate-100 p-1">
+        <div
+          role="radiogroup"
+          aria-label={texts.library.filter}
+          className="flex w-full flex-wrap rounded-lg bg-slate-100 p-1 md:w-auto"
+        >
           {filters.map((option) => {
             const count = inLibrary.filter((series) => matches(series, option)).length;
             return (
@@ -224,7 +228,7 @@ export function LibraryPage(): ReactElement {
                 onClick={() => {
                   setFilter(option);
                 }}
-                className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm md:flex-none ${
                   option === filter ? "bg-surface font-medium text-ink shadow-sm" : "text-slate-500 hover:text-ink"
                 }`}
               >
@@ -234,14 +238,14 @@ export function LibraryPage(): ReactElement {
             );
           })}
         </div>
-        <label className="space-y-1">
+        <label className="w-full space-y-1 sm:w-auto">
           <span className="block text-xs text-slate-500">{texts.library.libraryLabel}</span>
           <select
             value={library}
             onChange={(event) => {
               setLibrary(event.target.value as Kind | "all");
             }}
-            className={`${field} w-44`}
+            className={`${field} sm:w-44`}
           >
             {libraries.map((option) => (
               <option key={option} value={option}>
@@ -250,7 +254,7 @@ export function LibraryPage(): ReactElement {
             ))}
           </select>
         </label>
-        <label className="relative flex-1">
+        <label className="relative w-full sm:w-auto sm:flex-1">
           <span className="sr-only">{texts.library.search}</span>
           <SearchIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -268,7 +272,7 @@ export function LibraryPage(): ReactElement {
           onClick={() => {
             setFilling(true);
           }}
-          className="rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           {texts.library.fillSummaries(fillable.length)}
         </button>
@@ -289,7 +293,7 @@ export function LibraryPage(): ReactElement {
       {shown.length === 0 ? (
         <p className="py-10 text-center text-slate-500">{texts.library.empty}</p>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-5">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-5">
           {shown.map((series) => (
             <li key={series.id}>
               <button

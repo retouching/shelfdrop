@@ -11,6 +11,7 @@ import {
 import { texts } from "../../texts";
 import type { Kind } from "../../types";
 import { formatScore, ruleRegex, scoreTitle } from "../../utils/score";
+import { stacked } from "../stacked";
 import { Card, Field, input } from "./parts";
 
 const kinds: readonly Kind[] = ["manga", "ebook", "audiobook"];
@@ -36,8 +37,8 @@ export function FiltersTab(): ReactElement {
     <div className="space-y-4">
       <Card title={texts.filters.title} hint={texts.filters.hint}>
         <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-sm">
-            <thead className="bg-band text-left text-ink">
+          <table className={stacked.table}>
+            <thead className={stacked.head}>
               <tr>
                 <th scope="col" className="w-16 px-3 py-2 font-semibold">
                   {texts.filters.enabled}
@@ -59,12 +60,12 @@ export function FiltersTab(): ReactElement {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className={stacked.body}>
               {filters.rules.map((rule) => {
                 const invalid = rule.pattern !== "" && ruleRegex(rule) === null;
                 return (
-                  <tr key={rule.id} className={rule.enabled ? "" : "opacity-50"}>
-                    <td className="px-3 py-2">
+                  <tr key={rule.id} className={`${stacked.row} ${rule.enabled ? "" : "opacity-50"}`}>
+                    <td className={`${stacked.cell} order-first md:px-3 md:py-2`}>
                       <input
                         type="checkbox"
                         checked={rule.enabled}
@@ -75,7 +76,7 @@ export function FiltersTab(): ReactElement {
                         className="size-4 accent-accent"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={`${stacked.cell} order-first flex-1 md:px-3 md:py-2`}>
                       <input
                         value={rule.name}
                         aria-label={texts.filters.name}
@@ -85,9 +86,9 @@ export function FiltersTab(): ReactElement {
                         className={input}
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={`${stacked.cell} basis-full md:px-3 md:py-2`}>
                       <span className="flex gap-2">
-                        <span className="w-24 shrink-0">
+                        <span className="w-28 shrink-0 md:w-24">
                           <select
                             value={rule.regex ? "regex" : "words"}
                             aria-label={`${texts.filters.words} / ${texts.filters.regex}`}
@@ -115,7 +116,8 @@ export function FiltersTab(): ReactElement {
                         <span className="mt-1 block text-xs text-rose-700">{texts.filters.invalid}</span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={`${stacked.cell} w-28 md:w-auto md:px-3 md:py-2`}>
+                      <span className={`${stacked.label} block text-xs`}>{texts.filters.points}</span>
                       <input
                         type="number"
                         step={5}
@@ -127,7 +129,8 @@ export function FiltersTab(): ReactElement {
                         className={`${input} tabular-nums`}
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={`${stacked.cell} flex-1 md:px-3 md:py-2`}>
+                      <span className={`${stacked.label} block text-xs`}>{texts.filters.kinds}</span>
                       <select
                         value={rule.kinds.length === 1 ? rule.kinds[0] : "all"}
                         aria-label={texts.filters.kinds}
@@ -147,7 +150,7 @@ export function FiltersTab(): ReactElement {
                         ))}
                       </select>
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className={`${stacked.cell} order-first md:px-3 md:py-2 md:text-right`}>
                       <button
                         type="button"
                         aria-label={texts.filters.remove(rule.name)}

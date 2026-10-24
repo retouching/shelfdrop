@@ -2,6 +2,7 @@ import { useState, type ReactElement } from "react";
 
 import { removeWaiting, saveInterval, searchWaitingNow, useWaiting, type WaitingSearch } from "../api/waiting";
 import { texts } from "../texts";
+import { stacked } from "./stacked";
 import { Spinner } from "./Skeletons";
 
 const intervals: readonly number[] = [1, 3, 6, 12, 24];
@@ -53,7 +54,7 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
 
   return (
     <section aria-labelledby="waiting-title" className="overflow-hidden rounded-xl border border-slate-200 bg-surface">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-4 md:px-5">
         <h2 id="waiting-title" className="mr-auto font-semibold text-ink">
           {texts.waiting.title}
         </h2>
@@ -95,8 +96,8 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
       ) : searches.length === 0 ? (
         <p className="px-5 py-10 text-center text-sm text-slate-500">{texts.waiting.empty}</p>
       ) : (
-        <table className="w-full table-fixed text-sm">
-          <colgroup>
+        <table className={`${stacked.table} md:table-fixed`}>
+          <colgroup className={stacked.columns}>
             <col />
             <col className="w-28" />
             <col className="w-24" />
@@ -104,7 +105,7 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
             <col className="w-52" />
             <col className="w-64" />
           </colgroup>
-          <thead className="bg-band text-left text-ink">
+          <thead className={stacked.head}>
             <tr>
               <th scope="col" className="px-5 py-3 font-semibold">
                 {texts.waiting.work}
@@ -126,29 +127,34 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className={stacked.body}>
             {searches.map((search) => {
               const state = searching.has(search.id) ? "searching" : search.state.kind;
               return (
-                <tr key={search.id}>
-                  <td className="px-5 py-3">
-                    <span className="block truncate font-medium text-ink" title={search.title}>
+                <tr key={search.id} className={stacked.row}>
+                  <td className={`${stacked.cell} basis-full md:px-5 md:py-3`}>
+                    <span className="block font-medium wrap-anywhere text-ink md:truncate" title={search.title}>
                       {search.title}
                     </span>
-                    <span className="block truncate text-xs text-slate-500">
+                    <span className="block text-xs wrap-anywhere text-slate-500 md:truncate">
                       <span className="font-medium text-slate-700">{search.detail}</span> ·{" "}
                       {texts.waiting.names(search.names.length)}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-slate-600">{texts.kinds[search.kind]}</td>
-                  <td className="px-3 py-3 text-slate-500 tabular-nums">{dayOf(search.addedAt)}</td>
-                  <td className="px-3 py-3 text-xs text-slate-500 tabular-nums">
+                  <td className={`${stacked.cell} text-xs text-slate-600 md:px-3 md:py-3 md:text-sm`}>
+                    {texts.kinds[search.kind]}
+                  </td>
+                  <td className={`${stacked.cell} text-xs text-slate-500 tabular-nums md:px-3 md:py-3 md:text-sm`}>
+                    <span className={stacked.label}>{texts.waiting.since} </span>
+                    {dayOf(search.addedAt)}
+                  </td>
+                  <td className={`${stacked.cell} basis-full text-xs text-slate-500 tabular-nums md:px-3 md:py-3`}>
                     {search.searchedAt === null
                       ? texts.waiting.never
                       : texts.waiting.last(clockOf(search.searchedAt), search.attempts)}
                     <span className="block">{texts.waiting.next(clockOf(search.nextSearchAt))}</span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className={`${stacked.cell} md:px-3 md:py-3`}>
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs ring-1 ring-inset ${
                         search.state.kind === "found"
@@ -166,8 +172,8 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
                           : texts.waiting.nothing}
                     </span>
                   </td>
-                  <td className="px-5 py-3">
-                    <span className="flex justify-end gap-2">
+                  <td className={`${stacked.cell} basis-full md:px-5 md:py-3`}>
+                    <span className="flex flex-wrap gap-2 md:justify-end">
                       {search.state.kind === "found" ? (
                         <button
                           type="button"

@@ -6,6 +6,7 @@ import { formatSize } from "../utils/format";
 import { formatScore } from "../utils/score";
 import { volumesLabel } from "../utils/volumes";
 import { ExternalIcon, FileIcon } from "./icons";
+import { stacked } from "./stacked";
 
 type Props = {
   readonly workTitle: string;
@@ -48,13 +49,26 @@ export function ResultsCard({
 
   return (
     <section aria-labelledby="results-title" className="overflow-hidden rounded-xl border border-slate-200 bg-surface">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
-        <div>
-          <h2 id="results-title" className="font-semibold text-ink">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-4 md:px-5">
+        <div className="min-w-0">
+          <h2 id="results-title" className="font-semibold wrap-anywhere text-ink">
             {texts.results.title(workTitle)}
           </h2>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {selectable.length === 0 ? null : (
+            <label className="flex items-center gap-2 text-sm text-slate-600 md:hidden">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() => {
+                  onToggleAll(!allSelected);
+                }}
+                className="size-4 accent-accent"
+              />
+              {texts.results.selectAll}
+            </label>
+          )}
           {cachedMinutes === null ? null : (
             <span className="text-xs text-slate-500">
               {texts.results.cachedAgo(cachedMinutes)}
@@ -80,7 +94,7 @@ export function ResultsCard({
         </div>
       </div>
       {rejectedCount === 0 ? null : (
-        <p className="flex items-center justify-between gap-3 border-b border-slate-100 bg-band px-5 py-2 text-xs text-slate-500">
+        <p className="flex flex-wrap items-center justify-between gap-x-3 border-b border-slate-100 bg-band px-4 py-2 text-xs text-slate-500 md:px-5">
           {texts.filters.rejected(rejectedCount, minimum)}
           <button
             type="button"
@@ -107,9 +121,9 @@ export function ResultsCard({
           )}
         </div>
       ) : (
-        <table className="w-full table-fixed text-sm">
+        <table className={`${stacked.table} md:table-fixed`}>
           <caption className="sr-only">{texts.results.caption}</caption>
-          <colgroup>
+          <colgroup className={stacked.columns}>
             <col className="w-12" />
             <col />
             <col className="w-28" />
@@ -119,7 +133,7 @@ export function ResultsCard({
             <col className="w-24" />
             <col className="w-24" />
           </colgroup>
-          <thead className="bg-band text-left text-ink">
+          <thead className={stacked.head}>
             <tr>
               <th scope="col" className="px-5 py-3">
                 <input
@@ -155,42 +169,51 @@ export function ResultsCard({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className={stacked.body}>
             {releases.map((release) => {
               const isSelected = selected.has(release.id);
               return (
-                <tr key={release.id} className={isSelected ? "bg-accent-soft/60" : "hover:bg-slate-50"}>
-                  <td className="px-5 py-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={!manual && !release.automatic}
-                      onChange={() => {
-                        onToggle(release.id);
-                      }}
-                      aria-label={texts.results.select(release.title)}
-                      className="size-4 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
-                    />
+                <tr
+                  key={release.id}
+                  className={`${stacked.row} ${isSelected ? "bg-accent-soft/60" : "hover:bg-slate-50"}`}
+                >
+                  <td className={`${stacked.cell} self-start md:px-5 md:py-3`}>
+                    {/* Sur un petit écran, la case se coche sur 44 px sans prendre plus de place. */}
+                    <label className="-m-3 flex p-3 md:m-0 md:inline md:p-0">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={!manual && !release.automatic}
+                        onChange={() => {
+                          onToggle(release.id);
+                        }}
+                        aria-label={texts.results.select(release.title)}
+                        className="size-4 accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+                      />
+                    </label>
                   </td>
-                  <td className="px-3 py-2.5">
-                    <span className="block truncate text-ink" title={release.title}>
+                  <td className={`${stacked.cell} grow basis-[calc(100%-2rem)] md:px-3 md:py-2.5`}>
+                    <span className="block wrap-anywhere text-ink md:truncate" title={release.title}>
                       {release.title}
                     </span>
                     {manual || release.matchedName === workTitle ? null : (
-                      <span className="block truncate text-xs text-slate-500">
+                      <span className="block text-xs wrap-anywhere text-slate-500 md:truncate">
                         {texts.results.matched(release.matchedName)}
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap text-slate-700">{volumesLabel(release.volumes)}</td>
-                  <td className="px-3 py-3 whitespace-nowrap">
+                  <td className={`${stacked.cell} text-xs whitespace-nowrap text-slate-700 md:px-3 md:py-3 md:text-sm`}>
+                    {volumesLabel(release.volumes)}
+                  </td>
+                  <td className={`${stacked.cell} md:px-3 md:py-3 md:whitespace-nowrap`}>
                     <span
                       className={`rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 ring-1 ring-slate-200 ring-inset`}
                     >
                       {release.indexer}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right">
+                  <td className={`${stacked.cell} md:px-3 md:py-3 md:text-right`}>
+                    <span className={`${stacked.label} text-xs`}>{texts.filters.score} </span>
                     <span
                       title={
                         release.scoreRules.length === 0
@@ -210,11 +233,18 @@ export function ResultsCard({
                       {formatScore(release.score)}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right text-slate-700 tabular-nums">{release.seeders}</td>
-                  <td className="px-3 py-3 text-right whitespace-nowrap text-slate-500 tabular-nums">
+                  <td
+                    className={`${stacked.cell} text-xs text-slate-700 tabular-nums md:px-3 md:py-3 md:text-right md:text-sm`}
+                  >
+                    <span className={stacked.label}>{texts.results.seeders} </span>
+                    {release.seeders}
+                  </td>
+                  <td
+                    className={`${stacked.cell} text-xs whitespace-nowrap text-slate-500 tabular-nums md:px-3 md:py-3 md:text-right md:text-sm`}
+                  >
                     {formatSize(release.sizeBytes)}
                   </td>
-                  <td className="px-5 py-3">
+                  <td className={`${stacked.cell} ml-auto md:ml-0 md:px-5 md:py-3`}>
                     <span className="flex justify-end gap-1">
                       {release.infoUrl === "" ? null : (
                         <a
@@ -223,7 +253,7 @@ export function ResultsCard({
                           rel="noreferrer noopener"
                           title={texts.results.trackerPage(release.indexer)}
                           aria-label={texts.results.trackerPage(release.indexer)}
-                          className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-ink"
+                          className="flex size-11 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-ink md:size-auto md:p-1.5"
                         >
                           <ExternalIcon />
                         </a>
@@ -233,7 +263,7 @@ export function ResultsCard({
                         download={`${release.title}.torrent`}
                         title={texts.results.torrentFile}
                         aria-label={texts.results.torrentFile}
-                        className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-ink"
+                        className="flex size-11 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-ink md:size-auto md:p-1.5"
                       >
                         <FileIcon />
                       </a>
