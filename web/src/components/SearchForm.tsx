@@ -12,9 +12,15 @@ type Props = {
   readonly initialQuery: string;
   readonly busy: boolean;
   readonly onSearch: (query: string, kind: Kind) => void;
+  /** Le type choisi sans texte de recherche : aucune recherche ne part. */
+  readonly onKind: (kind: Kind) => void;
+  /** Tout effacer : le texte, l'œuvre choisie, les releases et la sélection. */
+  readonly onClear: () => void;
+  /** Une recherche est affichée (texte envoyé ou résultats) : le bouton Effacer apparaît. */
+  readonly searched: boolean;
 };
 
-export function SearchForm({ kind, initialQuery, busy, onSearch }: Props): ReactElement {
+export function SearchForm({ kind, initialQuery, busy, onSearch, onKind, onClear, searched }: Props): ReactElement {
   const [query, setQuery] = useState(initialQuery);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +45,12 @@ export function SearchForm({ kind, initialQuery, busy, onSearch }: Props): React
               role="radio"
               aria-checked={option === kind}
               onClick={() => {
-                onSearch(query.trim(), option);
+                // Sans texte assez long, le type change sans lancer de recherche.
+                if (query.trim().length < 2) {
+                  onKind(option);
+                } else {
+                  onSearch(query.trim(), option);
+                }
               }}
               className={
                 option === kind
@@ -72,11 +83,24 @@ export function SearchForm({ kind, initialQuery, busy, onSearch }: Props): React
         <button
           type="submit"
           disabled={busy}
-          className="hover:bg-accent-strong-strong flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-80"
+          className="flex items-center gap-2 rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80"
         >
           {busy ? <Spinner /> : null}
           {busy ? texts.loading.searching : texts.search.submit}
         </button>
+        {searched || query !== "" ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setError(null);
+              onClear();
+            }}
+            className="rounded-lg border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-slate-100"
+          >
+            {texts.search.clear}
+          </button>
+        ) : null}
       </div>
       {error === null ? null : (
         <p id="query-error" role="alert" className="mt-3 text-sm text-rose-600">

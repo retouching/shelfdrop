@@ -196,6 +196,16 @@ export function App(): ReactElement | null {
     chooseWork(null);
   }
 
+  /** Tout effacer : le texte, l'œuvre et ses noms, les releases, la sélection et le message. */
+  function clearSearch(): void {
+    setQuery("");
+    setRefreshRound(0);
+    setSelected(new Set());
+    setNotice(null);
+    setShowRejected(false);
+    chooseWork(null);
+  }
+
   /** La liste relue après une fusion ou une séparation : le serveur l'applique à chaque recherche. */
   function searchAgain(): void {
     setSearchId((id) => id + 1);
@@ -307,6 +317,10 @@ export function App(): ReactElement | null {
         waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
         toPlaceCount={place.open}
         onNavigate={(next) => {
+          // Quitter une page de recherche l'efface : en y revenant, rien n'est relancé.
+          if (next !== page) {
+            clearSearch();
+          }
           setPage(next);
           setSelected(new Set());
           setNotice(null);
@@ -337,6 +351,12 @@ export function App(): ReactElement | null {
                 initialQuery={query}
                 busy={manual ? releasesLoading : worksLoading}
                 onSearch={search}
+                onKind={(next) => {
+                  clearSearch();
+                  setKind(next);
+                }}
+                onClear={clearSearch}
+                searched={query !== ""}
               />
               {manual ? (
                 <UploadZone
