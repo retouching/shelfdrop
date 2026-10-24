@@ -22,6 +22,10 @@ Retours sur la 0.10.0 en production (22/10/2026).
 - [x] Journal Discord : ne plus mettre d'adresse IP dans les embeds (champ « Adresse IP » du message « Connexion »).
 - [x] Bibliothèque : voir le contenu d'une série (les tomes qu'on a, avec leur couverture, leur numéro et leur taille, et les tomes manquants), pouvoir télécharger chaque fichier depuis le site, et modifier les métadonnées de chaque tome (titre, numéro, résumé, auteurs, couverture), comme la page Jellyfin le fait déjà pour la série.
 - [ ] Pouvoir lire les logs depuis le site.
+- [ ] Page Jellyfin :
+  - charger les vignettes par lots (quelques images à la fois, puis les suivantes une fois arrivées) au lieu de toutes d'un coup, en plus du chargement à l'approche de l'écran : aujourd'hui une page pleine dépasse la limite de requêtes du reverse proxy et des images tombent en 503 ;
+  - la page ne se met parfois pas à jour après une modification (série, tome, image, synchro) ;
+  - lancer un refresh de Jellyfin après la modification d'un titre (série ou tome).
 - [ ] Compte interne et panneau d'installation initial (à faire ensemble) :
   - un compte interne (admin propre à shelfdrop) pour se connecter quand Jellyfin n'est pas encore branché, et les textes de la page de connexion revus en conséquence (aujourd'hui elle ne parle que du compte Jellyfin) ;
   - un vrai panneau d'installation au premier lancement : création de ce compte, puis branchement pas à pas de Prowlarr, qBittorrent et Jellyfin (avec leur test), des bibliothèques et du dossier des envois, avant d'ouvrir le reste du site.
