@@ -3,7 +3,7 @@
   "info": {
     "title": "shelfdrop",
     "version": "0.11.1",
-    "description": "The API of shelfdrop for a program: the work search, the releases of Prowlarr, the downloads, Ranger, the waiting searches. Every request sends an access token created on the page Paramètres, API et MCP: `Authorization: Bearer sd_...`. Each operation names the scope it needs in `x-access`: `read` (any token) or `write` (a token `write`). Every error body is `{\"code\", \"detail\", \"data\"}`; the codes are listed in the schema `ErrorCode`."
+    "description": "The API of shelfdrop for a program: the work search, the releases of Prowlarr, the downloads, Ranger, the waiting searches. Every request sends an access token created on the page Paramètres, Accès: `Authorization: Bearer sd_...`. Each operation names the scope it needs in `x-access`: `read` (any token) or `write` (a token `write`). Every error body is `{\"code\", \"detail\", \"data\"}`; the codes are listed in the schema `ErrorCode`."
   },
   "paths": {
     "/api/v1/searches": {
@@ -5286,6 +5286,12 @@
         "enum": [
           "not_signed_in",
           "login_refused",
+          "setup_required",
+          "setup_done",
+          "jellyfin_not_connected",
+          "account_exists",
+          "account_not_found",
+          "password_refused",
           "origin_refused",
           "token_forbidden",
           "token_not_found",
@@ -5367,7 +5373,7 @@
       "token": {
         "type": "http",
         "scheme": "bearer",
-        "description": "An access token (`sd_...`) created on the page Paramètres, API et MCP. `read` reads; `write` also downloads, places files and keeps searches waiting. 60 requests a minute; never the settings nor the tokens. No `Origin` needed."
+        "description": "An access token (`sd_...`) created on the page Paramètres, Accès. `read` reads; `write` also downloads, places files and keeps searches waiting. 60 requests a minute; never the settings nor the tokens. No `Origin` needed."
       }
     }
   }

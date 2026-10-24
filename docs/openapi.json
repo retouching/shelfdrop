@@ -78,7 +78,7 @@
           "session"
         ],
         "summary": "Sign In",
-        "description": "Open a session for an administrator of Jellyfin: the cookie `__Host-shelfdrop`.",
+        "description": "Open a session for the internal account or an administrator of Jellyfin: the cookie\n`__Host-shelfdrop`.",
         "operationId": "sign_in_api_v1_session_post",
         "requestBody": {
           "content": {
@@ -124,6 +124,121 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "No session (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A write from another origin (`origin_refused`), or an access token (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "session",
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/setup": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Read Setup",
+        "operationId": "read_setup_api_v1_setup_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRead"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "public",
+        "security": []
+      }
+    },
+    "/api/v1/setup/account": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Create Account",
+        "description": "The first step: the internal account, while the set-up is needed and no account\nexists (the first request wins); its session is opened.",
+        "operationId": "create_account_api_v1_setup_account_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "public",
+        "security": []
+      }
+    },
+    "/api/v1/setup/finish": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Finish Setup",
+        "description": "The last step: the set-up ends once the Jellyfin saved answers its test, and the rest\nof the API opens.",
+        "operationId": "finish_setup_api_v1_setup_finish_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRead"
+                }
+              }
+            }
           },
           "401": {
             "description": "No session (`not_signed_in`).",
@@ -395,6 +510,187 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuditRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A write from another origin (`origin_refused`), or an access token (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "session",
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/account": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Read Account",
+        "operationId": "read_account_api_v1_account_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A write from another origin (`origin_refused`), or an access token (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "session",
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Create Account",
+        "description": "The internal account of an installation signed in through Jellyfin alone.",
+        "operationId": "create_account_api_v1_account_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A write from another origin (`origin_refused`), or an access token (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "session",
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/account/password": {
+      "put": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Change Password",
+        "description": "A new password, the current one given; the sessions of the internal account end, but\nthe one of the request.",
+        "operationId": "change_password_api_v1_account_password_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3841,6 +4137,71 @@
   },
   "components": {
     "schemas": {
+      "AccountBody": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^\\S(.*\\S)?$",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 10,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "AccountBody"
+      },
+      "AccountRead": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At"
+          },
+          "password_changed_at": {
+            "type": "integer",
+            "title": "Password Changed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "created_at",
+          "password_changed_at"
+        ],
+        "title": "AccountRead"
+      },
+      "AccountState": {
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "account"
+        ],
+        "title": "AccountState"
+      },
       "AuditEntryRead": {
         "properties": {
           "at": {
@@ -4825,6 +5186,28 @@
         ],
         "title": "OwnedRead"
       },
+      "PasswordBody": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Current"
+          },
+          "new": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 10,
+            "title": "New"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "new"
+        ],
+        "title": "PasswordBody"
+      },
       "ProbeBody": {
         "properties": {
           "service": {
@@ -5652,11 +6035,16 @@
           "username": {
             "type": "string",
             "title": "Username"
+          },
+          "internal": {
+            "type": "boolean",
+            "title": "Internal"
           }
         },
         "type": "object",
         "required": [
-          "username"
+          "username",
+          "internal"
         ],
         "title": "SessionRead"
       },
@@ -5717,6 +6105,24 @@
         },
         "type": "object",
         "title": "SettingsUpdate"
+      },
+      "SetupRead": {
+        "properties": {
+          "needed": {
+            "type": "boolean",
+            "title": "Needed"
+          },
+          "account": {
+            "type": "boolean",
+            "title": "Account"
+          }
+        },
+        "type": "object",
+        "required": [
+          "needed",
+          "account"
+        ],
+        "title": "SetupRead"
       },
       "Shown": {
         "type": "string",
@@ -7214,6 +7620,12 @@
         "enum": [
           "not_signed_in",
           "login_refused",
+          "setup_required",
+          "setup_done",
+          "jellyfin_not_connected",
+          "account_exists",
+          "account_not_found",
+          "password_refused",
           "origin_refused",
           "token_forbidden",
           "token_not_found",
@@ -7296,12 +7708,12 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "__Host-shelfdrop",
-        "description": "The session of an administrator of Jellyfin, opened by `POST /api/v1/session`. A write needs the `Origin` of the host."
+        "description": "The session of the internal account or of an administrator of Jellyfin, opened by `POST /api/v1/session`. A write needs the `Origin` of the host."
       },
       "token": {
         "type": "http",
         "scheme": "bearer",
-        "description": "An access token (`sd_...`) created on the page Paramètres, API et MCP. `read` reads; `write` also downloads, places files and keeps searches waiting. 60 requests a minute; never the settings nor the tokens. No `Origin` needed."
+        "description": "An access token (`sd_...`) created on the page Paramètres, Accès. `read` reads; `write` also downloads, places files and keeps searches waiting. 60 requests a minute; never the settings nor the tokens. No `Origin` needed."
       }
     }
   }

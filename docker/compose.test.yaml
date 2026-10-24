@@ -40,6 +40,35 @@ services:
       qbittorrent-lists:
         condition: service_healthy
 
+  # A second API, for the set-up of the first launch alone (tests/integration/test_setup.py
+  # starts it with `--profile setup`): a database of its own in memory, and neither Prowlarr
+  # nor Jellyfin in its environment.
+  api-setup:
+    extends:
+      file: compose.yaml
+      service: api
+    profiles: [setup]
+    restart: "no"
+    environment:
+      SHELFDROP_LOG_LEVEL: INFO
+      SHELFDROP_LOG_FORMAT: json
+      SHELFDROP_SOURCES_ORIGIN: http://fake-sources:8080
+      SHELFDROP_SOURCE_REST_SECONDS: "0"
+      SHELFDROP_PROWLARR_URL: ""
+      SHELFDROP_PROWLARR_API_KEY: ""
+      SHELFDROP_JELLYFIN_URL: ""
+    volumes: !override []
+    tmpfs:
+      - /data/shelfdrop:uid=10001,gid=10001,mode=0700
+    ports: !override
+      - "127.0.0.1::8000"
+    networks:
+      - default
+      - sources
+    depends_on:
+      fake-sources:
+        condition: service_healthy
+
   placement:
     restart: "no"
     environment:

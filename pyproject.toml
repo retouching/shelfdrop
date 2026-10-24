@@ -89,6 +89,7 @@ markers = [
     "works_names_language: block of works, the languages of the names, the checked ones (test_work_names.py)",
     "auth: integration part, the sign-in and the sessions through the fake Jellyfin",
     "auth_session: block of auth, the routes without a session, the origin, the sign-out (test_session.py)",
+    "auth_setup: block of auth, the set-up of the first launch and the internal account (test_setup.py)",
     "auth_sign_in: block of auth, the sign-in, the refusals, the attempts counted (test_sign_in.py)",
     "settings: integration part, the settings, their secrets and the tests of the connections",
     "settings_store: block of settings, kept, audited, imported, read at each use (test_settings.py)",

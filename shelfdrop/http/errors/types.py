@@ -14,6 +14,22 @@ class ErrorCode(StrEnum):
     # 401: the sign-in is refused: wrong credentials, or an account that is not an
     # administrator of Jellyfin, or disabled; it never says which; data = null.
     LOGIN_REFUSED = "login_refused"
+    # 409: the set-up of the first launch is not finished: every route of the API answers it
+    # but /health, the set-up, the session and the settings (and /mcp); data = null.
+    SETUP_REQUIRED = "setup_required"
+    # 409: the set-up of the first launch is finished, or was never needed (a step of the
+    # set-up asked again); data = null.
+    SETUP_DONE = "setup_done"
+    # 409: the set-up cannot finish: the Jellyfin saved in the settings does not answer its
+    # test (no address, no key, refused or unavailable); data = null.
+    JELLYFIN_NOT_CONNECTED = "jellyfin_not_connected"
+    # 409: the internal account exists already: there is one at most; data = null.
+    ACCOUNT_EXISTS = "account_exists"
+    # 404: no internal account (a change of its password); data = null.
+    ACCOUNT_NOT_FOUND = "account_not_found"
+    # 422: the current password given for a change of the password of the internal account
+    # is wrong; data = null.
+    PASSWORD_REFUSED = "password_refused"  # noqa: S105 - an error code, not a secret
     # 403: a write (POST, PUT, PATCH, DELETE) whose Origin header is missing or names another
     # host than the request; data = null.
     ORIGIN_REFUSED = "origin_refused"

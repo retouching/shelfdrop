@@ -55,7 +55,7 @@ function useServiceTest(id: ServiceId): ConnectionTest {
   );
 }
 
-function ServiceCard({ id, test }: { readonly id: ServiceId; readonly test: ConnectionTest }): ReactElement {
+export function ServiceCard({ id, test }: { readonly id: ServiceId; readonly test: ConnectionTest }): ReactElement {
   const settings = useSettings();
   const info = texts.settings.services[id];
   const secretKey = `${id}.api_key`;
@@ -569,19 +569,26 @@ function SwitchField({ label, settingKey }: { readonly label: string; readonly s
   );
 }
 
+/** Les dossiers des bibliothèques et celui des envois (Rangement, et l'installation). */
+export function LibrariesCard(): ReactElement {
+  return (
+    <Card title={texts.settings.libraries}>
+      <PathField label={texts.settings.libraryPath(texts.libraries.manga)} settingKey="placement.library.manga" />
+      <PathField label={texts.settings.libraryPath(texts.libraries.ebook)} settingKey="placement.library.ebook" />
+      <PathField
+        label={texts.settings.libraryPath(texts.libraries.audiobook)}
+        settingKey="placement.library.audiobook"
+      />
+      <PathField label={texts.settings.uploadsPath} settingKey="uploads.folder" />
+    </Card>
+  );
+}
+
 /** Dossiers et options du rangement, heure du scan, dossier et durée des envois. */
 export function PlacementTab(): ReactElement {
   return (
     <div className="space-y-4">
-      <Card title={texts.settings.libraries}>
-        <PathField label={texts.settings.libraryPath(texts.libraries.manga)} settingKey="placement.library.manga" />
-        <PathField label={texts.settings.libraryPath(texts.libraries.ebook)} settingKey="placement.library.ebook" />
-        <PathField
-          label={texts.settings.libraryPath(texts.libraries.audiobook)}
-          settingKey="placement.library.audiobook"
-        />
-        <PathField label={texts.settings.uploadsPath} settingKey="uploads.folder" />
-      </Card>
+      <LibrariesCard />
       <Card title={texts.nav.place}>
         <SwitchField label={texts.settings.mergeMp3} settingKey="placement.merge_mp3" />
         <SwitchField label={texts.settings.covers} settingKey="placement.covers" />

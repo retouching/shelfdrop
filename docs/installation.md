@@ -27,6 +27,17 @@ Both services write their records to stderr, read by `docker compose ... logs`, 
 
 The `.env` file (mode 600: it holds the key of the secrets) sets `SHELFDROP_CONTACT` and `SHELFDROP_SECRET_KEY`, and the variables Compose reads: `SHELFDROP_MEDIA_DIR`, `SHELFDROP_LIBRARY_GID`, `SHELFDROP_API_PORT`, `SHELFDROP_PROXY_ADDRESS`. The other settings are changed on the settings page ([configuration](configuration.md)).
 
+## The first launch
+The pages of a new installation open on the set-up ([ADR 0023](adr/0023-first-launch-setup.md)), and the API answers its steps alone (`409 setup_required` to the others):
+1. **The internal account**: a name and a password (10 characters at least), the administrator of shelfdrop; its session opens. Anyone who reaches the pages can create it while it does not exist: do this step before the site is published.
+2. **Prowlarr**: its address and its API key, and their test.
+3. **qBittorrent**: the address of qui and the key of its client proxy, and their test.
+4. **Jellyfin**: its address and an API key; its test must pass to go on.
+5. **The libraries and the folder of the uploads**: the folders as the placement worker sees them ([the placement worker](#the-placement-worker)).
+6. **Terminer**: Jellyfin is tested again, and the site opens.
+
+Each step saves its settings: a set-up stopped and taken again starts at the first service without an address, and Précédent goes back. The settings stay on the settings page afterwards. An installation whose first start had `SHELFDROP_JELLYFIN_URL` skips the set-up: the administrators of Jellyfin sign in, and the internal account is created on the page Paramètres › Accès.
+
 ## The placement worker
 What the worker needs, on the machine of the libraries:
 - **One mount for the torrents and the libraries**: `${SHELFDROP_MEDIA_DIR}:/data` (for example `SHELFDROP_MEDIA_DIR=/srv/media`), with the torrents of qBittorrent in `/data/torrents` (the `content_path` qBittorrent gives must be the path the worker sees: qBittorrent mounts the same folder on `/data`) and the libraries in `/data/files/comics`, `/data/files/ebooks`, `/data/files/audiobooks` (the settings `placement.library.<kind>`). Two mounts would put the torrents and the libraries on two mount points, where a hardlink fails (`EXDEV`).
@@ -43,10 +54,10 @@ What the worker needs, on the machine of the libraries:
 The page sends a file in chunks of 50 MiB ([ADR 0019](adr/0019-uploads.md)). The API writes them, then the whole file put together, in `uploads/<id>/` of its data directory (`/data/shelfdrop/uploads` in the image), the volume of the database; the placement worker reads them there through its own mount of that volume (`/var/lib/shelfdrop/uploads`), moves the file into `uploads.folder`, and removes them. The API never writes them in `/tmp`: it can run read-only (`read_only: true`) with a `tmpfs` on `/tmp`, the volume of `/data/shelfdrop` its one writable place. The volume needs room for the uploads in progress: 5 GiB a file at most, kept 7 days when stopped (`uploads.keep_days`). To keep them off the disk of the volume, mount another folder on `/data/shelfdrop/uploads` of the API and on `/var/lib/shelfdrop/uploads` of the worker (the same folder for both, owned by uid 10001).
 
 ## The MCP server and the access tokens
-The API serves the MCP server at `/mcp` on its own port ([ADR 0022](adr/0022-mcp-server.md)): no variable, mount nor service of its own. A program reaches the API (`/api/...`) and `/mcp` with `Authorization: Bearer <token>`, a token created on the page Paramètres, API et MCP; the configuration of a client: [an MCP client](mcp-client.md). The client is a program, not a browser: a challenge page or a cache in front of `/mcp` and `/api/` breaks it.
+The API serves the MCP server at `/mcp` on its own port ([ADR 0022](adr/0022-mcp-server.md)): no variable, mount nor service of its own. A program reaches the API (`/api/...`) and `/mcp` with `Authorization: Bearer <token>`, a token created on the page Paramètres, Accès; the configuration of a client: [an MCP client](mcp-client.md). The client is a program, not a browser: a challenge page or a cache in front of `/mcp` and `/api/` breaks it.
 
 ## Database and upgrades
-The database is one SQLite file, `shelfdrop.db`, in `SHELFDROP_DATA_DIR` (`/data/shelfdrop` in the image), in WAL mode. It holds the uploads in progress (their chunks next to it, in `uploads/`), the caches (the answers of the metadata sources and of Prowlarr, the works found), the trackers and the filters, and the settings with their sealed secrets and their audit. Deleting it loses the settings too; the secrets cannot be read without `SHELFDROP_SECRET_KEY`.
+The database is one SQLite file, `shelfdrop.db`, in `SHELFDROP_DATA_DIR` (`/data/shelfdrop` in the image), in WAL mode. It holds the internal account (the scrypt of its password), the uploads in progress (their chunks next to it, in `uploads/`), the caches (the answers of the metadata sources and of Prowlarr, the works found), the trackers and the filters, and the settings with their sealed secrets and their audit. Deleting it loses the settings too; the secrets cannot be read without `SHELFDROP_SECRET_KEY`.
 
 `docker compose --env-file .env -f docker/compose.yaml exec api shelfdrop db check` compares the database with the models of the image.
 

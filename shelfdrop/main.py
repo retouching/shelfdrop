@@ -28,6 +28,7 @@ from shelfdrop.http.dependencies import (
     require_access,
     require_reader,
     require_session,
+    setup_needed,
 )
 from shelfdrop.http.errors.handlers import (
     handle_http_exception,
@@ -39,11 +40,13 @@ from shelfdrop.http.middleware.mcp import McpMiddleware
 from shelfdrop.http.middleware.origin import OriginMiddleware
 from shelfdrop.http.middleware.request_id import RequestIdMiddleware
 from shelfdrop.http.middleware.security_headers import SecurityHeadersMiddleware
+from shelfdrop.http.middleware.setup import SetupMiddleware
 from shelfdrop.http.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from shelfdrop.http.openapi import DocumentedApi
 from shelfdrop.journal.service import JournalSender
 from shelfdrop.library.sync import LibrarySync
 from shelfdrop.logging.setup import configure_logging, log_file
+from shelfdrop.modules.account.router import router as account_router
 from shelfdrop.modules.docs.router import docs_router
 from shelfdrop.modules.downloads.router import router as downloads_router
 from shelfdrop.modules.filters.router import router as filters_router
@@ -56,6 +59,7 @@ from shelfdrop.modules.releases.router import router as releases_router
 from shelfdrop.modules.searches.router import router as searches_router
 from shelfdrop.modules.session.router import router as session_router
 from shelfdrop.modules.settings.router import router as settings_router
+from shelfdrop.modules.setup.router import router as setup_router
 from shelfdrop.modules.tokens.router import router as tokens_router
 from shelfdrop.modules.trackers.router import router as trackers_router
 from shelfdrop.modules.uploads.router import router as uploads_router
@@ -157,6 +161,14 @@ def build_app(settings: Settings) -> DocumentedApi:
     app.add_middleware(
         McpMiddleware, path=MCP_PATH, server=mcp_app, check=partial(check_token, app)
     )
+    # Before the set-up of the first launch is finished, the API answers its routes alone
+    # (ADR 0023).
+    app.add_middleware(
+        SetupMiddleware,
+        guarded=(prefix, MCP_PATH),
+        open_paths=tuple(f"{prefix}/v1/{name}" for name in ("setup", "session", "settings")),
+        needed=partial(setup_needed, app),
+    )
     app.add_middleware(OriginMiddleware, api_paths=(f"{prefix}/",))
     app.add_middleware(UnhandledErrorsMiddleware)
     app.add_middleware(
@@ -168,10 +180,16 @@ def build_app(settings: Settings) -> DocumentedApi:
     app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health", f"{prefix}/v1/logs"}))
     app.add_middleware(RequestIdMiddleware)
     app.include(health_router)
-    # The session asks for itself; every other route of the API needs one, or
-    # an access token where one may go (ADR 0020).
+    # The session and the set-up ask for themselves; every other route of the API needs one,
+    # or an access token where one may go (ADR 0020).
     app.include(session_router, prefix=prefix)
-    for router in (settings_router, trackers_router, filters_router, tokens_router, logs_router):
+    app.include(setup_router, prefix=prefix)
+    for router in (
+        settings_router,
+        account_router,
+        trackers_router,
+        filters_router,
+        tokens_router, logs_router):
         app.include(router, prefix=prefix, guard=require_session)
     for router in (searches_router, releases_router, docs_router(settings.static_dir)):
         app.include(router, prefix=prefix, guard=require_reader)

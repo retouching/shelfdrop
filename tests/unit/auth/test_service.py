@@ -7,6 +7,7 @@ from typing import override
 import httpx
 import pytest
 
+from shelfdrop.accounts.service import AccountService
 from shelfdrop.auth.exceptions import (
     JellyfinUnavailableError,
     LoginRefusedError,
@@ -19,6 +20,7 @@ from shelfdrop.auth.throttle import LoginThrottle
 from shelfdrop.auth.types import StoredSession
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.settings.cipher import SecretBox
+from tests.unit.accounts.support import new_accounts
 from tests.unit.clients.support import URL, FakeJellyfin, user_dto
 from tests.unit.settings.support import TEST_SECRET_KEY, FakeSettingsReader
 from tests.unit.support import FakeJournal, no_session
@@ -50,6 +52,12 @@ class FakeSessionRepository(SessionRepository):
         self.rows.pop(token_hash, None)
 
     @override
+    def remove_account_sessions(self, user_id: str, *, keep: str) -> None:
+        self.rows = {
+            k: v for k, v in self.rows.items() if v.account.user_id != user_id or k == keep
+        }
+
+    @override
     def remove_expired(self, now: int) -> None:
         self.rows = {k: v for k, v in self.rows.items() if v.expires_at > now}
 
@@ -72,9 +80,12 @@ def accounts() -> dict[str, tuple[str, dict[str, object]]]:
 
 
 def new_service(
-    jellyfin: FakeJellyfin | None = None, url: str | None = URL
+    jellyfin: FakeJellyfin | None = None,
+    url: str | None = URL,
+    internal: AccountService | None = None,
 ) -> tuple[AuthService, FakeSessionRepository, FakeJellyfin, FixedClock]:
     jellyfin = jellyfin or FakeJellyfin(accounts=accounts())
+    internal = internal or new_accounts()[0]
     repository = FakeSessionRepository()
     clock = FixedClock()
     service = AuthService(
@@ -85,6 +96,7 @@ def new_service(
         LoginThrottle(),
         clock,
         FakeJournal(),
+        internal,
     )
     return service, repository, jellyfin, clock
 
@@ -248,3 +260,89 @@ async def test_a_sign_in_and_the_attempts_throttled_go_to_the_journal_without_a_
     assert signed.facts == {"account": "Sylvain", "address": "10.0.0.1", "country": "FR"}
     assert refused.facts == {"refused": True, "address": "10.0.0.9", "country": "DE"}
     assert "guess-of-a-stranger" not in repr(refused)
+
+
+INTERNAL_PASSWORD = "the-internal-password"
+
+
+async def with_internal() -> tuple[AuthService, FakeSessionRepository, FakeJellyfin, FixedClock]:
+    """A service whose internal account is `Admin`."""
+    internal = new_accounts()[0]
+    await internal.create("Admin", INTERNAL_PASSWORD, setup=False)
+    return new_service(internal=internal)
+
+
+@pytest.mark.anyio
+async def test_the_internal_account_signs_in_without_asking_jellyfin() -> None:
+    service, repository, jellyfin, clock = await with_internal()
+
+    signed_in = await service.sign_in("admin", INTERNAL_PASSWORD, "10.0.0.1")
+
+    assert (signed_in.account.username, signed_in.account.internal) == ("Admin", True)
+    assert jellyfin.requests == []
+    [stored] = repository.rows.values()
+    assert (stored.jellyfin_token, stored.device_id) == (b"", "")
+    clock.at += CHECK_SECONDS
+    assert (await service.check(signed_in.token)).internal is True
+    assert jellyfin.requests == []
+    assert journal_of(service).of("login")[0].facts["account"] == "Admin"
+
+
+@pytest.mark.anyio
+async def test_a_wrong_password_of_the_internal_account_is_refused_without_jellyfin() -> None:
+    service, repository, jellyfin, _ = await with_internal()
+
+    with pytest.raises(LoginRefusedError):
+        await service.sign_in("Admin", "pw", "10.0.0.1")
+
+    assert jellyfin.requests == []
+    assert repository.rows == {}
+
+
+@pytest.mark.anyio
+async def test_another_name_still_signs_in_through_jellyfin() -> None:
+    service, _, jellyfin, _ = await with_internal()
+
+    signed_in = await service.sign_in("sylvain", "pw", "10.0.0.1")
+
+    assert (signed_in.account.username, signed_in.account.internal) == ("Sylvain", False)
+    assert jellyfin.requests != []
+
+
+@pytest.mark.anyio
+async def test_the_internal_account_signs_in_while_jellyfin_is_not_set() -> None:
+    internal = new_accounts()[0]
+    await internal.create("Admin", INTERNAL_PASSWORD, setup=True)
+    service, _, _, _ = new_service(url=None, internal=internal)
+
+    assert (await service.sign_in("Admin", INTERNAL_PASSWORD, "10.0.0.1")).account.internal
+
+
+@pytest.mark.anyio
+async def test_a_new_password_ends_the_other_sessions_of_the_internal_account() -> None:
+    service, repository, _, _ = await with_internal()
+    kept = await service.sign_in("Admin", INTERNAL_PASSWORD, "10.0.0.1")
+    other = await service.sign_in("Admin", INTERNAL_PASSWORD, "10.0.0.2")
+    jellyfin_session = await service.sign_in("sylvain", "pw", "10.0.0.3")
+
+    await service.end_other_internal_sessions(kept.token)
+
+    assert len(repository.rows) == 2
+    assert (await service.check(kept.token)).internal is True
+    assert (await service.check(jellyfin_session.token)).username == "Sylvain"
+    with pytest.raises(NotSignedInError):
+        await service.check(other.token)
+    await service.end_other_internal_sessions(None)
+    with pytest.raises(NotSignedInError):
+        await service.check(kept.token)
+
+
+@pytest.mark.anyio
+async def test_a_sign_out_of_the_internal_account_asks_jellyfin_nothing() -> None:
+    service, repository, jellyfin, _ = await with_internal()
+    signed_in = await service.sign_in("Admin", INTERNAL_PASSWORD, "10.0.0.1")
+
+    await service.sign_out(signed_in.token)
+
+    assert repository.rows == {}
+    assert jellyfin.requests == []

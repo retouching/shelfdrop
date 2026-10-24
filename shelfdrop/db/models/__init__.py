@@ -6,6 +6,7 @@ from shelfdrop.db.models.cached_work import CachedWork
 from shelfdrop.db.models.download import Download
 from shelfdrop.db.models.event import Event
 from shelfdrop.db.models.filter_rule import FilterRule
+from shelfdrop.db.models.internal_account import InternalAccount
 from shelfdrop.db.models.library_task import LibraryTask
 from shelfdrop.db.models.login_session import LoginSession
 from shelfdrop.db.models.place_item import PlaceItem
@@ -26,6 +27,7 @@ __all__ = [
     "Download",
     "Event",
     "FilterRule",
+    "InternalAccount",
     "LibraryTask",
     "LoginSession",
     "PlaceItem",

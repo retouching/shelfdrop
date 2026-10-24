@@ -3,7 +3,7 @@
 What a program (an agent, an assistant, a script) needs to call shelfdrop through its MCP server ([ADR 0022](adr/0022-mcp-server.md)). The arguments and the answers of each tool: [API](api.md#mcp-server).
 
 ## The token
-An administrator creates it on the page Paramètres, API et MCP: a name (the author of what the client does, shown in the downloads and the journal), the rights (**Lecture**, or **Lecture et téléchargement** for a client that sends releases and places files) and a duration. The secret (`sd_...`) is shown once: keep it in the secret store or the environment of the client, never in a file of the repository nor in a log.
+An administrator creates it on the page Paramètres, Accès: a name (the author of what the client does, shown in the downloads and the journal), the rights (**Lecture**, or **Lecture et téléchargement** for a client that sends releases and places files) and a duration. The secret (`sd_...`) is shown once: keep it in the secret store or the environment of the client, never in a file of the repository nor in a log.
 
 ## The entry of the client
 The MCP server is at `/mcp` of the address of the pages, on the transport Streamable HTTP, with the token in the header `Authorization`. The keys depend on the client; an example, with `shelfdrop.example.com` standing for the address of your installation:

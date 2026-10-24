@@ -1,11 +1,12 @@
-// Rubrique API et MCP : jetons d'accès lus, créés (secret affiché une seule fois) et révoqués par
-// l'API, configuration MCP et lien vers la documentation OpenAPI.
+// Rubrique Accès : le compte interne, les jetons d'accès lus, créés (secret affiché une seule fois)
+// et révoqués par l'API, configuration MCP et lien vers la documentation OpenAPI.
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { ApiError } from "../../api/http";
 import { createToken, readTokens, revokeToken, type AccessToken, type Scope } from "../../api/tokens";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
+import { AccountCard } from "./AccountCard";
 import { Card, Field, input } from "./parts";
 
 type Expiry = "d30" | "d90" | "d365" | "never";
@@ -233,6 +234,7 @@ export function AccessTab(): ReactElement {
 
   return (
     <div className="space-y-4">
+      <AccountCard />
       <Card
         title={texts.settings.tokens}
         aside={

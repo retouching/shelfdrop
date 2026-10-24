@@ -8,7 +8,8 @@ A request goes through, from the outside in:
 4. `SecurityHeadersMiddleware`: the headers of [the API](api.md#responses);
 5. `UnhandledErrorsMiddleware`: an unexpected exception becomes a logged `500 internal_error`;
 6. `OriginMiddleware`: a write of the API without the `Origin` of its host gets `403 origin_refused`, unless it carries an `Authorization` header;
-7. the route, after `require_session`, `require_reader` or `require_access` (every route of the API but the sign-in: [the session](#sign-in-and-sessions), or [an access token](#access-tokens)). After the response, `release_session` closes the session in the threadpool.
+7. `SetupMiddleware`: until the end of [the set-up of the first launch](#set-up-of-the-first-launch), `409 setup_required` but for the set-up, the session and the settings;
+8. the route, after `require_session`, `require_reader` or `require_access` (every route of the API but the sign-in and the first step of the set-up: [the session](#sign-in-and-sessions), or [an access token](#access-tokens)). After the response, `release_session` closes the session in the threadpool.
 
 ## Logs
 Every record goes to stderr and, for the API and the placement worker, to a file of the data volume, in JSON (`shelfdrop.logging.setup.configure_logging`); the tab Journaux of the settings reads both through `GET /api/v1/logs` (`shelfdrop.logs.service.LogReader`, from the end of the files), for a session alone ([ADR 0023](adr/0023-logs.md)).
@@ -16,16 +17,20 @@ Every record goes to stderr and, for the API and the placement worker, to a file
 ## Sign-in and sessions
 `POST /api/v1/session` runs `shelfdrop.auth.service.AuthService.sign_in` ([ADR 0013](adr/0013-sign-in-and-sessions.md)):
 
-1. **The attempts.** 5 a minute from one address, 30 an hour in all (`LoginThrottle`, in memory); past them, Jellyfin is not asked.
-2. **Jellyfin.** The name and the password go to `POST /Users/AuthenticateByName`, at the address of the setting `jellyfin.url`, and nowhere else: never kept, never logged. Wrong credentials, an account that is not an administrator or is disabled: the same refusal, and the session Jellyfin opened is closed.
-3. **The session.** A random token of 256 bits goes to the cookie; the database keeps its SHA-256, the account, and the access token of Jellyfin, sealed. 30 days.
-4. **Each request.** The fingerprint of the cookie finds the session; when Jellyfin confirmed it 5 minutes ago or more, `GET /Users/Me` with its access token must give the same account, still an administrator, or the session ends. Jellyfin down: the request is refused, the session kept.
+1. **The attempts.** 5 a minute from one address, 30 an hour in all (`LoginThrottle`, in memory); past them, neither the internal account nor Jellyfin is asked.
+2. **The internal account.** When the name typed is the one of the internal account (in any case), its password is checked against its scrypt (`shelfdrop.utils.passwords.verify_password`, in the threadpool), and Jellyfin is not asked: a wrong password is a refusal.
+3. **Jellyfin.** Any other name: the name and the password go to `POST /Users/AuthenticateByName`, at the address of the setting `jellyfin.url`, and nowhere else: never kept, never logged. Wrong credentials, an account that is not an administrator or is disabled: the same refusal, and the session Jellyfin opened is closed.
+4. **The session.** A random token of 256 bits goes to the cookie; the database keeps its SHA-256, the account, and the access token of Jellyfin, sealed (none for the internal account). 30 days.
+5. **Each request.** The fingerprint of the cookie finds the session; when it was confirmed 5 minutes ago or more, `GET /Users/Me` with its access token must give the same account, still an administrator, or the session ends. Jellyfin down: the request is refused, the session kept. A session of the internal account is confirmed when the internal account still has its name; a new password ends its other sessions.
+
+## Set-up of the first launch
+While the set-up is needed ([ADR 0023](adr/0023-first-launch-setup.md), `shelfdrop.accounts.rules.setup_needed`: no internal account and no `jellyfin.url`, or an internal account whose set-up is not finished), `SetupMiddleware` asks `shelfdrop.http.dependencies.setup_needed` at each request of the API, which reads it through `AccountService` in a scope of its own; once it is not, `SetupGate` keeps the answer in memory. `POST /api/v1/setup/account` creates the internal account (`AccountService.create`, the row of key 1: a second creation fails) and signs it in. The page saves and tests each service through the settings; `POST /api/v1/setup/finish` tests the Jellyfin saved (`shelfdrop.container.SettingsJellyfin`, on `ConnectionProbes`) and writes `setup_finished_at`.
 
 ## Access tokens
 A request with `Authorization: Bearer <secret>` is judged by its token alone ([ADR 0020](adr/0020-access-tokens.md), `shelfdrop.tokens.service.TokenService.check`): the SHA-256 of the secret finds a token neither revoked nor expired, it is counted (60 a minute), and its last use is written once a minute at most. The route then asks for its scope: none for a read, `write` for a write of the works, the downloads, Ranger, the uploads, the waiting searches or the page Jellyfin; the settings, the trackers, the filters and the tokens refuse every token.
 
 ## MCP server
-`/mcp` is answered by `McpMiddleware`, inside the middlewares of the request id, the access log and the headers, before the routes ([ADR 0022](adr/0022-mcp-server.md)): the access token is checked as for the API, then the request goes to the MCP server of the SDK (stateless, one JSON answer per request). A tool opens a scope of the container of its own, calls the service of the route it mirrors (`WorkService.search`, `ReleaseService.start` then `watch` until the end, `DownloadService.send` under the name of the token...) and answers its schema; the tools that write refuse a token of reading.
+`/mcp` is answered by `McpMiddleware`, inside the middlewares of the request id, the access log, the headers and the set-up, before the routes ([ADR 0022](adr/0022-mcp-server.md)): the access token is checked as for the API, then the request goes to the MCP server of the SDK (stateless, one JSON answer per request). A tool opens a scope of the container of its own, calls the service of the route it mirrors (`WorkService.search`, `ReleaseService.start` then `watch` until the end, `DownloadService.send` under the name of the token...) and answers its schema; the tools that write refuse a token of reading.
 
 ## Release search
 `POST /api/v1/searches` runs `shelfdrop.releases.service.ReleaseService.start` ([ADR 0011](adr/0011-release-search.md)):

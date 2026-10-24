@@ -1,6 +1,7 @@
-"""The sign-in through the real API: administrators of Jellyfin alone, a
-refusal that never says what is wrong, credentials never logged, and the attempts counted.
-Last of the part `auth`: its last test uses up the attempts of the minute."""
+"""The sign-in through the real API: administrators of Jellyfin alone (the internal account
+signs in on the API of the set-up, test_setup.py), a refusal that never says what is wrong,
+credentials never logged, and the attempts counted. Last of the part `auth`: its last test
+uses up the attempts of the minute."""
 
 import httpx
 import pytest
@@ -42,7 +43,7 @@ def test_an_administrator_signs_in_with_a_strict_cookie(stack: Stack) -> None:
     response = post_sign_in(stack, *ADMIN, new_request_id())
 
     assert response.status_code == 200
-    assert response.json() == {"username": "admin"}
+    assert response.json() == {"username": "admin", "internal": False}
     cookie = response.headers["set-cookie"]
     assert cookie.startswith("__Host-shelfdrop=")
     for attribute in ("Secure", "HttpOnly", "SameSite=strict", "Path=/", "Max-Age=2592000"):
@@ -55,7 +56,7 @@ def test_an_administrator_signs_in_with_a_strict_cookie(stack: Stack) -> None:
         headers=signed_in_headers(stack.base_url, token),
         timeout=30.0,
     )
-    assert read.json() == {"username": "admin"}
+    assert read.json() == {"username": "admin", "internal": False}
 
 
 @pytest.mark.parametrize(

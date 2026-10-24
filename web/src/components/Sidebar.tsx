@@ -54,6 +54,8 @@ function ThemeSwitch(): ReactElement {
 type Props = {
   readonly page: Page;
   readonly username: string;
+  /** Le compte interne de shelfdrop, et non un compte de Jellyfin. */
+  readonly internal: boolean;
   readonly runningCount: number;
   readonly toPlaceCount: number;
   readonly waitingFound: number;
@@ -111,6 +113,7 @@ function NavLink({
 export function Sidebar({
   page,
   username,
+  internal,
   runningCount,
   toPlaceCount,
   waitingFound,
@@ -216,7 +219,7 @@ export function Sidebar({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-ink capitalize">{username}</span>
-          <span className="block text-xs text-slate-500">{texts.nav.role}</span>
+          <span className="block text-xs text-slate-500">{internal ? texts.nav.internalRole : texts.nav.role}</span>
         </span>
         <button
           type="button"

@@ -1,4 +1,4 @@
-"""The routes of the access tokens (the page Paramètres, API et MCP): list, create (the secret shown
+"""The routes of the access tokens (the page Paramètres, Accès): list, create (the secret shown
 once), revoke. Kept for the session of an administrator: a token never makes another one."""
 
 from typing import Annotated

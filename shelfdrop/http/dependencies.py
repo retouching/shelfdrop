@@ -7,13 +7,15 @@ from typing import Final
 
 import anyio
 import anyio.to_thread
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from sqlalchemy.orm import Session
 from wireup import Injected, ScopedAsyncContainer
 from wireup.integration.fastapi import get_app_container, inject
 
+from shelfdrop.accounts.gate import SetupGate
+from shelfdrop.accounts.service import AccountService
 from shelfdrop.auth.exceptions import NotSignedInError
-from shelfdrop.auth.service import AuthService
+from shelfdrop.auth.service import SESSION_SECONDS, AuthService
 from shelfdrop.auth.types import Account
 from shelfdrop.http.errors.errors import not_signed_in, token_forbidden, token_throttled
 from shelfdrop.tokens.exceptions import TokenRefusedError, TokenThrottledError
@@ -25,6 +27,19 @@ from shelfdrop.tokens.types import Scope, StoredToken
 SESSION_COOKIE: Final = "__Host-shelfdrop"
 # The methods a token of reading may use on the routes open to the tokens.
 READS: Final = frozenset({"GET", "HEAD"})
+
+
+def set_session_cookie(response: Response, token: str) -> None:
+    """The cookie of a session opened (the sign-in, the first step of the set-up)."""
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=SESSION_SECONDS,
+        path="/",
+        secure=True,
+        httponly=True,
+        samesite="strict",
+    )
 
 
 def bearer_of(request: Request) -> str | None:
@@ -132,3 +147,14 @@ async def check_token(app: FastAPI, secret: str) -> StoredToken:
     async with scope_of(app) as scope:
         tokens = await scope.get(TokenService)
         return await tokens.check(secret)
+
+
+async def setup_needed(app: FastAPI) -> bool:
+    """Whether the set-up of the first launch is still needed (ADR 0023), outside a route
+    (`SetupMiddleware`): once it is known finished, the database is no longer read."""
+    gate = await get_app_container(app).get(SetupGate)
+    if gate.done:
+        return False
+    async with scope_of(app) as scope:
+        accounts = await scope.get(AccountService)
+        return await accounts.setup_needed()

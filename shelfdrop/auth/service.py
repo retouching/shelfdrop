@@ -1,9 +1,12 @@
-"""AuthService: the sign-in of an administrator of Jellyfin, and the sessions it opens.
+"""AuthService: the sign-in of the internal account or of an administrator of Jellyfin, and
+the sessions it opens.
 
 A session is a random token of 256 bits in a cookie; the database keeps its SHA-256 alone,
 for 30 days. Every 5 minutes at most, Jellyfin confirms the account is still an
-administrator, with the access token it gave at sign-in. The credentials typed are sent to
-Jellyfin alone: never kept, never logged.
+administrator, with the access token it gave at sign-in; for the internal account, that it
+still has its name. The name typed is the internal account's: its password is checked against
+its scrypt; any other name goes to Jellyfin. The credentials typed are never kept, never
+logged.
 """
 
 import hashlib
@@ -22,7 +25,7 @@ from shelfdrop.auth.exceptions import (
 )
 from shelfdrop.auth.repository import SessionRepository
 from shelfdrop.auth.throttle import LoginThrottle
-from shelfdrop.auth.types import Account, SignedIn, StoredSession
+from shelfdrop.auth.types import INTERNAL_USER_ID, Account, SignedIn, StoredSession
 from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.types import JellyfinUser
@@ -42,6 +45,14 @@ class JellyfinAddress(Protocol):
     """The address of Jellyfin, read at each sign-in and check (the settings page)."""
 
     async def jellyfin_url(self) -> str | None: ...
+
+
+class InternalAccounts(Protocol):
+    """The internal account of shelfdrop (shelfdrop.accounts)."""
+
+    async def internal_name(self) -> str | None: ...
+
+    async def verify(self, password: str) -> bool: ...
 
 
 class AuthEvents(Protocol):
@@ -73,6 +84,7 @@ class AuthService:
         throttle: LoginThrottle,
         clock: Clock,
         events: AuthEvents,
+        accounts: InternalAccounts,
     ) -> None:
         self.repository = repository
         self.jellyfin = jellyfin
@@ -81,6 +93,7 @@ class AuthService:
         self.throttle = throttle
         self.clock = clock
         self.events = events
+        self.accounts = accounts
 
     async def sign_in(
         self, username: str, password: str, client: str, country: str = ""
@@ -98,6 +111,13 @@ class AuthService:
             )
             await anyio.to_thread.run_sync(self.events.record, refused)
             raise TooManyAttemptsError
+        internal = await self.accounts.internal_name()
+        if internal is not None and username.casefold() == internal.casefold():
+            if not await self.accounts.verify(password):
+                logger.info("Sign-in refused")
+                raise LoginRefusedError
+            account = Account(user_id=INTERNAL_USER_ID, username=internal)
+            return await self.open(account, None, "", now, client, country)
         url = await self.address.jellyfin_url()
         device_id = secrets.token_hex(16)
         try:
@@ -112,13 +132,30 @@ class AuthService:
             logger.info("Sign-in refused")
             await self.forget_jellyfin(url, login.token, device_id)
             raise LoginRefusedError
+        account = Account(user_id=login.user.id, username=login.user.name)
+        return await self.open(account, login.token, device_id, now, client, country)
+
+    async def open(
+        self,
+        account: Account,
+        jellyfin_token: str | None,
+        device_id: str,
+        now: int,
+        client: str,
+        country: str,
+    ) -> SignedIn:
+        """The session of an account signed in; `jellyfin_token` None for the internal
+        account."""
         token = secrets.token_urlsafe(TOKEN_BYTES)
         token_hash = fingerprint(token)
-        account = Account(user_id=login.user.id, username=login.user.name)
         stored = StoredSession(
             token_hash=token_hash,
             account=account,
-            jellyfin_token=self.box.seal(sealed_name(token_hash), login.token),
+            jellyfin_token=(
+                b""
+                if jellyfin_token is None
+                else self.box.seal(sealed_name(token_hash), jellyfin_token)
+            ),
             device_id=device_id,
             created_at=now,
             expires_at=now + SESSION_SECONDS,
@@ -148,6 +185,13 @@ class AuthService:
         if stored is None:
             raise NotSignedInError
         if now - stored.checked_at < CHECK_SECONDS:
+            return stored.account
+        if stored.account.internal:
+            if await self.accounts.internal_name() != stored.account.username:
+                logger.info("Session ended: no internal account of this name")
+                await anyio.to_thread.run_sync(self.end, token_hash)
+                raise NotSignedInError
+            await anyio.to_thread.run_sync(self.confirm, token_hash, now)
             return stored.account
         url = await self.address.jellyfin_url()
         try:
@@ -186,7 +230,7 @@ class AuthService:
             self.repository.read, token_hash, int(self.clock.now())
         )
         await anyio.to_thread.run_sync(self.end, token_hash)
-        if stored is None:
+        if stored is None or stored.account.internal:
             return
         try:
             jellyfin_token = self.box.open(sealed_name(token_hash), stored.jellyfin_token)
@@ -195,6 +239,16 @@ class AuthService:
         await self.forget_jellyfin(
             await self.address.jellyfin_url(), jellyfin_token, stored.device_id
         )
+
+    async def end_other_internal_sessions(self, token: str | None) -> None:
+        """Every session of the internal account but the one of `token` (when given) ends: a
+        new password."""
+        kept = "" if token is None else fingerprint(token)
+        await anyio.to_thread.run_sync(self.end_others, kept)
+
+    def end_others(self, token_hash: str) -> None:
+        self.repository.remove_account_sessions(INTERNAL_USER_ID, keep=token_hash)
+        self.repository.commit()
 
     async def forget_jellyfin(self, url: str | None, token: str, device_id: str) -> None:
         """Best effort: a failure leaves the access token to Jellyfin, which shelfdrop no

@@ -1,7 +1,7 @@
 """The HTTP application: the liveness probe, the error bodies, the headers and the pages."""
 
 from pathlib import Path
-from typing import Final
+from typing import Final, cast
 
 import httpx
 import pytest
@@ -10,6 +10,7 @@ from pydantic import SecretStr
 from shelfdrop.auth.types import Account
 from shelfdrop.config import Settings
 from shelfdrop.http.dependencies import require_access, require_reader, require_session
+from shelfdrop.http.middleware.setup import SetupMiddleware
 from shelfdrop.main import build_app
 
 
@@ -38,10 +39,22 @@ def settings_for(tmp_path: Path, *, pages: bool = True) -> Settings:
 ACCOUNT: Final = Account(user_id="u1", username="sylvain")
 
 
-def client_for(settings: Settings, *, signed_in: bool = True) -> httpx.AsyncClient:
+def client_for(
+    settings: Settings, *, signed_in: bool = True, setup: bool = False
+) -> httpx.AsyncClient:
     """A client of the application; `signed_in`: the session is taken as granted, the sign-in
-    has its own tests (tests/unit/auth, tests/integration/test_sign_in.py)."""
+    has its own tests (tests/unit/auth, tests/integration/test_sign_in.py); `setup`: the
+    set-up of the first launch is needed, else taken as finished (no database is read)."""
     app = build_app(settings)
+
+    async def needed() -> bool:
+        return setup
+
+    # The middlewares are built at the first request: the check of the set-up is replaced
+    # before it.
+    for middleware in app.user_middleware:
+        if cast("object", middleware.cls) is SetupMiddleware:
+            middleware.kwargs["needed"] = needed
     if signed_in:
         for dependency in (require_session, require_reader, require_access):
             app.dependency_overrides[dependency] = lambda: ACCOUNT
@@ -250,7 +263,7 @@ async def test_a_read_needs_no_origin_and_a_sign_in_never_echoes_its_input(
             headers={"Origin": "http://test"},
         )
 
-    assert read.json() == {"username": "sylvain"}
+    assert read.json() == {"username": "sylvain", "internal": False}
     assert refused.status_code == 422
     assert "secret-name" not in refused.text
 
@@ -277,3 +290,23 @@ async def test_a_download_of_a_search_no_longer_kept_is_a_404(tmp_path: Path) ->
 
     assert response.status_code == 404
     assert response.json()["code"] == "search_not_found"
+
+
+@pytest.mark.anyio
+async def test_before_the_end_of_the_set_up_the_api_answers_its_routes_alone(
+    tmp_path: Path,
+) -> None:
+    async with client_for(settings_for(tmp_path), signed_in=False, setup=True) as client:
+        works = await client.get("/api/v1/works", params={"q": "x", "kind": "manga"})
+        tokens = await client.get("/api/v1/tokens")
+        mcp = await client.post("/mcp", headers={"Authorization": "Bearer sd_x"})
+        session = await client.get("/api/v1/session")
+        settings = await client.get("/api/v1/settings")
+        health = await client.get("/health")
+        page = await client.get("/parametres")
+
+    assert (works.status_code, works.json()["code"]) == (409, "setup_required")
+    assert (tokens.status_code, mcp.status_code) == (409, 409)
+    # Past the set-up, refused for want of a session.
+    assert (session.status_code, settings.status_code) == (401, 401)
+    assert (health.status_code, page.status_code) == (200, 200)

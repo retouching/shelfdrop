@@ -14,8 +14,11 @@ import wireup
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from shelfdrop.accounts.gate import SetupGate
+from shelfdrop.accounts.repository import AccountRepository
+from shelfdrop.accounts.service import AccountService, SetupJellyfin
 from shelfdrop.auth.repository import SessionRepository
-from shelfdrop.auth.service import AuthEvents, AuthService, JellyfinAddress
+from shelfdrop.auth.service import AuthEvents, AuthService, InternalAccounts, JellyfinAddress
 from shelfdrop.auth.throttle import LoginThrottle
 from shelfdrop.clients.discord import DiscordClient
 from shelfdrop.clients.jellyfin import JellyfinClient
@@ -416,6 +419,30 @@ def as_jellyfin_address(reader: SettingsReader) -> JellyfinAddress:
     return reader
 
 
+class SettingsJellyfin:
+    """The Jellyfin of the settings as the set-up asks for it: its address saved, and the test
+    of the address and the key saved."""
+
+    def __init__(self, reader: SettingsReader, probes: ConnectionProbes) -> None:
+        self.reader = reader
+        self.probes = probes
+
+    async def jellyfin_url(self) -> str | None:
+        return await self.reader.jellyfin_url()
+
+    async def jellyfin_connected(self) -> bool:
+        url, key = await self.reader.jellyfin()
+        return (await self.probes.run("jellyfin", url, key)).ok
+
+
+def as_setup_jellyfin(jellyfin: SettingsJellyfin) -> SetupJellyfin:
+    return jellyfin
+
+
+def as_internal_accounts(service: AccountService) -> InternalAccounts:
+    return service
+
+
 def as_work_settings(reader: SettingsReader) -> WorkSettings:
     return reader
 
@@ -536,6 +563,7 @@ def injectables(settings: Settings) -> list[object]:
         wireup.instance(SearchFlights(), as_type=SearchFlights),
         wireup.instance(SourceHealth(), as_type=SourceHealth),
         wireup.instance(LoginThrottle(), as_type=LoginThrottle),
+        wireup.instance(SetupGate(), as_type=SetupGate),
         wireup.instance(TokenThrottle(), as_type=TokenThrottle),
         wireup.injectable(open_http),
         wireup.injectable(new_secret_box),
@@ -546,6 +574,8 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(open_qbittorrent),
         wireup.injectable(ConnectionProbes),
         wireup.injectable(as_probes),
+        wireup.injectable(SettingsJellyfin),
+        wireup.injectable(as_setup_jellyfin),
         wireup.injectable(new_connection_monitor),
         wireup.injectable(as_name_limit),
         wireup.injectable(new_work_sources),
@@ -595,6 +625,9 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(DownloadService, lifetime="scoped"),
         wireup.injectable(SettingsRepository, lifetime="scoped"),
         wireup.injectable(SettingsService, lifetime="scoped"),
+        wireup.injectable(AccountRepository, lifetime="scoped"),
+        wireup.injectable(AccountService, lifetime="scoped"),
+        wireup.injectable(as_internal_accounts, lifetime="scoped"),
         wireup.injectable(SessionRepository, lifetime="scoped"),
         wireup.injectable(AuthService, lifetime="scoped"),
         wireup.injectable(TokenRepository, lifetime="scoped"),

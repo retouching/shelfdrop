@@ -22,6 +22,10 @@ ROUTES = [
     ("PUT", "/api/v1/filters"),
     ("GET", "/api/v1/session"),
     ("DELETE", "/api/v1/session"),
+    ("GET", "/api/v1/account"),
+    ("POST", "/api/v1/account"),
+    ("PUT", "/api/v1/account/password"),
+    ("POST", "/api/v1/setup/finish"),
 ]
 
 
@@ -71,7 +75,7 @@ def test_a_read_with_the_session_needs_no_origin(stack: Stack, signed_in: dict[s
         f"{stack.base_url}/api/v1/session", headers={"Cookie": signed_in["Cookie"]}, timeout=30.0
     )
 
-    assert response.json() == {"username": "admin"}
+    assert response.json() == {"username": "admin", "internal": False}
 
 
 def test_a_sign_out_ends_the_session(stack: Stack) -> None:

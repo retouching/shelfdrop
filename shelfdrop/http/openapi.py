@@ -28,13 +28,13 @@ SECURITY_SCHEMES: Final = {
         "type": "apiKey",
         "in": "cookie",
         "name": SESSION_COOKIE,
-        "description": "The session of an administrator of Jellyfin, opened by "
-        "`POST /api/v1/session`. A write needs the `Origin` of the host.",
+        "description": "The session of the internal account or of an administrator of "
+        "Jellyfin, opened by `POST /api/v1/session`. A write needs the `Origin` of the host.",
     },
     "token": {
         "type": "http",
         "scheme": "bearer",
-        "description": "An access token (`sd_...`) created on the page Paramètres, API et MCP. "
+        "description": "An access token (`sd_...`) created on the page Paramètres, Accès. "
         "`read` reads; `write` also downloads, places files and keeps searches waiting. "
         "60 requests a minute; never the settings nor the tokens. No `Origin` needed.",
     },
@@ -76,7 +76,7 @@ PUBLIC_ACCESSES: Final[frozenset[Access]] = frozenset({"read", "write"})
 PUBLIC_DESCRIPTION: Final = (
     "The API of shelfdrop for a program: the work search, the releases of Prowlarr, the "
     "downloads, Ranger, the waiting searches. Every request sends an access token created on "
-    "the page Paramètres, API et MCP: `Authorization: Bearer sd_...`. Each operation names the "
+    "the page Paramètres, Accès: `Authorization: Bearer sd_...`. Each operation names the "
     "scope it needs in `x-access`: `read` (any token) or `write` (a token `write`). Every error "
     'body is `{"code", "detail", "data"}`; the codes are listed in the schema `ErrorCode`.'
 )

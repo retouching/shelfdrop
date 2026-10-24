@@ -1,12 +1,14 @@
-// Session : connexion avec un compte administrateur de Jellyfin, lecture, déconnexion.
+// Session : connexion avec le compte interne ou un compte administrateur de Jellyfin, lecture,
+// déconnexion.
 import { ApiError, request } from "./http";
 
-type SessionRead = { readonly username: string };
+/** Le compte de la session : `internal`, le compte interne de shelfdrop. */
+export type SessionAccount = { readonly username: string; readonly internal: boolean };
 
 /** Le compte de la session, ou null sans session. */
-export async function readSession(): Promise<string | null> {
+export async function readSession(): Promise<SessionAccount | null> {
   try {
-    return (await request<SessionRead>("GET", "/v1/session")).username;
+    return await request<SessionAccount>("GET", "/v1/session");
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
       return null;
@@ -15,8 +17,8 @@ export async function readSession(): Promise<string | null> {
   }
 }
 
-export async function signIn(username: string, password: string): Promise<string> {
-  return (await request<SessionRead>("POST", "/v1/session", { username, password })).username;
+export function signIn(username: string, password: string): Promise<SessionAccount> {
+  return request<SessionAccount>("POST", "/v1/session", { username, password });
 }
 
 export async function signOut(): Promise<void> {

@@ -3,10 +3,10 @@ import { useState, type ReactElement, type SubmitEvent } from "react";
 import { texts } from "../texts";
 import { ShelfIcon } from "./icons";
 import { Spinner } from "./Skeletons";
-import { signIn } from "../api/session";
+import { signIn, type SessionAccount } from "../api/session";
 
 type Props = {
-  readonly onSignedIn: (username: string) => void;
+  readonly onSignedIn: (account: SessionAccount) => void;
 };
 
 const field =

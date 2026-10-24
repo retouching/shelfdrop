@@ -62,7 +62,7 @@ export function SettingsPage({ tab, onTab }: Props): ReactElement {
     setSaving(true);
     setSavedOn(null);
     try {
-      // Rangement et API et MCP ne sont pas encore enregistrés : ils viennent avec leur étape.
+      // Rangement et Accès ne sont pas encore enregistrés : ils viennent avec leur étape.
       await Promise.all([saveSearchSettings(), saveChangedSettings()]);
       setSavedOn(tab);
     } catch {

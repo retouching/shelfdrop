@@ -24,7 +24,9 @@ import { WaitingPage } from "./components/WaitingPage";
 import { WaitDialog } from "./components/WaitDialog";
 import { whenSignedOut } from "./api/http";
 import type { SearchProgress } from "./api/searches";
-import { readSession, signOut } from "./api/session";
+import { readSession, signOut, type SessionAccount } from "./api/session";
+import { readSetup, type SetupState } from "./api/setup";
+import { SetupPanel } from "./components/SetupPanel";
 import { readHealth } from "./api/settings";
 import { sectionRoute, useRoute, type Page, type Route } from "./state/route";
 import { loadSettings, useSettings, valueOf } from "./state/settings";
@@ -76,9 +78,14 @@ function stats(downloads: readonly Download[]): readonly Stat[] {
 }
 
 export function App(): ReactElement | null {
-  const [username, setUsername] = useState<string | null>(null);
-  // La session est lue au chargement : rien n'est affiché avant sa réponse.
+  const [user, setUser] = useState<SessionAccount | null>(null);
+  const username = user?.username ?? null;
+  // La session et l'état de l'installation sont lus au chargement : rien n'est affiché avant.
   const [sessionRead, setSessionRead] = useState(false);
+  const [setup, setSetup] = useState<SetupState | null>(null);
+  const setupNeeded = setup?.needed === true;
+  // Les données du site ne sont lues qu'une session ouverte et l'installation terminée.
+  const ready = username !== null && !setupNeeded;
   const [servicesDown, setServicesDown] = useState(false);
   const settings = useSettings();
   const maxNamesSetting = valueOf(settings, "search.max_names");
@@ -103,7 +110,7 @@ export function App(): ReactElement | null {
   const [searchId, setSearchId] = useState(0);
   const [refreshRound, setRefreshRound] = useState(0);
   const manual = page === "manual";
-  const worksState = useWorks(query, kind, searchId, username !== null && page === "auto");
+  const worksState = useWorks(query, kind, searchId, ready && page === "auto");
   const worksLoading = worksState.status === "loading";
   const searchedNames = manual
     ? query === ""
@@ -125,12 +132,12 @@ export function App(): ReactElement | null {
       : null;
   const releasesState = useReleases(releasesQuery, refreshRound);
   const releasesLoading = releasesState.status === "running";
-  const downloadsList = useDownloads(username !== null, page === "downloads", live, liveEvery);
+  const downloadsList = useDownloads(ready, page === "downloads", live, liveEvery);
   const downloads = downloadsList.downloads ?? [];
 
   const works = worksState.status === "done" ? worksState.works : [];
   const [showRejected, setShowRejected] = useState(false);
-  const waitingList = useWaiting(username !== null)?.searches ?? [];
+  const waitingList = useWaiting(ready)?.searches ?? [];
   const [waitOpen, setWaitOpen] = useState(false);
   const [waitAdding, setWaitAdding] = useState(false);
   // Releases dans l'ordre du serveur ; celles écartées pour un mot manquant ne sont pas montrées.
@@ -154,7 +161,7 @@ export function App(): ReactElement | null {
     ["downloading", "waiting", "placing"].includes(download.state.kind),
   ).length;
 
-  const place = usePlace(username !== null, page === "place", placeText);
+  const place = usePlace(ready, page === "place", placeText);
   // Un envoi vérifié reste affiché ici jusqu'à ce que Ranger liste le fichier.
   const listed = new Set(place.files.filter((file) => file.origin === "upload").map((file) => file.name));
   const files = [
@@ -166,11 +173,13 @@ export function App(): ReactElement | null {
 
   useEffect(() => {
     whenSignedOut(() => {
-      setUsername(null);
+      setUser(null);
     });
-    readSession().then(
-      (name) => {
-        setUsername(name);
+    // Sans réponse sur l'installation, la page se comporte comme une installation terminée.
+    Promise.all([readSession(), readSetup().catch(() => null)]).then(
+      ([account, state]) => {
+        setUser(account);
+        setSetup(state);
         setSessionRead(true);
       },
       () => {
@@ -183,7 +192,7 @@ export function App(): ReactElement | null {
   }, []);
 
   useEffect(() => {
-    if (username === null) {
+    if (!ready) {
       return undefined;
     }
     loadSettings().catch(() => undefined);
@@ -200,13 +209,27 @@ export function App(): ReactElement | null {
     return () => {
       window.clearInterval(timer);
     };
-  }, [username]);
+  }, [ready]);
 
   if (!sessionRead) {
     return null;
   }
-  if (username === null) {
-    return <LoginPage onSignedIn={setUsername} />;
+  if (setup !== null && setup.needed && (user !== null || !setup.account)) {
+    return (
+      <SetupPanel
+        account={user}
+        onSignedIn={(account) => {
+          setUser(account);
+          setSetup({ needed: true, account: true });
+        }}
+        onFinished={() => {
+          setSetup({ needed: false, account: true });
+        }}
+      />
+    );
+  }
+  if (user === null || username === null) {
+    return <LoginPage onSignedIn={setUser} />;
   }
 
   function search(nextQuery: string, nextKind: Kind): void {
@@ -545,6 +568,7 @@ export function App(): ReactElement | null {
       <Sidebar
         page={page}
         username={username}
+        internal={user.internal}
         runningCount={running}
         settingsAlert={servicesDown}
         waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
@@ -559,10 +583,10 @@ export function App(): ReactElement | null {
         onSignOut={() => {
           signOut().then(
             () => {
-              setUsername(null);
+              setUser(null);
             },
             () => {
-              setUsername(null);
+              setUser(null);
             },
           );
         }}

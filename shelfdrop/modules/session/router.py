@@ -1,5 +1,5 @@
-"""The routes of the session: sign in with an account of Jellyfin, read the session, sign out.
-Async: the sign-in waits on Jellyfin."""
+"""The routes of the session: sign in with the internal account or an account of Jellyfin, read
+the session, sign out. Async: the sign-in waits on Jellyfin, or on the hash of the password."""
 
 from typing import Annotated
 
@@ -12,9 +12,9 @@ from shelfdrop.auth.exceptions import (
     LoginRefusedError,
     TooManyAttemptsError,
 )
-from shelfdrop.auth.service import SESSION_SECONDS, AuthService
+from shelfdrop.auth.service import AuthService
 from shelfdrop.auth.types import Account
-from shelfdrop.http.dependencies import SESSION_COOKIE, require_session
+from shelfdrop.http.dependencies import SESSION_COOKIE, require_session, set_session_cookie
 from shelfdrop.modules.session.errors import (
     jellyfin_unavailable,
     login_refused,
@@ -29,7 +29,8 @@ router = APIRouter(prefix="/v1/session", tags=["session"], route_class=WireupRou
 async def sign_in(
     request: Request, response: Response, body: SignInBody, auth: Injected[AuthService]
 ) -> SessionRead:
-    """Open a session for an administrator of Jellyfin: the cookie `__Host-shelfdrop`."""
+    """Open a session for the internal account or an administrator of Jellyfin: the cookie
+    `__Host-shelfdrop`."""
     client = request.client.host if request.client else ""
     try:
         signed_in = await auth.sign_in(
@@ -45,15 +46,7 @@ async def sign_in(
         raise login_refused() from exc
     except JellyfinUnavailableError as exc:
         raise jellyfin_unavailable() from exc
-    response.set_cookie(
-        SESSION_COOKIE,
-        signed_in.token,
-        max_age=SESSION_SECONDS,
-        path="/",
-        secure=True,
-        httponly=True,
-        samesite="strict",
-    )
+    set_session_cookie(response, signed_in.token)
     return SessionRead.model_validate(signed_in.account)
 
 

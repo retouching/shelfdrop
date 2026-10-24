@@ -19,9 +19,12 @@ Imported once into the database, at the first start where they are set ([ADR 001
 | --- | --- |
 | `SHELFDROP_PROWLARR_URL` | `prowlarr.url`, the address of Prowlarr (`http://prowlarr:9696`) |
 | `SHELFDROP_PROWLARR_API_KEY` | the secret `prowlarr.api_key` |
-| `SHELFDROP_JELLYFIN_URL` | `jellyfin.url`, the address of Jellyfin (`http://jellyfin:8096`) |
+| `SHELFDROP_JELLYFIN_URL` | `jellyfin.url`, the address of Jellyfin (`http://jellyfin:8096`); set at the first start, it skips the set-up of the first launch ([ADR 0023](adr/0023-first-launch-setup.md)): the administrators of Jellyfin sign in, and the internal account is created on the page Paramètres › Accès |
 | `SHELFDROP_MYANIMELIST_CLIENT_ID` | the secret `sources.myanimelist.client_id`, the Client ID of the MyAnimeList API (myanimelist.net/apiconfig) |
 | `SHELFDROP_DISCORD_WEBHOOK` | the secret `discord.webhook`, the webhook of Discord the journal posts on |
+
+## The internal account and the first launch
+The internal account is the one account of shelfdrop itself: a name and a password (10 characters at least, kept as its scrypt), in the table `internal_account`. It signs in on the same page as the administrators of Jellyfin, and still does when Jellyfin is down ([ADR 0013](adr/0013-sign-in-and-sessions.md)). A new installation creates it at the first step of the set-up of the first launch, which then saves and tests Prowlarr, qBittorrent (qui), Jellyfin (required), the libraries and the folder of the uploads, before the rest of the site opens ([ADR 0023](adr/0023-first-launch-setup.md)); an installation signed in through Jellyfin creates it on the page Paramètres › Accès, where its password is changed (the current one given).
 
 ## Settings of the page
 Kept in the database (`settings`, `secrets`), read at each use, so a change applies without a restart. `shelfdrop.settings.catalog` lists them:

@@ -18,6 +18,7 @@ WIREUP_IMPORTERS: Final = frozenset(
 )
 # The packages of the domain: no framework, no HTTP layer.
 DOMAIN: Final = (
+    "shelfdrop/accounts/",
     "shelfdrop/auth/",
     "shelfdrop/clients/",
     "shelfdrop/works/",
