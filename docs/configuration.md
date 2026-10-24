@@ -11,7 +11,7 @@
 | `SHELFDROP_API_PREFIX` | `/api` | The prefix of every route but `/health` and the pages: one or more `/segment`. |
 | `SHELFDROP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. SQLAlchemy, httpx and httpcore never log below `WARNING`. |
 | `SHELFDROP_LOG_FORMAT` | `json` | `json` (one object per line) or `text`. |
-| `SHELFDROP_PUBLIC_URL` | none | The address of the pages as the browser reaches them (`https://shelfdrop.maigo.party`): the title of each message of the journal links there. |
+| `SHELFDROP_PUBLIC_URL` | none | The address of the pages as the browser reaches them (for example `https://shelfdrop.example.com`): the title of each message of the journal links there. |
 
 Imported once into the database, at the first start where they are set ([ADR 0012](adr/0012-settings-and-secrets.md)); then the settings page holds them, and a later change of the variable is ignored:
 
@@ -51,5 +51,5 @@ Read by Compose alone (`docker/compose.yaml`):
 | --- | --- | --- |
 | `SHELFDROP_API_PORT` | `8000` | The loopback port of the API on the machine. |
 | `SHELFDROP_PROXY_ADDRESS` | `127.0.0.1` | The address of the reverse proxy, given to uvicorn as `FORWARDED_ALLOW_IPS`. |
-| `SHELFDROP_MEDIA_DIR` | `../.data/media` | The folder of the torrents and of the libraries the placement worker mounts on `/data` (NAMI: `/mnt/storage/data`). |
+| `SHELFDROP_MEDIA_DIR` | `../.data/media` | The folder of the torrents and of the libraries the placement worker mounts on `/data` (for example `/srv/media`). |
 | `SHELFDROP_LIBRARY_GID` | `1000` | The group of the placement worker: the group of the files of qBittorrent and of the libraries. |

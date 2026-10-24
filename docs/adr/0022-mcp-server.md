@@ -3,7 +3,7 @@ Status: Accepted
 Date: 2026-10-22
 
 ## Context
-Decided by the user on 2026-10-21 (plan section 3 quater): a server MCP at `/mcp`, on the transport Streamable HTTP, with the official MCP SDK for Python mounted in the application, the same access token as the API in `Bearer`, and the tools `search_works`, `search_releases` (reading), `grab_releases`, `retry_download`, `place_file` (download) and `list_downloads`, `list_files_to_place` (reading). The tools go through the services of the page: the same rules, the same shared queue of Prowlarr, the same events of the journal, the name of the token as their author. 60 requests a minute for each token. Hermes reaches it to propose releases, and sends nothing without the agreement of the user.
+Decided on 2026-10-21: a server MCP at `/mcp`, on the transport Streamable HTTP, with the official MCP SDK for Python mounted in the application, the same access token as the API in `Bearer`, and the tools `search_works`, `search_releases` (reading), `grab_releases`, `retry_download`, `place_file` (download) and `list_downloads`, `list_files_to_place` (reading). The tools go through the services of the page: the same rules, the same shared queue of Prowlarr, the same events of the journal, the name of the token as their author. 60 requests a minute for each token. An agent reaches it to propose releases, and sends nothing without the agreement of the person it works for.
 
 ## Decision
 - **The server** (`shelfdrop/modules/mcp/router.py`, `new_mcp_server`): an `MCPServer` of the SDK `mcp` 2.x, its seven tools typed by the schemas of the API (`WorkSearchRead`, `ReleaseSearchRead`, `DownloadsRead`, `ItemsRead`...), their answers structured; each tool opens a scope of the container of its own (`shelfdrop.http.dependencies.scope_of`), since a call runs in the task group of the MCP server and not in the one of its request, and closes its database session in the threadpool. `search_releases` starts the search on the shared board and waits for its end. A refusal of a service is a tool error whose text starts with the code of the API (`search_not_found: ...`).
@@ -14,10 +14,10 @@ Decided by the user on 2026-10-21 (plan section 3 quater): a server MCP at `/mcp
 
 ## Rejected alternatives
 - The auth of the SDK (`token_verifier`, `AuthSettings`): it describes an OAuth resource server (issuer, metadata) shelfdrop is not; a token of the page is checked by the code that checks it for the API.
-- A stateful transport with event streams: Hermes calls one tool at a time and waits for its answer; sessions in memory would be lost at each restart, and a stream needs `proxy_buffering off` on every proxy.
+- A stateful transport with event streams: a client calls one tool at a time and waits for its answer; sessions in memory would be lost at each restart, and a stream needs a proxy that does not buffer.
 - The session cookie on `/mcp`: a client of MCP is a program, it holds a token; the cookie would make `/mcp` a target of the pages of other sites.
-- Tools for the waiting searches, the settings or the tokens: not in the plan; the settings and the tokens stay with the session of an administrator.
+- Tools for the waiting searches, the settings or the tokens: not decided; the settings and the tokens stay with the session of an administrator.
 
 ## Consequences
-- A tool call that waits on Prowlarr (`search_releases`) holds its HTTP request for the time of the search (60 seconds at most for a name stuck): the proxy in front of `/mcp` waits that long ([installation](../installation.md#the-mcp-server-and-the-access-tokens)).
-- [docs/hermes.md](../hermes.md) describes the client side, for Hermes: its token, its entry `mcp_servers`, the scripts the tools replace.
+- A tool call that waits on Prowlarr (`search_releases`) holds its HTTP request for the time of the search (60 seconds at most for a name stuck): the proxy in front of `/mcp` waits that long ([installation](../installation.md#reverse-proxy)).
+- [docs/mcp-client.md](../mcp-client.md) describes the client side: the token, the entry of a client, its timeouts, the tools.
