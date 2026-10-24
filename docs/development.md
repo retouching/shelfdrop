@@ -59,6 +59,7 @@ Caches: `source_answers` (the candidates a source gave for a family and a normal
 
 ## Tests
 - `tests/unit/works/test_service.py`: the 10 recorded searches of `tests/unit/works/cases.py`, replayed from `tests/unit/works/fixtures/` (recorded on 2026-10-21 without a MyAnimeList Client ID, when AniList did not answer: its exchanges replay as failures), and the rules of the service with fake sources (`CountingClient`): the cache, the rest of a failed source, one run for two searches, the refusals.
+- `tests/unit/works/test_merge.py`: the rules of the merge, and the searches of `MERGE_CASES` (`tests/unit/works/cases.py`), merged from the answers a deployment kept in its cache (`tests/unit/works/candidates/<slug>.json`, by `source|family|text`): the works of one name that stay apart.
 - `tests/unit/works/support.py`: `RecordingTransport`, `ReplayTransport`, `FakeWorkRepository`, `FixedClock`, `new_service`.
 - `tests/unit/works/record.py`: records the fixtures again (`uv run python -m tests.unit.works.record [--missing] [slug ...]`; `--missing` keeps the exchanges recorded and asks only those no fixture holds).
 - `tests/unit/releases/`: the rules (`test_guess.py` on titles seen on real trackers, `test_scoring.py`, `test_results.py`, `test_trackers.py`), `test_jobs.py` (the board with a Prowlarr that waits for the test), `test_service.py` and `clients/test_prowlarr.py` through `ProwlarrReplay`, which answers from `tests/unit/releases/fixtures/prowlarr.json` (written in the shape of the API of Prowlarr: no real Prowlarr is asked).

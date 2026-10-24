@@ -1,6 +1,6 @@
 # 0007. The work search
 Status: Accepted
-Date: 2026-10-21
+Date: 2026-10-24
 
 ## Context
 Decided on 2026-10-21. A release is posted under one name among many (French, English, romaji): searching the indexers with the text typed alone missed releases, and once fetched the wrong manga ("Amnesia" for "Dusk Maiden of Amnesia"). The library must use the name of the French edition. MyAnimeList must be a source; if two people search the same title, one search must serve both.
@@ -8,6 +8,7 @@ Decided on 2026-10-21. A release is posted under one name among many (French, En
 ## Decision
 - A search asks every source of its family at once: MangaUpdates, Kitsu, MyAnimeList (its official API, only with a Client ID), AniList and MangaDex for manga; Open Library and Wikidata for books; the BnF for both. A source that fails or takes more than 5 seconds is left out and named, and rests 5 minutes.
 - The candidates merge by a shared id (the MyAnimeList id is the pivot), a shared ISBN, or a shared precise name with compatible authors and years. The name on the shelf is the title of the French edition at the BnF, otherwise a French, English or romaji name. At most 6 names are checked for the indexers: French, English, romaji and the title of the work; a name in another language, or in none known, is shown unchecked (decided on 2026-10-21, after the first review: MangaUpdates gives no language, and Turkish, Polish or Indonesian names were searched). A name no source gave a language for gets the one its letters and its small words tell, prudently: when nothing tells, it stays unknown.
+- **The merge by name is one of groups** (decided on 2026-10-24, after "Blue Period" showed a work of 1991 made of five): the candidates that share an id or an ISBN make a group first; two groups join by name when they share a precise name, their authors are compatible when both have some (a word of 3 letters or more in common, or the same consonants: "Maybe" and "Meibii"), their years, the BnF aside, are at most 2 apart, and no source that lists a work once (MyAnimeList, AniList, MangaUpdates, Kitsu) is in both. The groups with authors join the strongest pairs first: a name that is a title on both sides, then on one side, then another name on both. A group without any author joins another only when it is the one group with authors it may be (with none, the one group without); otherwise it stays alone, a work of its own the page can merge by hand.
 - The BnF knows a French edition by its French title alone: it is asked again, under a name the other sources gave, for the best works it did not find (decided on 2026-10-21, after the first review: "Battle Angel Alita" missed Gunnm and its 9 French volumes).
 - A work keeps the cover and the summary (without its markup) of each source that serves one (`Work.covers`, `Work.summaries`): the proposals of the page Jellyfin; its `cover_url` stays the one shown in the results.
 - **Works merged by hand** (decided on 2026-10-21): the page joins several works the merge above kept apart, under the name on the shelf it chooses; the link is kept (`work_merges`: the keys `<source>:<id>` of their members, by family) and applied to every search after, by `shelfdrop.works.merge.join_merges` before the ranking: the works it joins become one, in the place of the first, built again from all their members, with its `merge_id` and its `parts`. A work added to a merge replaces it; the page splits a merge (Séparer), and the next searches find its works apart.
@@ -21,9 +22,13 @@ Decided on 2026-10-21. A release is posted under one name among many (French, En
 - Hardcover: refused.
 - Every Latin name of 4 characters or more checked by default: the names in Turkish, Polish, Indonesian... of MangaUpdates went to the indexers.
 - A language detection library: the names are a few words long, where such libraries guess wrong, and a dependency for this alone.
+- A merge by name candidate against candidate, taken transitively: a record without an author nor a year that counts (the BnF "Blue period" of 2025) matched every work called Blue Period and chained five works into one.
+- An author check skipped when a side has none, for the groups too: the same chain, through Kitsu, whose client reads no author.
 - Jikan, the unofficial mirror of MyAnimeList, without a Client ID: refused on 2026-10-21.
 - Sync routes with a thread per source: the search is I/O alone, and the event loop already runs it.
 
 ## Consequences
 - Without a Client ID, MyAnimeList is not asked; its id still merges the works, through Kitsu, AniList, MangaDex and Wikidata.
 - AniList was down when the fixtures were recorded: the manga searches of the tests rest on MangaUpdates, Kitsu, MangaDex, Wikidata and the BnF.
+- A record of the BnF without an author that shares its name with several works (a run of volumes published after a date, "Chainsaw Man" 2025, "Blue period" 2025) stays a work of its own: the page shows it apart, to merge by hand.
+- The colored edition MangaDex lists apart, years after the original ("Kaguya-sama: Love Is War (Official Colored)"), stays a work of its own.

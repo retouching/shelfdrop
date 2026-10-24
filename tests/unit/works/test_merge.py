@@ -1,7 +1,18 @@
 """shelfdrop.works.merge."""
 
+import json
+from pathlib import Path
+from typing import Final
+
+import pytest
+
 from shelfdrop.works.merge import french_edition_names, join_merges, merge
+from shelfdrop.works.ranking import rank
+from shelfdrop.works.repository import CANDIDATES
 from shelfdrop.works.types import Candidate, Name, SourceName, WorkMerge
+from tests.unit.works.cases import MERGE_CASES, MergeCase
+
+ANSWERS: Final = Path(__file__).parent / "candidates"
 
 
 def candidate_of(
@@ -13,6 +24,7 @@ def candidate_of(
     authors: tuple[str, ...] = (),
     volumes_fr: int | None = None,
     external_ids: dict[str, str] | None = None,
+    year: int | None = None,
 ) -> Candidate:
     return Candidate(
         source=source,
@@ -22,6 +34,7 @@ def candidate_of(
         authors=authors,
         volumes_fr=volumes_fr,
         external_ids=external_ids or {},
+        year=year,
     )
 
 
@@ -35,6 +48,95 @@ def test_merge_by_name_needs_compatible_authors() -> None:
     a = candidate_of("mangaupdates", "1", "Amnesia", authors=("Someone Else",))
     b = candidate_of("kitsu", "2", "Amnesia", authors=("Maybe",))
     assert len(merge([a, b])) == 2
+
+
+def test_a_record_without_an_author_does_not_chain_two_works() -> None:
+    """The BnF record shares the name of both: it may be either, so it stays alone."""
+    found = merge(
+        [
+            candidate_of("myanimelist", "1", "Blue Period", authors=("Tsubasa Yamaguchi",)),
+            candidate_of(
+                "mangaupdates",
+                "2",
+                "Mizuiro Jidai",
+                names=(Name(title="Blue Period", language="latin"),),
+                authors=("Yuu Yabuuchi",),
+            ),
+            candidate_of("bnf", "ark", "Blue period"),
+        ]
+    )
+    assert len(found) == 3
+
+
+def test_a_group_without_an_author_joins_the_one_work_it_may_be() -> None:
+    found = merge(
+        [
+            candidate_of("mangaupdates", "1", "Blue Period", authors=("Tsubasa Yamaguchi",)),
+            candidate_of("kitsu", "2", "Blue Period"),
+            candidate_of("bnf", "ark", "Blue period"),
+        ]
+    )
+    assert [len(members) for _, members in found] == [3]
+
+
+def test_a_group_without_an_author_stays_apart_from_a_work_of_another_time() -> None:
+    found = merge(
+        [
+            candidate_of("mangaupdates", "1", "Blue Period", authors=("A Body",), year=2017),
+            candidate_of("kitsu", "2", "Blue Period", year=1991),
+        ]
+    )
+    assert len(found) == 2
+
+
+def test_a_source_lists_a_work_once() -> None:
+    """Two entries of MyAnimeList are two works, even when a record shares both names."""
+    found = merge(
+        [
+            candidate_of(
+                "myanimelist", "1", "Blue Period", authors=("Tsubasa Yamaguchi",), year=2017
+            ),
+            candidate_of(
+                "myanimelist",
+                "2",
+                "Nude Model",
+                names=(Name(title="Blue Period", language="latin"),),
+                authors=("Tsubasa Yamaguchi",),
+                year=2015,
+            ),
+            candidate_of("bnf", "ark", "Blue period", authors=("Tsubasa Yamaguchi",)),
+        ]
+    )
+    assert [[m.source_id for m in members] for _, members in found] == [["1", "ark"], ["2"]]
+
+
+def test_the_romanizations_of_an_author_are_the_same_author() -> None:
+    found = merge(
+        [
+            candidate_of("mangaupdates", "1", "Dusk Maiden of Amnesia", authors=("Maybe",)),
+            candidate_of("bnf", "ark", "Dusk maiden of amnesia", authors=("Meibii",)),
+        ]
+    )
+    assert len(found) == 1
+
+
+def answers_of(case: MergeCase) -> list[Candidate]:
+    answers = json.loads((ANSWERS / f"{case.slug}.json").read_text())
+    return [c for found in answers.values() for c in CANDIDATES.validate_python(found)]
+
+
+@pytest.mark.parametrize("case", MERGE_CASES, ids=[c.slug for c in MERGE_CASES])
+def test_the_works_of_a_name_stay_apart(case: MergeCase) -> None:
+    merged = merge(answers_of(case))
+    works, _ = rank(case.query, merged, manga=case.kind == "manga")
+
+    first = works[0]
+    assert set(first.keys) == set(case.first)
+    assert first.year == case.year
+    assert first.authors == (case.author,)
+    owners = [next(w.id for w, _ in merged if key in w.keys) for key in case.apart]
+    assert len(set(owners)) == len(case.apart)
+    assert first.id not in owners
 
 
 def test_bnf_casing_loses_but_stays_french() -> None:

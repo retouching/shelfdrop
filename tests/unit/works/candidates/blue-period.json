@@ -1,0 +1,1054 @@
+{
+  "bnf|manga|blue period": [
+    {
+      "source": "bnf",
+      "source_id": "http://catalogue.bnf.fr/ark:/12148/cb472165077",
+      "title": "Blue period",
+      "names": [
+        {
+          "title": "Blue period",
+          "language": "fr"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "year": 2021,
+      "volumes_fr": 16,
+      "form": "other",
+      "isbns": [
+        "9782811660987",
+        "9782811674960",
+        "9782811693619",
+        "9782811684785",
+        "9782811696030",
+        "9782811670634",
+        "9782811671174",
+        "9782811673710",
+        "9782811661014",
+        "9782811669775",
+        "9782811668068",
+        "9782811661007",
+        "9782811681371",
+        "9782811660284",
+        "9782811660994",
+        "9782811660970",
+        "9782811645380",
+        "9782811689353",
+        "9791043301506",
+        "9782811668648"
+      ],
+      "popularity": 1.0
+    },
+    {
+      "source": "bnf",
+      "source_id": "http://catalogue.bnf.fr/ark:/12148/cb487940280",
+      "title": "Blue period",
+      "names": [
+        {
+          "title": "Blue period",
+          "language": "fr"
+        }
+      ],
+      "year": 2025,
+      "volumes_fr": 18,
+      "form": "other",
+      "isbns": [
+        "9791043308369",
+        "9791043303982",
+        "9782811694883"
+      ],
+      "popularity": 0.15
+    },
+    {
+      "source": "bnf",
+      "source_id": "http://catalogue.bnf.fr/ark:/12148/cb45869474m",
+      "title": "Bob l'artiste",
+      "names": [
+        {
+          "title": "Bob l'artiste",
+          "language": "fr"
+        }
+      ],
+      "authors": [
+        "Marion Deuchars"
+      ],
+      "year": 2020,
+      "form": "other",
+      "isbns": [
+        "9782378011598"
+      ],
+      "popularity": 0.05
+    }
+  ],
+  "anilist|manga|blue period": [
+    {
+      "source": "anilist",
+      "source_id": "32310",
+      "title": "A Bitter Fruit",
+      "names": [
+        {
+          "title": "A Bitter Fruit",
+          "language": "en"
+        },
+        {
+          "title": "Nigai Kajitsu",
+          "language": "ja-ro"
+        },
+        {
+          "title": "苦い果実",
+          "language": "ja"
+        },
+        {
+          "title": "Dark Passion",
+          "language": "latin"
+        },
+        {
+          "title": "BLUE PERIOD",
+          "language": "latin"
+        }
+      ],
+      "authors": [
+        "Shiuko Kano"
+      ],
+      "year": 2000,
+      "volumes": 1,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "2310"
+      },
+      "popularity": 0.00117
+    },
+    {
+      "source": "anilist",
+      "source_id": "107237",
+      "title": "Blue Period",
+      "names": [
+        {
+          "title": "Blue Period",
+          "language": "en"
+        },
+        {
+          "title": "Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "ブルーピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "The Blue Period",
+          "language": "latin"
+        },
+        {
+          "title": "Блакитний період",
+          "language": "ru"
+        },
+        {
+          "title": "藍色時期",
+          "language": "zh"
+        },
+        {
+          "title": "블루 피리어드",
+          "language": "ko"
+        },
+        {
+          "title": "Голубой период",
+          "language": "ru"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "year": 2017,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "107931"
+      },
+      "popularity": 0.38791
+    },
+    {
+      "source": "anilist",
+      "source_id": "169605",
+      "title": "Burberry Blue Period",
+      "names": [
+        {
+          "title": "Burberry Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "BURBERRY ブルーピリオド",
+          "language": "ja"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "year": 2022,
+      "form": "oneshot",
+      "external_ids": {
+        "myanimelist": "150749"
+      },
+      "popularity": 0.005855
+    }
+  ],
+  "mangadex|manga|blue period": [
+    {
+      "source": "mangadex",
+      "source_id": "f8e294c0-7c11-4c66-bdd7-4e25df52bf69",
+      "title": "Blue Period",
+      "names": [
+        {
+          "title": "Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "ブルーピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "Buru Piriodo",
+          "language": "ja-ro"
+        },
+        {
+          "title": "蓝色时期",
+          "language": "zh"
+        },
+        {
+          "title": "藍色時期",
+          "language": "zh"
+        },
+        {
+          "title": "الحقبة الزرقاء",
+          "language": "ar"
+        },
+        {
+          "title": "النقطة الزرقاء",
+          "language": "ar"
+        },
+        {
+          "title": "Blue Period",
+          "language": "fr"
+        },
+        {
+          "title": "Көк Кезең",
+          "language": "ru"
+        },
+        {
+          "title": "नीलो अवधि",
+          "language": "other"
+        },
+        {
+          "title": "دوره ی آبی",
+          "language": "ar"
+        },
+        {
+          "title": "O Período Azul",
+          "language": "pt-br"
+        },
+        {
+          "title": "Голубой период",
+          "language": "ru"
+        },
+        {
+          "title": "Mavi Dönem",
+          "language": "tr"
+        },
+        {
+          "title": "Блакитний період",
+          "language": "ru"
+        }
+      ],
+      "authors": [
+        "Yamaguchi Tsubasa"
+      ],
+      "year": 2017,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "107931",
+        "anilist": "107237"
+      }
+    },
+    {
+      "source": "mangadex",
+      "source_id": "00010753-b98c-4f53-b09e-d09a8a385f20",
+      "title": "Burberry x Blue Period.",
+      "names": [
+        {
+          "title": "Burberry x Blue Period.",
+          "language": "en"
+        }
+      ],
+      "authors": [
+        "Yamaguchi Tsubasa"
+      ],
+      "year": 2022,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "150749",
+        "anilist": "169605"
+      }
+    },
+    {
+      "source": "mangadex",
+      "source_id": "316384f2-dd38-4f7e-8871-f8eecf473cc5",
+      "title": "Aqua Age",
+      "names": [
+        {
+          "title": "Aqua Age",
+          "language": "en"
+        },
+        {
+          "title": "Blue Period",
+          "language": "en"
+        },
+        {
+          "title": "Mizuiro Jidai",
+          "language": "ja-ro"
+        },
+        {
+          "title": "The Blue-Green Years",
+          "language": "en"
+        },
+        {
+          "title": "水色時代",
+          "language": "ja"
+        }
+      ],
+      "authors": [
+        "Yabuuchi Yuu"
+      ],
+      "year": 1991,
+      "volumes": 7,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "3886",
+        "anilist": "33886"
+      }
+    },
+    {
+      "source": "mangadex",
+      "source_id": "6e8e37f7-ee6b-4da4-b6d8-3744a8232b8e",
+      "title": "Ao no Jidai",
+      "names": [
+        {
+          "title": "Ao no Jidai",
+          "language": "ja-ro"
+        },
+        {
+          "title": "The Blue Era",
+          "language": "en"
+        },
+        {
+          "title": "青の時代",
+          "language": "ja"
+        },
+        {
+          "title": "Blue Period",
+          "language": "en"
+        }
+      ],
+      "authors": [
+        "Yamagishi Ryouko"
+      ],
+      "year": 1998,
+      "volumes": 4,
+      "form": "manga"
+    }
+  ],
+  "kitsu|manga|blue period": [
+    {
+      "source": "kitsu",
+      "source_id": "49863",
+      "title": "Blue Period",
+      "names": [
+        {
+          "title": "الحقبة الزرقاء",
+          "language": "ar"
+        },
+        {
+          "title": "Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "ブルーピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "Голубой период",
+          "language": "ru"
+        },
+        {
+          "title": "蓝色时期",
+          "language": "zh"
+        },
+        {
+          "title": "The Blue Period.",
+          "language": "latin"
+        },
+        {
+          "title": "النقطة الزرقاء",
+          "language": "ar"
+        },
+        {
+          "title": "藍色時期",
+          "language": "zh"
+        },
+        {
+          "title": "Blue Period.",
+          "language": "latin"
+        }
+      ],
+      "year": 2017,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "107931",
+        "anilist": "107237"
+      },
+      "popularity": 0.17884
+    },
+    {
+      "source": "kitsu",
+      "source_id": "4740",
+      "title": "Nigai Kajitsu",
+      "names": [
+        {
+          "title": "A Bitter Fruit",
+          "language": "en"
+        },
+        {
+          "title": "Nigai Kajitsu",
+          "language": "ja-ro"
+        },
+        {
+          "title": "A Bitter Fruit",
+          "language": "en"
+        },
+        {
+          "title": "苦い果実",
+          "language": "ja"
+        },
+        {
+          "title": "Dark Passion",
+          "language": "latin"
+        },
+        {
+          "title": "BLUE PERIOD",
+          "language": "latin"
+        }
+      ],
+      "year": 2000,
+      "volumes": 1,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "2310",
+        "anilist": "32310"
+      },
+      "popularity": 0.00204
+    },
+    {
+      "source": "kitsu",
+      "source_id": "72037",
+      "title": "Burberry Blue Period",
+      "names": [
+        {
+          "title": "Burberry Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "BURBERRY ブルーピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "Burberry x Blue Period Collaboration",
+          "language": "latin"
+        }
+      ],
+      "year": 2022,
+      "form": "oneshot",
+      "external_ids": {
+        "anilist": "169605",
+        "myanimelist": "150749"
+      },
+      "popularity": 0.0005
+    },
+    {
+      "source": "kitsu",
+      "source_id": "32499",
+      "title": "Stranger: Mukou Hadan",
+      "names": [
+        {
+          "title": "Sword of the Stranger",
+          "language": "en"
+        },
+        {
+          "title": "Stranger: Mukou Hadan",
+          "language": "ja-ro"
+        },
+        {
+          "title": "Sword of the Stranger",
+          "language": "en"
+        },
+        {
+          "title": "ストレンヂア 無皇刃譚",
+          "language": "ja"
+        },
+        {
+          "title": "Stranger: Mukoh Hadan",
+          "language": "latin"
+        },
+        {
+          "title": "Stranja",
+          "language": "latin"
+        }
+      ],
+      "year": 2007,
+      "volumes": 1,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "78659",
+        "anilist": "92694"
+      },
+      "popularity": 0.0022
+    },
+    {
+      "source": "kitsu",
+      "source_id": "6581",
+      "title": "From Yesterday",
+      "names": [
+        {
+          "title": "From Yesterday",
+          "language": "ja-ro"
+        },
+        {
+          "title": "フロムイエスタデイ",
+          "language": "ja"
+        },
+        {
+          "title": "Say You Love Me",
+          "language": "latin"
+        },
+        {
+          "title": "Tamani wa Konna Kyuujitsu wo",
+          "language": "latin"
+        },
+        {
+          "title": "Demo Hasumi-sensei Daisuki♥",
+          "language": "latin"
+        },
+        {
+          "title": "Sore wa Aoku de Toumei de Totemo Fushigi na",
+          "language": "latin"
+        },
+        {
+          "title": "That's a Blue and Transparent Surprise",
+          "language": "latin"
+        },
+        {
+          "title": "Hokenshitsu e Irasshai♥",
+          "language": "latin"
+        },
+        {
+          "title": "Welcome to the Clinic Room",
+          "language": "latin"
+        },
+        {
+          "title": "Home",
+          "language": "latin"
+        },
+        {
+          "title": "Ameoto wo Kikinagara",
+          "language": "latin"
+        }
+      ],
+      "year": 2000,
+      "volumes": 1,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "3072",
+        "anilist": "33072"
+      },
+      "popularity": 0.00178
+    },
+    {
+      "source": "kitsu",
+      "source_id": "9250",
+      "title": "Sabaki no Chi",
+      "names": [
+        {
+          "title": "Sabaki no Chi",
+          "language": "ja-ro"
+        },
+        {
+          "title": "密約の血　裁きの血",
+          "language": "ja"
+        },
+        {
+          "title": "Blood of Judgement",
+          "language": "latin"
+        },
+        {
+          "title": "Matsuyaku no Chi",
+          "language": "latin"
+        },
+        {
+          "title": "Sabaki no Chi 2 ~Matsuyaku no Chi~",
+          "language": "latin"
+        }
+      ],
+      "year": 1999,
+      "volumes": 2,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "20391",
+        "anilist": "50391"
+      },
+      "popularity": 0.00038
+    },
+    {
+      "source": "kitsu",
+      "source_id": "11623",
+      "title": "Iinari Princess",
+      "names": [
+        {
+          "title": "Iinari Princess",
+          "language": "ja-ro"
+        },
+        {
+          "title": "言いなり☆プリンセス",
+          "language": "ja"
+        }
+      ],
+      "year": 2008,
+      "volumes": 1,
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "21732",
+        "anilist": "51732"
+      },
+      "popularity": 0.01052
+    }
+  ],
+  "wikidata|manga|blue period": [
+    {
+      "source": "wikidata",
+      "source_id": "Q74458180",
+      "title": "Blue Period",
+      "names": [
+        {
+          "title": "Blue Period",
+          "language": "fr"
+        },
+        {
+          "title": "Blue Period",
+          "language": "en"
+        },
+        {
+          "title": "ブルーピリオド",
+          "language": "ja"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "form": "manga",
+      "external_ids": {
+        "myanimelist": "107931"
+      }
+    }
+  ],
+  "mangaupdates|manga|blue period": [
+    {
+      "source": "mangaupdates",
+      "source_id": "3380186220",
+      "title": "Mizuiro Jidai",
+      "names": [
+        {
+          "title": "Mizuiro Jidai",
+          "language": "latin"
+        },
+        {
+          "title": "Aqua Age",
+          "language": "latin"
+        },
+        {
+          "title": "Blue Period",
+          "language": "latin"
+        },
+        {
+          "title": "L'età color acquamarina",
+          "language": "latin"
+        },
+        {
+          "title": "Temi d'amore",
+          "language": "latin"
+        },
+        {
+          "title": "The Aqua Age (Indonesian)",
+          "language": "latin"
+        },
+        {
+          "title": "The Blue-Green Years",
+          "language": "latin"
+        },
+        {
+          "title": "Молодо-зелено",
+          "language": "ru"
+        },
+        {
+          "title": "水色時代",
+          "language": "zh"
+        }
+      ],
+      "authors": [
+        "Yuu Yabuuchi"
+      ],
+      "year": 1991,
+      "volumes": 7,
+      "form": "manga",
+      "popularity": 0.678
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "11255037735",
+      "title": "Blue Period.",
+      "names": [
+        {
+          "title": "Blue Period.",
+          "language": "latin"
+        },
+        {
+          "title": "Buru Piriodo",
+          "language": "latin"
+        },
+        {
+          "title": "Mavi Dönem",
+          "language": "latin"
+        },
+        {
+          "title": "The Blue Period",
+          "language": "latin"
+        },
+        {
+          "title": "Блакитний період",
+          "language": "ru"
+        },
+        {
+          "title": "Голубой период",
+          "language": "ru"
+        },
+        {
+          "title": "الحقبة الزرقاء",
+          "language": "ar"
+        },
+        {
+          "title": "النقطة الزرقاء",
+          "language": "ar"
+        },
+        {
+          "title": "دوره ی آبی",
+          "language": "ar"
+        },
+        {
+          "title": "नीलो अवधि",
+          "language": "other"
+        },
+        {
+          "title": "ブルーピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "蓝色时期",
+          "language": "zh"
+        },
+        {
+          "title": "藍色時期",
+          "language": "zh"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "year": 2017,
+      "volumes": 19,
+      "form": "manga",
+      "popularity": 0.845
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "8158665669",
+      "title": "Period",
+      "names": [
+        {
+          "title": "Period",
+          "language": "latin"
+        },
+        {
+          "title": "ピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "童年期",
+          "language": "zh"
+        }
+      ],
+      "authors": [
+        "Sakumi Yoshino"
+      ],
+      "year": 2004,
+      "volumes": 5,
+      "form": "manga",
+      "popularity": 0.65
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "22222633821",
+      "title": "Coconuts Period",
+      "names": [
+        {
+          "title": "Coconuts Period",
+          "language": "latin"
+        },
+        {
+          "title": "ココナッツピリオド",
+          "language": "ja"
+        }
+      ],
+      "authors": [
+        "Reiji Yamada"
+      ],
+      "year": 2008,
+      "volumes": 3,
+      "form": "manga"
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "52934368",
+      "title": "Long Period",
+      "names": [
+        {
+          "title": "Long Period",
+          "language": "latin"
+        }
+      ],
+      "year": 2021,
+      "form": "manga",
+      "popularity": 0.72
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "1012488895",
+      "title": "After Period",
+      "names": [
+        {
+          "title": "After Period",
+          "language": "latin"
+        }
+      ],
+      "year": 2025,
+      "form": "manga",
+      "popularity": 0.667
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "61820649859",
+      "title": "Love Period",
+      "names": [
+        {
+          "title": "Love Period",
+          "language": "latin"
+        }
+      ],
+      "year": 2015,
+      "form": "manga",
+      "popularity": 0.601
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "49113103256",
+      "title": "Yuujou Period",
+      "names": [
+        {
+          "title": "Yuujou Period",
+          "language": "latin"
+        }
+      ],
+      "year": 2013,
+      "form": "manga",
+      "popularity": 0.637
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "66434999247",
+      "title": "Cretaceous Period",
+      "names": [
+        {
+          "title": "Cretaceous Period",
+          "language": "latin"
+        }
+      ],
+      "form": "manga",
+      "popularity": 0.615
+    },
+    {
+      "source": "mangaupdates",
+      "source_id": "57969689372",
+      "title": "Blossom Period",
+      "names": [
+        {
+          "title": "Blossom Period",
+          "language": "latin"
+        }
+      ],
+      "year": 2010,
+      "form": "manga",
+      "popularity": 0.647
+    }
+  ],
+  "myanimelist|manga|blue period": [
+    {
+      "source": "myanimelist",
+      "source_id": "107931",
+      "title": "Blue Period",
+      "names": [
+        {
+          "title": "Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "Blue Period",
+          "language": "en"
+        },
+        {
+          "title": "ブルーピリオド",
+          "language": "ja"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "year": 2017,
+      "form": "manga",
+      "popularity": 0.292732
+    },
+    {
+      "source": "myanimelist",
+      "source_id": "146532",
+      "title": "Shousetsu Blue Period",
+      "names": [
+        {
+          "title": "Shousetsu Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "小説 ブルーピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "Blue Period Novel",
+          "language": "latin"
+        }
+      ],
+      "authors": [
+        "Yui Tokiumi"
+      ],
+      "year": 2021,
+      "form": "novel",
+      "popularity": 0.000728
+    },
+    {
+      "source": "myanimelist",
+      "source_id": "150749",
+      "title": "Burberry Blue Period",
+      "names": [
+        {
+          "title": "Burberry Blue Period",
+          "language": "ja-ro"
+        },
+        {
+          "title": "BURBERRY ブルーピリオド",
+          "language": "ja"
+        },
+        {
+          "title": "Burberry x Blue Period Collaboration",
+          "language": "latin"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "year": 2022,
+      "volumes": 1,
+      "form": "manga",
+      "popularity": 0.001306
+    },
+    {
+      "source": "myanimelist",
+      "source_id": "154729",
+      "title": "Nude Model and Other Stories",
+      "names": [
+        {
+          "title": "Nude Model: Yamaguchi Tsubasa Tanpenshuu",
+          "language": "ja-ro"
+        },
+        {
+          "title": "Nude Model and Other Stories",
+          "language": "en"
+        },
+        {
+          "title": "山口つばさ短編集 ヌードモデル",
+          "language": "ja"
+        },
+        {
+          "title": "Blue Period",
+          "language": "latin"
+        },
+        {
+          "title": "Onnanoko",
+          "language": "latin"
+        },
+        {
+          "title": "Girl",
+          "language": "latin"
+        },
+        {
+          "title": "Kamiya",
+          "language": "latin"
+        },
+        {
+          "title": "Nude Model: Tsubasa Yamaguchi Short Stories",
+          "language": "latin"
+        }
+      ],
+      "authors": [
+        "Tsubasa Yamaguchi"
+      ],
+      "year": 2015,
+      "volumes": 1,
+      "form": "manga",
+      "popularity": 0.009584
+    },
+    {
+      "source": "myanimelist",
+      "source_id": "170513",
+      "title": "Shousetsu Blue Period: Ano Hi no Bokura",
+      "names": [
+        {
+          "title": "Shousetsu Blue Period: Ano Hi no Bokura",
+          "language": "ja-ro"
+        },
+        {
+          "title": "小説 ブルーピリオド あの日の僕ら",
+          "language": "ja"
+        }
+      ],
+      "authors": [
+        "Kaoru Yukinari"
+      ],
+      "year": 2023,
+      "volumes": 1,
+      "form": "novel",
+      "popularity": 0.000256
+    }
+  ]
+}

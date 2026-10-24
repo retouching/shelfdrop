@@ -35,6 +35,10 @@ COVER_PRIORITY: tuple[SourceName, ...] = (
     "myanimelist",
     "anilist",
 )
+# The sources that list a work once: two of their entries are two works. The others may list
+# it several times: the BnF a record per run of volumes, MangaDex its colored edition,
+# Wikidata an item per edition.
+ONE_ENTRY: frozenset[SourceName] = frozenset({"myanimelist", "anilist", "mangaupdates", "kitsu"})
 # The languages of the names searched by default, in their order; "release" is a name as the
 # releases write it. A name in another language, or in none known ("latin"), stays unchecked.
 LANGUAGE_ORDER = {"fr": 0, "en": 1, "ja-ro": 2, "release": 3}
@@ -65,19 +69,77 @@ def match_names(candidate: Candidate) -> set[str]:
     return found
 
 
-def author_words(candidate: Candidate) -> set[str]:
-    return {w for author in candidate.authors for w in words(author) if len(w) >= 3}
+def author_words(members: Iterable[Candidate]) -> set[str]:
+    return {
+        w for member in members for author in member.authors for w in words(author) if len(w) >= 3
+    }
 
 
-def same_work(a: Candidate, b: Candidate) -> bool:
-    if not match_names(a) & match_names(b):
+def consonants(word: str) -> str:
+    """'meibii' and 'maybe' to 'mb': a word without its vowels nor its doubled letters."""
+    kept = [c for c in word if c not in "aeiouy"]
+    return "".join(c for i, c in enumerate(kept) if i == 0 or kept[i - 1] != c)
+
+
+def author_sounds(members: Iterable[Candidate]) -> set[str]:
+    """Each author as the consonants of its words, in any order: the romanizations of a
+    Japanese name differ by their vowels ("Maybe", "Meibii"; "Yuu", "Yu")."""
+    found = set()
+    for member in members:
+        for author in member.authors:
+            sound = " ".join(sorted(c for c in map(consonants, words(author)) if c))
+            if sound:
+                found.add(sound)
+    return found
+
+
+def same_authors(a: list[Candidate], b: list[Candidate]) -> bool:
+    """Any word of 3 letters or more in common (sources disagree on the order of Japanese
+    names: "Akasaka Aka", "Aka Akasaka"), or a whole name with the same consonants."""
+    return bool(author_words(a) & author_words(b) or author_sounds(a) & author_sounds(b))
+
+
+def title_keys(members: Iterable[Candidate]) -> set[str]:
+    """The names of a group that are the title of one of its members, not another name."""
+    return {
+        match_key(m.title)
+        for m in members
+        if not is_abbreviation(m.title) and len(match_key(m.title)) >= 4
+    }
+
+
+def name_keys(members: Iterable[Candidate]) -> set[str]:
+    return {key for member in members for key in match_names(member)}
+
+
+def one_entry_sources(members: Iterable[Candidate]) -> set[SourceName]:
+    return {m.source for m in members if m.source in ONE_ENTRY}
+
+
+def same_work(a: list[Candidate], b: list[Candidate]) -> bool:
+    """Whether two groups of candidates may be the same work by their names."""
+    if not name_keys(a) & name_keys(b):
         return False
-    if a.authors and b.authors and not author_words(a) & author_words(b):
-        # Sources disagree on the order of Japanese names ("Akasaka Aka", "Aka Akasaka"):
-        # any shared word of 3 letters or more is enough.
+    if one_entry_sources(a) & one_entry_sources(b):
+        return False
+    if author_words(a) and author_words(b) and not same_authors(a, b):
         return False
     # The BnF dates the French edition, often years after the original: its year proves nothing.
-    return "bnf" in (a.source, b.source) or not (a.year and b.year and abs(a.year - b.year) > 2)
+    years_a = [m.year for m in a if m.year and m.source != "bnf"]
+    years_b = [m.year for m in b if m.year and m.source != "bnf"]
+    if not years_a or not years_b:
+        return True
+    return max(min(years_a), min(years_b)) - min(max(years_a), max(years_b)) <= 2
+
+
+def strength(a: list[Candidate], b: list[Candidate]) -> int:
+    """0 when the two groups share a name that is a title on both sides, 1 on one side, 2 when
+    the name they share is another name on both sides: the stronger pairs are joined first."""
+    shared = name_keys(a) & name_keys(b)
+    titles_a, titles_b = title_keys(a), title_keys(b)
+    if shared & titles_a & titles_b:
+        return 0
+    return 1 if shared & (titles_a | titles_b) else 2
 
 
 class UnionFind:
@@ -94,8 +156,9 @@ class UnionFind:
         self.parent[self.find(a)] = self.find(b)
 
 
-def group(candidates: list[Candidate]) -> list[list[Candidate]]:
-    """Candidates of the same work together: shared id or ISBN first, then same name."""
+def by_keys(candidates: list[Candidate]) -> list[list[int]]:
+    """The indexes of the candidates that share an id, an id at another source or an ISBN,
+    together, in the order of their first member."""
     sets = UnionFind(len(candidates))
     owner: dict[str, int] = {}
     for i, candidate in enumerate(candidates):
@@ -104,15 +167,66 @@ def group(candidates: list[Candidate]) -> list[list[Candidate]]:
                 sets.union(i, owner[key])
             else:
                 owner[key] = i
-    for i, a in enumerate(candidates):
-        for j in range(i + 1, len(candidates)):
-            b = candidates[j]
-            if a.source != b.source and sets.find(i) != sets.find(j) and same_work(a, b):
-                sets.union(i, j)
-    groups: dict[int, list[Candidate]] = defaultdict(list)
-    for i, candidate in enumerate(candidates):
-        groups[sets.find(i)].append(candidate)
-    return [sorted(g, key=lambda c: rank_of(c.source)) for g in groups.values()]
+    groups: dict[int, list[int]] = defaultdict(list)
+    for i in range(len(candidates)):
+        groups[sets.find(i)].append(i)
+    return list(groups.values())
+
+
+def group(candidates: list[Candidate]) -> list[list[Candidate]]:
+    """Candidates of the same work together: shared id or ISBN first, then same name, group
+    against group, so that one record cannot chain several works.
+
+    The groups with authors join by name the strongest pairs first (`strength`), each join
+    checked again on the groups joined so far. A group without any author (the Kitsu client
+    reads none, some records of the BnF have none) then joins another only when it is the one
+    group with authors it may be (or, with none possible, the one group without); when several
+    are possible, it stays alone.
+    """
+    members = dict(enumerate(by_keys(candidates)))
+    first = {i: [candidates[k] for k in indexes] for i, indexes in members.items()}
+
+    def of(root: int) -> list[Candidate]:
+        return [candidates[k] for k in members[root]]
+
+    root_of = {i: i for i in members}
+
+    def find(i: int) -> int:
+        while root_of[i] != i:
+            i = root_of[i]
+        return i
+
+    def join(a: int, b: int) -> None:
+        kept, gone = min(a, b), max(a, b)
+        members[kept] = sorted(members[kept] + members.pop(gone))
+        root_of[gone] = kept
+
+    authored = [i for i, g in first.items() if author_words(g)]
+    pairs = sorted(
+        (strength(first[i], first[j]), i, j)
+        for n, i in enumerate(authored)
+        for j in authored[n + 1 :]
+        if name_keys(first[i]) & name_keys(first[j])
+    )
+    for _, i, j in pairs:
+        a, b = find(i), find(j)
+        if a != b and same_work(of(a), of(b)):
+            join(a, b)
+    joining = True
+    while joining:
+        joining = False
+        for root in sorted(members):
+            if author_words(of(root)):
+                continue
+            possible = [o for o in sorted(members) if o != root and same_work(of(root), of(o))]
+            # The groups without authors may be any of the others: they count only when no
+            # group with authors is possible.
+            possible = [o for o in possible if author_words(of(o))] or possible
+            if len(possible) == 1:
+                join(root, possible[0])
+                joining = True
+                break
+    return [sorted(of(root), key=lambda c: rank_of(c.source)) for root in sorted(members)]
 
 
 @dataclass(frozen=True)

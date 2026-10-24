@@ -1,4 +1,5 @@
-"""The work searches every fixture is recorded from, with what each must find.
+"""The work searches every fixture is recorded from, with what each must find; and the
+searches whose answers were read from a deployment, with the works they must keep apart.
 
 Recorded on 2026-10-21, without a MyAnimeList Client ID, when AniList was down: its exchanges
 are replayed as failures, which also covers the case of a source that does not answer.
@@ -119,5 +120,54 @@ CASES = (
         "La Mémoire des os",
         "audiobook",
         "La mémoire des os",
+    ),
+)
+
+
+BNF = "bnf:http://catalogue.bnf.fr/ark:/12148/"
+
+
+@dataclass(frozen=True)
+class MergeCase:
+    """The answers of every source to a search, as the cache of a deployment kept them
+    (`tests/unit/works/candidates/<slug>.json`, by `source|family|text`)."""
+
+    slug: str
+    query: str
+    kind: Kind
+    first: tuple[str, ...]
+    """Keys of the members of the first work, all of them."""
+    year: int
+    author: str
+    apart: tuple[str, ...]
+    """One key of each other work that shares a name with the first and must stay apart, from
+    it and from each other."""
+
+
+MERGE_CASES = (
+    MergeCase(
+        "blue-period",
+        "Blue Period",
+        "manga",
+        first=(
+            "myanimelist:107931",
+            "anilist:107237",
+            "mangaupdates:11255037735",
+            "kitsu:49863",
+            "mangadex:f8e294c0-7c11-4c66-bdd7-4e25df52bf69",
+            "wikidata:Q74458180",
+            # The French edition, by the same author.
+            f"{BNF}cb472165077",
+        ),
+        year=2017,
+        author="Tsubasa Yamaguchi",
+        apart=(
+            "myanimelist:154729",  # Nude Model and Other Stories, also called Blue Period
+            "mangaupdates:3380186220",  # Mizuiro Jidai (Aqua Age)
+            "mangadex:6e8e37f7-ee6b-4da4-b6d8-3744a8232b8e",  # Ao no Jidai
+            "anilist:32310",  # A Bitter Fruit (Nigai Kajitsu)
+            # A record without an author: every work above is called Blue Period.
+            f"{BNF}cb487940280",
+        ),
     ),
 )
