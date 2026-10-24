@@ -7,7 +7,7 @@ import pytest
 
 from shelfdrop.clients.exceptions import ServiceError, ServiceNotConfiguredError
 from shelfdrop.clients.jellyfin import JellyfinClient
-from tests.unit.clients.support import API_KEY, URL, FakeJellyfin, user_dto
+from tests.unit.clients.support import ADMIN_ID, API_KEY, URL, FakeJellyfin, user_dto
 
 
 @pytest.fixture
@@ -202,6 +202,34 @@ async def test_an_item_is_read_whole_and_written_back() -> None:
 
     assert jellyfin.items["b1"]["Name"] == "Berserk - T01"
     assert jellyfin.items["b1"]["Genres"] == ["Seinen"]
+    read = next(r for r in jellyfin.requests if r.method == "GET" and r.url.path == "/Items/b1")
+    assert read.url.params["userId"] == ADMIN_ID
+
+
+@pytest.mark.anyio
+async def test_an_item_is_read_as_the_first_administrator_not_disabled() -> None:
+    jellyfin = FakeJellyfin(
+        accounts={
+            "kid": ("pw", user_dto("u1", "Kid", admin=False)),
+            "old": ("pw", user_dto("u2", "Old", admin=True, disabled=True)),
+            "sylvain": ("pw", user_dto("u3", "Sylvain", admin=True)),
+        },
+        administrator=False,
+        items={"b1": book("b1", "/files/x.cbz")},
+    )
+
+    await new_client(jellyfin).item(URL, API_KEY, "b1")
+
+    read = next(r for r in jellyfin.requests if r.url.path == "/Items/b1")
+    assert read.url.params["userId"] == "u3"
+
+
+@pytest.mark.anyio
+async def test_an_item_without_an_administrator_is_a_service_error() -> None:
+    jellyfin = FakeJellyfin(administrator=False, items={"b1": book("b1", "/files/x.cbz")})
+
+    with pytest.raises(ServiceError):
+        await new_client(jellyfin).item(URL, API_KEY, "b1")
 
 
 @pytest.mark.anyio

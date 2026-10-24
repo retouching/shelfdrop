@@ -659,6 +659,7 @@ class FakeSources:
         httpx.delete(f"{self.url}/__admin/requests", timeout=10.0).raise_for_status()
 
 
+JELLYFIN_ADMIN_ID: Final = "admin-of-the-api-key"
 WEBHOOK_PATH: Final = "/api/webhooks/1/token-of-the-tests"
 WEBHOOK: Final = f"{FAKE_ORIGIN}{WEBHOOK_PATH}"
 
@@ -688,11 +689,26 @@ def jellyfin_library_stubs(folder: str, items: list[dict[str, Any]]) -> list[dic
             "response": {"status": 204},
         },
     ]
+    stubs.append(
+        {
+            "priority": 1,
+            "request": {"method": "GET", "urlPath": "/Users", "headers": key},
+            "response": json_response(
+                [{"Id": JELLYFIN_ADMIN_ID, "Name": "Admin", "Policy": {"IsAdministrator": True}}]
+            ),
+        }
+    )
     for item in items:
         stubs += [
             {
+                # With an API key, Jellyfin reads an item as a user (F26).
                 "priority": 1,
-                "request": {"method": "GET", "urlPath": f"/Items/{item['Id']}", "headers": key},
+                "request": {
+                    "method": "GET",
+                    "urlPath": f"/Items/{item['Id']}",
+                    "headers": key,
+                    "queryParameters": {"userId": {"equalTo": JELLYFIN_ADMIN_ID}},
+                },
                 "response": json_response(item),
             },
             {

@@ -16,6 +16,7 @@ from shelfdrop.utils.torrent import magnet_id, torrent_id
 
 URL: Final = "http://jellyfin.test"
 API_KEY: Final = "jellyfin-api-key"
+ADMIN_ID: Final = "admin-of-the-api-key"
 TOKEN_FIELD: Final = re.compile(r'Token="([^"]+)"')
 
 
@@ -47,6 +48,8 @@ class FakeJellyfin:
     images: dict[str, bytes] = field(default_factory=dict)
     refreshed: list[tuple[str, dict[str, str]]] = field(default_factory=list)
     """The items refreshed (`/Library/Refresh`: `library`) and the parameters of each."""
+    administrator: bool = True
+    """`GET /Users` lists, after the accounts, the administrator `ADMIN_ID`."""
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -82,6 +85,11 @@ class FakeJellyfin:
             return httpx.Response(200, json={"Version": "10.11.2", "ServerName": "nami"})
         if path == "/Library/VirtualFolders":
             return httpx.Response(200, json=self.libraries, request=request)
+        if path == "/Users":
+            users = [account[1] for account in self.accounts.values()]
+            if self.administrator:
+                users.append(user_dto(ADMIN_ID, "Admin", admin=True))
+            return httpx.Response(200, json=users, request=request)
         return self.library(request)
 
     def library(self, request: httpx.Request) -> httpx.Response:
@@ -121,6 +129,9 @@ class FakeJellyfin:
         if request.method == "POST":
             self.items[item_id] = {**json.loads(request.content), "Id": item_id}
             return httpx.Response(204, request=request)
+        if not params.get("userId"):
+            # Jellyfin 12 with an API key: "Guid can't be empty" (F26).
+            return httpx.Response(400, request=request)
         return httpx.Response(200, json=self.items[item_id], request=request)
 
     def paths(self) -> list[str]:

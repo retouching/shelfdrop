@@ -179,9 +179,28 @@ class JellyfinClient:
             raise ServiceError("unexpected body")
         return [item for item in (item_of(x) for x in found) if item is not None]
 
+    async def administrator(self, url: str | None, api_key: str | None) -> str:
+        """`GET /Users` with an API key: the id of the first administrator not disabled, the user
+        `GET /Items/{id}` reads as. Raises ServiceError when there is none."""
+        body = await self.call("GET", url, "/Users", self.key_header(api_key))
+        if not isinstance(body, list):
+            raise ServiceError("unexpected body")
+        for entry in body:
+            try:
+                user = user_of(entry)
+            except ServiceError:
+                continue
+            if user.administrator and not user.disabled:
+                return user.id
+        raise ServiceError("no administrator")
+
     async def item(self, url: str | None, api_key: str | None, item_id: str) -> dict[str, Any]:
-        """`GET /Items/{id}`: the whole item, as `POST /Items/{id}` takes it back."""
-        body = await self.call("GET", url, f"/Items/{item_id}", self.key_header(api_key))
+        """`GET /Items/{id}?userId=`: the whole item, as `POST /Items/{id}` takes it back. With an
+        API key, Jellyfin needs the user it reads as (F26): an administrator."""
+        user_id = await self.administrator(url, api_key)
+        body = await self.call(
+            "GET", url, f"/Items/{item_id}", self.key_header(api_key), params={"userId": user_id}
+        )
         if not isinstance(body, dict) or not body.get("Id"):
             raise ServiceError("unexpected body")
         return body
