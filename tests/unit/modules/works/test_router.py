@@ -8,7 +8,9 @@ import pytest
 from shelfdrop.http.errors.exceptions import ApiError
 from shelfdrop.http.errors.types import ErrorCode
 from shelfdrop.modules.works.router import read_work_cover
+from shelfdrop.modules.works.schemas import NameRead
 from shelfdrop.works.covers import WorkCovers
+from shelfdrop.works.types import NameChoice
 
 WEBP = b"RIFF\x00\x00\x00\x00WEBPVP8 "
 
@@ -50,3 +52,20 @@ async def test_a_work_without_a_picture_is_a_404(data: bytes | None) -> None:
         await read_work_cover(covers, "anilist:1")
 
     assert (raised.value.status_code, raised.value.code) == (404, ErrorCode.WORK_COVER_NOT_FOUND)
+
+
+def test_a_name_answers_its_sources_and_the_most_trusted_of_them() -> None:
+    kept = NameChoice(title="Gunnm", language="ja-ro", checked=True, sources=("kitsu", "bnf"))
+    older = NameChoice(title="Gunnm", language="ja-ro", checked=True)
+
+    assert NameRead.model_validate(kept).model_dump() == {
+        "title": "Gunnm",
+        "language": "ja-ro",
+        "checked": True,
+        "sources": ["kitsu", "bnf"],
+        "source": "kitsu",
+    }
+    assert (NameRead.model_validate(older).sources, NameRead.model_validate(older).source) == (
+        [],
+        None,
+    )

@@ -9,7 +9,7 @@ import pytest
 from shelfdrop.works.merge import french_edition_names, join_merges, merge
 from shelfdrop.works.ranking import rank
 from shelfdrop.works.repository import CANDIDATES
-from shelfdrop.works.types import Candidate, Name, SourceName, WorkMerge
+from shelfdrop.works.types import Candidate, Name, SourceName, TitleOrder, WorkMerge
 from tests.unit.works.cases import MERGE_CASES, MergeCase
 
 ANSWERS: Final = Path(__file__).parent / "candidates"
@@ -343,3 +343,129 @@ def test_a_merge_whose_search_found_one_work_changes_nothing() -> None:
     merges = [WorkMerge(id=1, family="manga", keys=("kitsu:1", "kitsu:2"), shelf_name="Other")]
 
     assert join_merges(found, merges) == found
+
+
+def amnesia_members() -> list[Candidate]:
+    return [
+        candidate_of(
+            "mangaupdates",
+            "1",
+            "Tasogare Otome x Amnesia",
+            names=(
+                Name(title="Dusk Maiden of Amnesia", language="en"),
+                Name(title="Tasogare Otome x Amnesia", language="ja-ro"),
+            ),
+            authors=("Maybe",),
+        ),
+        candidate_of(
+            "kitsu",
+            "2",
+            "Dusk Maiden of Amnesia",
+            names=(Name(title="Dusk Maiden of Amnesia", language="en"),),
+            authors=("Maybe",),
+            external_ids={"mangaupdates": "1"},
+        ),
+        candidate_of(
+            "bnf",
+            "ark",
+            "Dusk maiden of amnesia",
+            names=(Name(title="Dusk maiden of amnesia", language="fr"),),
+            authors=("Maybe",),
+            external_ids={"mangaupdates": "1"},
+        ),
+    ]
+
+
+def test_each_name_keeps_every_source_that_gave_it_the_most_trusted_first() -> None:
+    [(work, _)] = merge(amnesia_members())
+
+    sources = {name.title: name.sources for name in work.names}
+    assert sources == {
+        "Dusk Maiden of Amnesia": ("mangaupdates", "kitsu", "bnf"),
+        "Tasogare Otome x Amnesia": ("mangaupdates",),
+    }
+    assert {name.title: name.source for name in work.names}["Dusk Maiden of Amnesia"] == (
+        "mangaupdates"
+    )
+
+
+def test_the_default_order_keeps_the_title_and_the_shelf_name_of_before() -> None:
+    [(default, _)] = merge(amnesia_members())
+    [(ordered, _)] = merge(amnesia_members(), TitleOrder())
+
+    assert default == ordered
+    assert (default.title, default.shelf_name) == (
+        "Tasogare Otome x Amnesia",
+        "Dusk Maiden of Amnesia",
+    )
+
+
+def test_the_language_order_chooses_the_shelf_name() -> None:
+    order = TitleOrder(languages=("ja-ro", "en", "fr", "latin"))
+
+    [(work, _)] = merge(amnesia_members(), order)
+
+    assert work.shelf_name == "Tasogare Otome x Amnesia"
+
+
+def test_english_first_passes_the_title_of_the_french_edition() -> None:
+    members = [
+        candidate_of(
+            "kitsu",
+            "1",
+            "Witch Hat Atelier",
+            names=(
+                Name(title="Witch Hat Atelier", language="en"),
+                Name(title="L'Atelier des sorciers", language="fr"),
+            ),
+            authors=("Kamome Shirahama",),
+        ),
+        candidate_of(
+            "bnf",
+            "ark",
+            "L'atelier des sorciers",
+            names=(Name(title="L'atelier des sorciers", language="fr"),),
+            authors=("Kamome Shirahama",),
+        ),
+    ]
+
+    [(french, _)] = merge(members)
+    [(english, _)] = merge(members, TitleOrder(languages=("en", "fr", "ja-ro", "latin")))
+
+    assert french.shelf_name == "L'Atelier des sorciers"
+    assert english.shelf_name == "Witch Hat Atelier"
+
+
+def test_the_source_order_chooses_the_title_but_not_the_id() -> None:
+    sources: tuple[SourceName, ...] = (
+        "kitsu",
+        "myanimelist",
+        "anilist",
+        "mangaupdates",
+        "mangadex",
+        "openlibrary",
+        "wikidata",
+        "bnf",
+    )
+
+    [(work, _)] = merge(amnesia_members(), TitleOrder(sources=sources))
+
+    assert work.id == "mangaupdates:1"
+    assert work.title == "Dusk Maiden of Amnesia"
+    assert {name.title: name.sources for name in work.names}["Dusk Maiden of Amnesia"] == (
+        "kitsu",
+        "mangaupdates",
+        "bnf",
+    )
+
+
+def test_a_merge_by_hand_is_built_in_the_order_given() -> None:
+    members = amnesia_members()
+    merged = [*merge(members[:1]), *merge(members[1:2])]
+    merges = [WorkMerge(id=1, family="manga", keys=("mangaupdates:1", "kitsu:2"), shelf_name="X")]
+    order = TitleOrder(sources=("kitsu", *(s for s in TitleOrder().sources if s != "kitsu")))
+
+    [(work, _)] = join_merges(merged, merges, order)
+
+    assert (work.id, work.shelf_name) == ("mangaupdates:1", "X")
+    assert work.title == "Dusk Maiden of Amnesia"

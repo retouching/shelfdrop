@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from shelfdrop.settings.types import Entry, SettingValue
-from shelfdrop.works.types import Kind, SourceName
+from shelfdrop.works.types import Kind, SourceName, TitleOrder
 
 # The services shelfdrop calls: an address and a secret each (the torrent client: the secret of
 # its client, `torrent_secret`).
@@ -30,6 +30,9 @@ SOURCES: Final[tuple[SourceName, ...]] = (
     "openlibrary",
     "wikidata",
 )
+# The orders the title of a work and its name on the shelf are chosen by, by default: the
+# languages ("latin": a name of a language not known) and the sources, the first first.
+TITLE_ORDER: Final = TitleOrder()
 # The events of the journal sent to Discord.
 EVENTS: Final = (
     "sent",
@@ -65,6 +68,12 @@ VALUES: Final[Mapping[str, Entry]] = {
     "search.max_names": Entry(kind="number", default=6, minimum=1, maximum=10),
     "search.release_cache_minutes": Entry(kind="number", default=10, minimum=0, maximum=1440),
     "search.work_cache_hours": Entry(kind="number", default=24, minimum=0, maximum=720),
+    "search.language_order": Entry(
+        kind="order", default=list(TITLE_ORDER.languages), options=TITLE_ORDER.languages
+    ),
+    "search.source_order": Entry(
+        kind="order", default=list(TITLE_ORDER.sources), options=TITLE_ORDER.sources
+    ),
     **{f"discord.events.{event}": Entry(kind="switch", default=True) for event in EVENTS},
     **{
         f"placement.library.{kind}": Entry(kind="path", default=path)
@@ -132,6 +141,14 @@ def is_valid(entry: Entry, value: SettingValue) -> bool:
             return isinstance(value, str) and TIME.match(value) is not None
         case "choice":
             return isinstance(value, str) and value in (entry.options or ())
+        case "order":
+            options = entry.options or ()
+            return (
+                isinstance(value, list)
+                and all(isinstance(item, str) for item in value)
+                and len(value) == len(options)
+                and set(value) == set(options)
+            )
         case "text":
             return value is None or (
                 isinstance(value, str)

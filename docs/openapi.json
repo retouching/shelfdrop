@@ -5233,13 +5233,32 @@
           "checked": {
             "type": "boolean",
             "title": "Checked"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceName"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceName"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
           "title",
           "language",
-          "checked"
+          "checked",
+          "sources",
+          "source"
         ],
         "title": "NameRead"
       },
@@ -6825,6 +6844,12 @@
           },
           {
             "type": "boolean"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           {
             "type": "null"

@@ -4,6 +4,7 @@ import pytest
 
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.types import TorrentSettings
+from shelfdrop.works.types import SourceName, TitleOrder
 from tests.unit.settings.support import TEST_SECRET_KEY, FakeSettingsReader
 
 
@@ -130,3 +131,20 @@ def test_a_secret_moved_to_another_name_opens_under_its_former_one() -> None:
     assert reader.opened("torrent.api_key", box.seal("torrent.api_key", "new")) == "new"
     # Another name never opens it.
     assert reader.opened("prowlarr.api_key", moved) is None
+
+
+@pytest.mark.anyio
+async def test_the_title_order_is_read_and_a_refused_value_gives_its_default() -> None:
+    assert await FakeSettingsReader().title_order() == TitleOrder()
+    languages = ["ja-ro", "en", "fr", "latin"]
+    sources: tuple[SourceName, ...] = ("bnf", *(s for s in TitleOrder().sources if s != "bnf"))
+
+    read = await FakeSettingsReader(
+        {"search.language_order": languages, "search.source_order": [str(s) for s in sources]}
+    ).title_order()
+    broken = await FakeSettingsReader(
+        {"search.language_order": ["fr"], "search.source_order": "bnf"}
+    ).title_order()
+
+    assert read == TitleOrder(languages=tuple(languages), sources=sources)
+    assert broken == TitleOrder()

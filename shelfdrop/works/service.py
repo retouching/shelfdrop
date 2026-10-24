@@ -30,6 +30,7 @@ from shelfdrop.works.types import (
     Kind,
     SearchOptions,
     SourceName,
+    TitleOrder,
     Work,
     WorkMerge,
     WorkSearch,
@@ -56,6 +57,8 @@ class WorkSettings(Protocol):
     async def enabled_sources(self) -> frozenset[str]: ...
 
     async def work_answer_seconds(self) -> int: ...
+
+    async def title_order(self) -> TitleOrder: ...
 
 
 @dataclass(frozen=True)
@@ -129,9 +132,10 @@ class WorkService:
         if clients and len(unavailable) == len(clients):
             raise NoSourceAnsweredError
         merges = await anyio.to_thread.run_sync(self.repository.read_merges, family)
+        order = await self.settings.title_order()
         candidates = [c for answer in answers.values() for c in answer.candidates]
         works, other_forms = rank(
-            query, join_merges(merge(candidates), merges), manga=family == "manga"
+            query, join_merges(merge(candidates, order), merges, order), manga=family == "manga"
         )
         bnf = [c for c in clients if c.name == "bnf" and c.name not in unavailable]
         names = french_edition_names(works, query) if bnf else []
@@ -141,15 +145,17 @@ class WorkService:
                 answers.update(await self.ask(bnf, name, family, now, unavailable))
             candidates = [c for answer in answers.values() for c in answer.candidates]
             works, other_forms = rank(
-                query, join_merges(merge(candidates), merges), manga=family == "manga"
+                query,
+                join_merges(merge(candidates, order), merges, order),
+                manga=family == "manga",
             )
-        order = [client.name for client in clients]
+        listed = [client.name for client in clients]
         result = WorkSearch(
             query=query,
             kind=kind,
             works=tuple(works),
             other_forms=tuple(other_forms),
-            unavailable=tuple(sorted(set(unavailable), key=order.index)),
+            unavailable=tuple(sorted(set(unavailable), key=listed.index)),
         )
         fresh = {key: answer.candidates for key, answer in answers.items() if answer.fresh}
         keep = await self.settings.work_answer_seconds()

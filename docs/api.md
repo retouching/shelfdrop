@@ -82,7 +82,7 @@ The search of a work in every metadata source of its family at once.
       "volumes": 24,
       "volumes_fr": 22,
       "form": "manga",
-      "names": [{"title": "Chainsaw Man", "language": "en", "checked": true}],
+      "names": [{"title": "Chainsaw Man", "language": "en", "checked": true, "sources": ["mangaupdates", "kitsu"], "source": "mangaupdates"}],
       "sources": ["mangaupdates", "kitsu", "mangadex", "wikidata", "bnf"],
       "cover_url": "https://...",
       "isbns": ["9782505..."],
@@ -95,8 +95,8 @@ The search of a work in every metadata source of its family at once.
 ```
 
 - `works`: at most 12, the best first. `other_forms`: for a manga search, the novels, anthologies and dōjinshi found, apart.
-- `shelf_name`: the name of the work in the library, the title of its French edition when there is one.
-- `names`: every name of the work; `checked` names are the ones searched in the indexers by default: French, English and romaji names, and the title of the work. `language` is `fr`, `en`, `ja-ro` (romaji), `ja`, `pl`, `tr`... given by a source or told by the name itself, or `latin` when neither says: such a name is shown, unchecked.
+- `title`, `shelf_name`: the title shown and the name of the work in the library, chosen in the orders of the settings `search.source_order` and `search.language_order` ([configuration](configuration.md#settings-of-the-page)); by default the title of the most trusted source and the title of its French edition when there is one.
+- `names`: every name of the work; `checked` names are the ones searched in the indexers by default: French, English and romaji names, and the title of the work. `language` is `fr`, `en`, `ja-ro` (romaji), `ja`, `pl`, `tr`... given by a source or told by the name itself, or `latin` when neither says: such a name is shown, unchecked. `sources`: the sources that gave the name, the most trusted first (`search.source_order`), and `source` the first of them (`[]` and `null` for a work found before the sources of its names were kept).
 - `volumes`: the volumes of the original edition; `volumes_fr`: those published in France.
 - `form`: `manga`, `novel`, `anthology`, `doujinshi`, `oneshot` or `other`.
 - `unavailable`: the sources that did not answer; the works come from the others. `?retry=true` asks the sources resting after two failures in a row too (the page shows `unavailable` with a button Réessayer).
@@ -210,13 +210,13 @@ Works joined by hand into one, for every search of their family after (`manga`, 
 The settings of the page ([the list](configuration.md#settings-of-the-page)):
 
 ```json
-{"values": {"prowlarr.url": "http://prowlarr:9696", "search.max_names": 6, "sources.kitsu.enabled": true},
+{"values": {"prowlarr.url": "http://prowlarr:9696", "search.max_names": 6, "sources.kitsu.enabled": true, "search.language_order": ["fr", "en", "ja-ro", "latin"]},
  "secrets": {"prowlarr.api_key": 1792598400, "torrent.api_key": null},
  "torrent_clients": ["qui", "qbittorrent", "deluge", "transmission"]}
 ```
 
 - `values`: every setting, its default when never saved. `secrets`: when each secret was set (Unix seconds), or `null`; never its value. `torrent_clients`: the values of `torrent.client` this version can use (a connector serves each).
-- `PUT` takes `{"values": {...}, "secrets": {"prowlarr.api_key": "new key", "jellyfin.api_key": null}}`: the keys given alone change, `null` clears a secret. Each change is audited (who, when, which key), never its value. Errors: `422 invalid_settings`, `data.keys` the keys unknown or whose value is refused, nothing saved.
+- `PUT` takes `{"values": {...}, "secrets": {"prowlarr.api_key": "new key", "jellyfin.api_key": null}}`: the keys given alone change, `null` clears a secret. Each change is audited (who, when, which key), never its value. Errors: `422 invalid_settings`, `data.keys` the keys unknown or whose value is refused, nothing saved. An order (`search.language_order`, `search.source_order`) is a list of every value it orders, each once.
 
 ## POST /api/v1/settings/test
 The test of a connection, with the values typed before they are saved: `{"service": "prowlarr", "url": null, "secret": null}`. `service`: `prowlarr`, `torrent` (the torrent client), `jellyfin`, or a metadata source (`kitsu`, `myanimelist`...); `url` and `secret` `null` are the values saved, a `secret` `""` none. The torrent client alone takes `client` (`qui`, `qbittorrent`, `deluge`, `transmission`) and `username`, `null` the values saved, a `username` `""` none; its `secret` is the key of qui or the password of the others, the one saved being the one of the client tested.

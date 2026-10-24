@@ -32,3 +32,14 @@ def test_a_checked_name_is_in_a_searched_language_or_the_title(
     for name in first["names"]:
         if name["checked"]:
             assert name["language"] in SEARCHED_LANGUAGES or name["title"] == first["title"]
+
+
+@pytest.mark.parametrize("case", CASES, ids=[case.slug for case in CASES])
+def test_each_name_keeps_the_sources_that_gave_it(client: httpx.Client, case: Case) -> None:
+    body = client.get("/api/v1/works", params={"q": case.query, "kind": case.kind}).json()
+
+    first = body["works"][0]
+    for name in first["names"]:
+        assert name["sources"], name["title"]
+        assert set(name["sources"]) <= set(first["sources"])
+        assert name["source"] == name["sources"][0]

@@ -91,6 +91,30 @@ def test_the_number_of_names_saved_applies_to_the_next_search(
     assert refused.json()["code"] == "too_many_names"
 
 
+def test_the_order_of_the_languages_saved_chooses_the_next_shelf_name(
+    client: httpx.Client, restore: None
+) -> None:
+    params = {"q": "L'atelier des sorciers", "kind": "manga"}
+    before = client.get("/api/v1/works", params=params).json()["works"][0]
+    save(
+        client, {"values": {"search.language_order": ["ja-ro", "en", "fr", "latin"]}}
+    ).raise_for_status()
+
+    after = client.get("/api/v1/works", params=params).json()["works"][0]
+
+    assert before["shelf_name"] == "L'atelier des sorciers"
+    languages = {name["title"]: name["language"] for name in after["names"]}
+    assert languages[after["shelf_name"]] == "ja-ro"
+    assert after["id"] == before["id"]
+
+
+def test_an_order_that_is_not_a_permutation_is_refused(client: httpx.Client) -> None:
+    refused = save(client, {"values": {"search.language_order": ["fr", "en"]}})
+
+    assert refused.status_code == 422
+    assert refused.json()["data"]["keys"] == ["search.language_order"]
+
+
 def test_an_invalid_setting_is_refused_by_its_key_alone(client: httpx.Client) -> None:
     refused = save(
         client,

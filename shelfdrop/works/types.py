@@ -60,6 +60,34 @@ class NameChoice:
     language: Language
     checked: bool
     """Searched on Prowlarr by default."""
+    sources: tuple[SourceName, ...] = ()
+    """The sources that gave it, the most trusted first (`TitleOrder.sources`); none in the
+    works cached before they were kept."""
+
+    @property
+    def source(self) -> SourceName | None:
+        """The most trusted source that gave it."""
+        return self.sources[0] if self.sources else None
+
+
+@dataclass(frozen=True, kw_only=True)
+class TitleOrder:
+    """The orders the title of a work and its name on the shelf are chosen by (the settings
+    `search.language_order` and `search.source_order`): its languages, the first wanted first
+    ("latin": a name of a language not known), and its sources, the most trusted first. The
+    defaults are those of the search before the settings."""
+
+    languages: tuple[Language, ...] = ("fr", "en", "ja-ro", "latin")
+    sources: tuple[SourceName, ...] = (
+        "myanimelist",
+        "anilist",
+        "mangaupdates",
+        "kitsu",
+        "mangadex",
+        "openlibrary",
+        "wikidata",
+        "bnf",
+    )
 
 
 @dataclass(frozen=True, kw_only=True)

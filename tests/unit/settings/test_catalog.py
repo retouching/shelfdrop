@@ -20,6 +20,17 @@ def test_the_catalog_holds_the_settings_of_the_page() -> None:
     assert VALUES["search.work_cache_hours"].default == 24
     assert VALUES["sources.mangadex.enabled"].default is True
     assert VALUES["discord.events.login"].default is True
+    assert VALUES["search.language_order"].default == ["fr", "en", "ja-ro", "latin"]
+    assert VALUES["search.source_order"].default == [
+        "myanimelist",
+        "anilist",
+        "mangaupdates",
+        "kitsu",
+        "mangadex",
+        "openlibrary",
+        "wikidata",
+        "bnf",
+    ]
     assert {
         "prowlarr.api_key",
         "torrent.api_key",
@@ -49,6 +60,20 @@ def test_the_catalog_holds_the_settings_of_the_page() -> None:
         ("torrent.username", None),
         ("torrent.folder.manga", "/data/torrents/manga"),
         ("torrent.folder.manual", None),
+        ("search.language_order", ["en", "fr", "latin", "ja-ro"]),
+        (
+            "search.source_order",
+            [
+                "bnf",
+                "kitsu",
+                "myanimelist",
+                "anilist",
+                "mangaupdates",
+                "mangadex",
+                "openlibrary",
+                "wikidata",
+            ],
+        ),
     ],
 )
 def test_a_valid_value_is_accepted(key: str, value: SettingValue) -> None:
@@ -80,6 +105,13 @@ def test_a_valid_value_is_accepted(key: str, value: SettingValue) -> None:
         ("torrent.folder.manga", "torrents/manga"),
         # A library has a folder, always.
         ("placement.library.manga", None),
+        # An order holds every value it orders, each once, and nothing else.
+        ("search.language_order", ["fr", "en", "ja-ro"]),
+        ("search.language_order", ["fr", "en", "ja-ro", "latin", "latin"]),
+        ("search.language_order", ["fr", "en", "ja-ro", "de"]),
+        ("search.language_order", "fr,en,ja-ro,latin"),
+        ("search.language_order", None),
+        ("search.source_order", ["bnf"]),
     ],
 )
 def test_an_invalid_value_or_an_unknown_key_is_refused(key: str, value: SettingValue) -> None:
