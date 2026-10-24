@@ -22,8 +22,9 @@ type Unplaced = Literal[
 type PlaceMode = Literal["hardlink", "hardlink_or_copy", "copy"]
 # What became of one file: hardlinked, copied, or left (a file had its name).
 type Outcome = Literal["linked", "copied", "exists"]
-# A write the API asks the worker for: a `cover.jpg`, or a scan of the libraries.
-type TaskKind = Literal["cover", "scan"]
+# A write the API asks the worker for: a `cover.jpg`, a scan of the libraries, or the renames of
+# the files of a series adopted (`AdoptOrder`).
+type TaskKind = Literal["cover", "scan", "adopt"]
 # Where a file of Ranger comes from: a download (hardlinked), the libraries (moved).
 type ItemOrigin = Literal["download", "library", "upload"]
 # A file of Ranger: to link to a work, a release in chapters to link to volumes, a file of the
@@ -100,8 +101,34 @@ class Placement:
 
 
 @dataclass(frozen=True, kw_only=True)
+class SeriesLink:
+    """The work a series of Jellyfin was linked to by hand, instead of the first work the
+    sources find under its name; `title`: its name, to search it again once its cache expired."""
+
+    series_id: str
+    kind: Kind
+    work_id: str
+    title: str
+    updated_at: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class AdoptOrder:
+    """Files of a series that shelfdrop did not place, adopted and renamed by the worker: each
+    file (its path, as the worker sees it) moved to its target in the same folder (a hardlink,
+    then the old name removed; never over a file), then recorded on the shelf; then the folder
+    of the series (`series_id`, in Jellyfin) refreshed."""
+
+    series_id: str
+    files: tuple[PlacedFile, ...]
+    targets: tuple[str, ...]
+    """The path each file of `files` takes, in their order."""
+
+
+@dataclass(frozen=True, kw_only=True)
 class LibraryTask:
-    """A write in a library asked by the API (which never writes there): a `cover.jpg`."""
+    """A write in a library asked by the API (which never writes there): a `cover.jpg`, a scan,
+    the renames of an adoption."""
 
     id: int
     kind: TaskKind

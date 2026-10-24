@@ -2,7 +2,8 @@
 Jellyfin, a change of its fields, its summary and its image, locked; the cover.jpg written by
 the placement worker; the images kept by the browser with their tag; the refresh of Jellyfin
 after each change; a scan and its progress; the volumes of a series, the file of one
-downloaded, one changed; the sync of the metadata of a file placed."""
+downloaded, one changed; the sync of the metadata of a file placed; a series linked to another
+work, and its files not placed by shelfdrop adopted and renamed by the worker."""
 
 import base64
 import json
@@ -344,3 +345,111 @@ def test_a_sync_sends_the_metadata_of_a_file_placed_with_its_authors(
         client.put(
             "/api/v1/settings", json={"values": {"placement.lock_jellyfin": True}}
         ).raise_for_status()
+
+
+LINKED = "/files/comics/Shelfdrop Link Test"
+
+
+@pytest.mark.usefixtures("jellyfin_saved")
+def test_a_series_is_linked_to_another_work_and_unlinked(
+    client: httpx.Client, fake_sources: FakeSources
+) -> None:
+    items: list[dict[str, object]] = [
+        # Its name finds Chainsaw Man in the sources (tests/unit/works/cases.py).
+        {"Id": "link-series", "Type": "Folder", "Name": "Chainsaw Man", "Path": LINKED},
+        {"Id": "link-t01", "Type": "Book", "Name": "T01", "Path": f"{LINKED}/x - T01.cbz"},
+    ]
+    fake_sources.load(
+        [
+            *jellyfin_library_stubs("comics", items),
+            *jellyfin_library_stubs("ebooks", []),
+            *jellyfin_library_stubs("audiobooks", []),
+        ]
+    )
+    other = client.get("/api/v1/works", params={"q": "Berserk", "kind": "manga"}).json()
+    other_id = other["works"][0]["id"]
+
+    found = client.get("/api/v1/library/series/link-series/proposals")
+    assert found.status_code == 200, found.text
+    automatic = found.json()
+    assert automatic["linked"] is False
+    assert automatic["work"]["shelf_name"] == "Chainsaw Man"
+    assert all(name["source"] for name in automatic["names"])
+
+    linked = client.put("/api/v1/library/series/link-series/work", json={"work_id": other_id})
+    assert linked.status_code == 200, linked.text
+    assert (linked.json()["linked"], linked.json()["work"]["id"]) == (True, other_id)
+    again = client.get("/api/v1/library/series/link-series/proposals").json()
+    assert (again["linked"], again["work_id"]) == (True, other_id)
+
+    unknown = client.put("/api/v1/library/series/link-series/work", json={"work_id": "kitsu:0"})
+    assert (unknown.status_code, unknown.json()["code"]) == (404, "work_not_found")
+    unlinked = client.delete("/api/v1/library/series/link-series/work")
+    assert unlinked.status_code == 200, unlinked.text
+    assert (unlinked.json()["linked"], unlinked.json()["work_id"]) == (
+        False,
+        automatic["work_id"],
+    )
+
+
+ADOPTED = "Shelfdrop Adopt Test"
+
+
+@pytest.mark.usefixtures("media", "jellyfin_saved")
+def test_the_files_of_a_series_are_adopted_and_renamed_by_the_worker(
+    client: httpx.Client, fake_sources: FakeSources, stack: Stack
+) -> None:
+    folder = f"/files/comics/{ADOPTED}"
+    items: list[dict[str, object]] = [
+        {"Id": "adopt-series", "Type": "Folder", "Name": "Chainsaw Man", "Path": folder},
+        {"Id": "adopt-v01", "Type": "Book", "Name": "v01", "Path": f"{folder}/adopt_v01.cbz"},
+        {"Id": "adopt-x", "Type": "Book", "Name": "extra", "Path": f"{folder}/extra.cbz"},
+    ]
+    fake_sources.load(
+        [
+            *jellyfin_library_stubs("comics", items),
+            *jellyfin_library_stubs("ebooks", []),
+            *jellyfin_library_stubs("audiobooks", []),
+        ]
+    )
+    stack.exec_placement("mkdir", "-p", f"/data{folder}")
+    for name in ("adopt_v01.cbz", "extra.cbz"):
+        stack.exec_placement("python", "-c", MAKE_CBZ, f"/data{folder}/{name}")
+
+    preview = client.get("/api/v1/library/series/adopt-series/adoption")
+    assert preview.status_code == 200, preview.text
+    files = {f["item_id"]: f for f in preview.json()["files"]}
+    assert (files["adopt-v01"]["volume"], files["adopt-v01"]["origin"]) == (1, "name")
+    assert files["adopt-v01"]["target"] == "Chainsaw Man - T01.cbz"
+    assert (files["adopt-x"]["volume"], files["adopt-x"]["target"]) == (None, None)
+
+    refused = client.post(
+        "/api/v1/library/series/adopt-series/adoption",
+        json={"items": [{"item_id": "adopt-x"}], "place": True},
+    )
+    assert (refused.status_code, refused.json()["code"]) == (422, "adoption_refused")
+    assert refused.json()["data"] == {"reason": "unnumbered", "item_ids": ["adopt-x"]}
+
+    adopted = client.post(
+        "/api/v1/library/series/adopt-series/adoption",
+        json={
+            "items": [
+                {"item_id": "adopt-v01", "volume": 1},
+                {"item_id": "adopt-x", "include": False},
+            ],
+            "place": True,
+        },
+    )
+    assert adopted.status_code == 200, adopted.text
+    assert adopted.json() == {"adopted": 1, "renamed": True, "conflicts": []}
+    listed = ""
+    # The worker renames it within a round (one a second in the test stack).
+    for _ in range(60):
+        listed = stack.exec_placement("ls", f"/data{folder}").stdout
+        if "Chainsaw Man - T01.cbz" in listed:
+            break
+    assert sorted(listed.split("\n")[:-1]) == ["Chainsaw Man - T01.cbz", "extra.cbz"]
+    shelf = client.get("/api/v1/place/items", params={"q": ADOPTED}).json()["items"]
+    assert [i["path"] for i in shelf if i["id"].startswith("shelf-")] == [
+        f"/data{folder}/Chainsaw Man - T01.cbz"
+    ]

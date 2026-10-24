@@ -4,6 +4,7 @@ import pytest
 
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.types import TorrentSettings
+from shelfdrop.works.types import SourceName, TitleOrder
 from tests.unit.settings.support import TEST_SECRET_KEY, FakeSettingsReader
 
 
@@ -140,3 +141,20 @@ async def test_the_mode_of_the_placement_is_a_hardlink_until_another_is_saved() 
     assert await FakeSettingsReader().place_mode() == "hardlink"
     for mode in ("hardlink_or_copy", "copy"):
         assert await FakeSettingsReader({"placement.mode": mode}).place_mode() == mode
+
+
+@pytest.mark.anyio
+async def test_the_title_order_is_read_and_a_refused_value_gives_its_default() -> None:
+    assert await FakeSettingsReader().title_order() == TitleOrder()
+    languages = ["ja-ro", "en", "fr", "latin"]
+    sources: tuple[SourceName, ...] = ("bnf", *(s for s in TitleOrder().sources if s != "bnf"))
+
+    read = await FakeSettingsReader(
+        {"search.language_order": languages, "search.source_order": [str(s) for s in sources]}
+    ).title_order()
+    broken = await FakeSettingsReader(
+        {"search.language_order": ["fr"], "search.source_order": "bnf"}
+    ).title_order()
+
+    assert read == TitleOrder(languages=tuple(languages), sources=sources)
+    assert broken == TitleOrder()

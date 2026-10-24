@@ -4,16 +4,23 @@
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  /** Le détail de l'erreur que donne l'API (`data`), null sans. */
+  readonly data: Readonly<Record<string, unknown>> | null;
 
-  constructor(status: number, code: string, detail: string) {
+  constructor(status: number, code: string, detail: string, data: Readonly<Record<string, unknown>> | null = null) {
     super(detail);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.data = data;
   }
 }
 
-function isErrorBody(body: unknown): body is { readonly code: string; readonly detail: string } {
+function isErrorBody(body: unknown): body is {
+  readonly code: string;
+  readonly detail: string;
+  readonly data?: Readonly<Record<string, unknown>> | null;
+} {
   return typeof body === "object" && body !== null && "code" in body && "detail" in body;
 }
 
@@ -37,7 +44,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
       onSignedOut?.();
     }
     throw isErrorBody(data)
-      ? new ApiError(response.status, data.code, data.detail)
+      ? new ApiError(response.status, data.code, data.detail, data.data ?? null)
       : new ApiError(response.status, "http_error", response.statusText);
   }
   return data as T;

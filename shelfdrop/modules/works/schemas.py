@@ -13,6 +13,10 @@ class NameRead(BaseModel):
     language: str
     # Searched on Prowlarr unless unchecked.
     checked: bool
+    # The sources that gave it, the most trusted first (the setting `search.source_order`), and
+    # the first of them; none (null) in a work found before the sources of its names were kept.
+    sources: list[SourceName]
+    source: SourceName | None
 
 
 class WorkPartRead(BaseModel):

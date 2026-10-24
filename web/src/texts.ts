@@ -768,6 +768,69 @@ const fr = {
     actions: "Actions",
     duplicate: (client: string): string => `Ce torrent est déjà dans ${client}.`,
   },
+  titleField: {
+    proposals: "Noms connus",
+    chosen: "par défaut",
+    more: (n: number): string => `+${String(n)}`,
+  },
+  titleOrder: {
+    languages: "Ordre des langues des titres",
+    sources: "Ordre des sources des titres",
+    languageNames: { fr: "Français", en: "Anglais", "ja-ro": "Romaji", latin: "Langue inconnue" } as Readonly<
+      Record<string, string>
+    >,
+    up: (name: string): string => `Monter ${name}`,
+    down: (name: string): string => `Descendre ${name}`,
+  },
+  seriesWork: {
+    label: "Œuvre",
+    found: "Trouvée sous le nom de la série",
+    linked: "Choisie à la main",
+    none: "Aucune œuvre trouvée.",
+    change: "Changer d'œuvre",
+    unlink: "Revenir à l'œuvre trouvée",
+    pickerTitle: "Changer d'œuvre",
+    choose: "Choisir",
+    failed: "Changement d'œuvre impossible.",
+    done: (title: string): string => `Œuvre choisie : ${title}.`,
+  },
+  adoption: {
+    open: "Adopter les fichiers",
+    title: "Adopter les fichiers",
+    loading: "Lecture des tomes…",
+    empty: "Aucun tome dans cette série.",
+    noWork: "Aucune œuvre pour cette série.",
+    include: (name: string): string => `Adopter ${name}`,
+    file: "Fichier",
+    size: "Taille",
+    number: "Numéro",
+    unit: "Type",
+    units: { volume: "Tome", chapter: "Chapitre" },
+    numberFor: (name: string): string => `Numéro de ${name}`,
+    unitFor: (name: string): string => `Type de ${name}`,
+    target: "Nouveau nom",
+    unknown: "?",
+    adopted: "Déjà rangé",
+    fromJellyfin: "Jellyfin",
+    fromName: "Nom du fichier",
+    duplicate: "Numéro en double",
+    adopt: "Adopter",
+    adoptAndPlace: "Adopter et ranger",
+    blocked: "Des fichiers sans numéro ou en double.",
+    refused: {
+      no_work: "Aucune œuvre pour cette série.",
+      unknown: "Un fichier n'est plus dans la série.",
+      adopted: "Un fichier est déjà rangé.",
+      unnumbered: "Un fichier n'a pas de numéro.",
+      duplicate: "Deux fichiers ont le même numéro.",
+    } as Readonly<Record<string, string>>,
+    failed: "Adoption impossible.",
+    done: (n: number, renamed: boolean): string =>
+      renamed
+        ? `${plural(n, "fichier adopté", "fichiers adoptés")}, renommage en cours.`
+        : `${plural(n, "fichier adopté", "fichiers adoptés")}.`,
+    conflicts: (n: number): string => `${plural(n, "nom déjà pris", "noms déjà pris")} : fichier gardé sous son nom.`,
+  },
 } as const;
 
 /** La forme d'un dictionnaire : les mêmes clés, des textes quelconques. */

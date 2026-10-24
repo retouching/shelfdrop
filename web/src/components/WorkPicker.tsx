@@ -5,9 +5,12 @@ import { texts } from "../texts";
 import type { Kind, Work } from "../types";
 import { CheckIcon, SearchIcon } from "./icons";
 import { Bone, LoadingLabel } from "./Skeletons";
+import { TitleField } from "./TitleField";
+import { proposalsOf } from "../utils/titles";
 
-export const field =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-ring";
+import { field } from "./fields";
+
+export { field };
 
 /** Œuvre choisie et nom gardé dans la bibliothèque (un de ses titres). */
 export type Pick = {
@@ -207,22 +210,15 @@ export function WorkPicker({
       </div>
 
       {value === null || !withName ? null : (
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium">{texts.place.shelfName}</span>
-          <select
-            value={value.shelfName}
-            onChange={(event) => {
-              onChange({ ...value, shelfName: event.target.value });
-            }}
-            className={field}
-          >
-            {value.work.titles.map((alt) => (
-              <option key={alt.title} value={alt.title}>
-                {alt.title} ({alt.language})
-              </option>
-            ))}
-          </select>
-        </label>
+        <TitleField
+          label={texts.place.shelfName}
+          value={value.shelfName}
+          onChange={(shelfName) => {
+            onChange({ ...value, shelfName });
+          }}
+          names={proposalsOf(value.work.titles)}
+          chosen={defaultName(value.work, submitted)}
+        />
       )}
     </div>
   );

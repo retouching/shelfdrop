@@ -7,7 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from shelfdrop.settings.types import ProbeState
 
-type Value = str | int | bool | None
+# An order (`search.language_order`, `search.source_order`) is a list of every value it orders.
+type Value = str | int | bool | list[str] | None
 
 
 class SettingsRead(BaseModel):

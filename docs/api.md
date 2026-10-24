@@ -82,7 +82,7 @@ The search of a work in every metadata source of its family at once.
       "volumes": 24,
       "volumes_fr": 22,
       "form": "manga",
-      "names": [{"title": "Chainsaw Man", "language": "en", "checked": true}],
+      "names": [{"title": "Chainsaw Man", "language": "en", "checked": true, "sources": ["mangaupdates", "kitsu"], "source": "mangaupdates"}],
       "sources": ["mangaupdates", "kitsu", "mangadex", "wikidata", "bnf"],
       "cover_url": "https://...",
       "isbns": ["9782505..."],
@@ -95,8 +95,8 @@ The search of a work in every metadata source of its family at once.
 ```
 
 - `works`: at most 12, the best first. `other_forms`: for a manga search, the novels, anthologies and dōjinshi found, apart.
-- `shelf_name`: the name of the work in the library, the title of its French edition when there is one.
-- `names`: every name of the work; `checked` names are the ones searched in the indexers by default: French, English and romaji names, and the title of the work. `language` is `fr`, `en`, `ja-ro` (romaji), `ja`, `pl`, `tr`... given by a source or told by the name itself, or `latin` when neither says: such a name is shown, unchecked.
+- `title`, `shelf_name`: the title shown and the name of the work in the library, chosen in the orders of the settings `search.source_order` and `search.language_order` ([configuration](configuration.md#settings-of-the-page)); by default the title of the most trusted source and the title of its French edition when there is one.
+- `names`: every name of the work; `checked` names are the ones searched in the indexers by default: French, English and romaji names, and the title of the work. `language` is `fr`, `en`, `ja-ro` (romaji), `ja`, `pl`, `tr`... given by a source or told by the name itself, or `latin` when neither says: such a name is shown, unchecked. `sources`: the sources that gave the name, the most trusted first (`search.source_order`), and `source` the first of them (`[]` and `null` for a work found before the sources of its names were kept).
 - `volumes`: the volumes of the original edition; `volumes_fr`: those published in France.
 - `form`: `manga`, `novel`, `anthology`, `doujinshi`, `oneshot` or `other`.
 - `unavailable`: the sources that did not answer; the works come from the others. `?retry=true` asks the sources resting after two failures in a row too (the page shows `unavailable` with a button Réessayer).
@@ -210,13 +210,13 @@ Works joined by hand into one, for every search of their family after (`manga`, 
 The settings of the page ([the list](configuration.md#settings-of-the-page)):
 
 ```json
-{"values": {"prowlarr.url": "http://prowlarr:9696", "search.max_names": 6, "sources.kitsu.enabled": true},
+{"values": {"prowlarr.url": "http://prowlarr:9696", "search.max_names": 6, "sources.kitsu.enabled": true, "search.language_order": ["fr", "en", "ja-ro", "latin"]},
  "secrets": {"prowlarr.api_key": 1792598400, "torrent.api_key": null},
  "torrent_clients": ["qui", "qbittorrent", "deluge", "transmission"]}
 ```
 
 - `values`: every setting, its default when never saved. `secrets`: when each secret was set (Unix seconds), or `null`; never its value. `torrent_clients`: the values of `torrent.client` this version can use (a connector serves each).
-- `PUT` takes `{"values": {...}, "secrets": {"prowlarr.api_key": "new key", "jellyfin.api_key": null}}`: the keys given alone change, `null` clears a secret. Each change is audited (who, when, which key), never its value. Errors: `422 invalid_settings`, `data.keys` the keys unknown or whose value is refused, nothing saved.
+- `PUT` takes `{"values": {...}, "secrets": {"prowlarr.api_key": "new key", "jellyfin.api_key": null}}`: the keys given alone change, `null` clears a secret. Each change is audited (who, when, which key), never its value. Errors: `422 invalid_settings`, `data.keys` the keys unknown or whose value is refused, nothing saved. An order (`search.language_order`, `search.source_order`) is a list of every value it orders, each once.
 
 ## POST /api/v1/settings/test
 The test of a connection, with the values typed before they are saved: `{"service": "prowlarr", "url": null, "secret": null}`. `service`: `prowlarr`, `torrent` (the torrent client), `jellyfin`, or a metadata source (`kitsu`, `myanimelist`...); `url` and `secret` `null` are the values saved, a `secret` `""` none. The torrent client alone takes `client` (`qui`, `qbittorrent`, `deluge`, `transmission`) and `username`, `null` the values saved, a `username` `""` none; its `secret` is the key of qui or the password of the others, the one saved being the one of the client tested.
@@ -247,7 +247,13 @@ The series of the libraries of books of Jellyfin (the library of each kind, foun
 ```
 
 ## GET /api/v1/library/series/{id}/proposals
-What the page proposes for a series: the images of its volumes (`volumes`: `item_id`, `label` « Tome 3 · CBZ », in French, `number` the number of the volume, `null` without one, `format` `CBZ`, `EPUB` or `M4B`, `image_tag`), then the covers and the summaries of the first work the sources find under its name (`covers`, `summaries`: `source`, and `url` or `text`; empty when no source answers), and `work_id`. `404 series_not_found`.
+What the page proposes for a series: the images of its volumes (`volumes`: `item_id`, `label` « Tome 3 · CBZ », in French, `number` the number of the volume, `null` without one, `format` `CBZ`, `EPUB` or `M4B`, `image_tag`), then the covers, the summaries and the names of its work: the work it was linked to (`linked: true`, `PUT .../work`), else the first the sources find under its name (`covers`, `summaries`: `source`, and `url` or `text`; `names`: `title`, `language`, `sources`, `source`, as the work search gives them, the proposals of its title; empty when no source answers). `work_id` and `work` (`id`, `title`, `shelf_name`, `authors`, `year`, `sources`, `cover_url`: its cover at `/api/v1/works/cover?id=`), `null` without one. `404 series_not_found`, `503 jellyfin_unavailable`.
+
+## PUT /api/v1/library/series/{id}/work, DELETE /api/v1/library/series/{id}/work
+`PUT {"work_id": "kitsu:9"}`: the series linked to a work a search returned in the last 7 days, in the place of the first work found under its name (a mismatch): kept (`series_links`), its proposals come from it after, read from the cache of the search, else searched again under its name; the files placed in the folder of the series (`files`) take its id, so that the sync and the volumes on the shelf follow it. `DELETE`: the link undone, the work is again the one found under its name (the files keep their work). Both answer the proposals, as `GET .../proposals`. `404 series_not_found`, `404 work_not_found`, `503 jellyfin_unavailable`.
+
+## GET /api/v1/library/series/{id}/adoption, POST /api/v1/library/series/{id}/adoption
+The files of a series shelfdrop did not place (added by hand), adopted as its own ([ADR 0016](adr/0016-placement.md)). `GET`: the preview, `{"series_id", "work_id", "files": [...]}`, `work_id` its work (as for the proposals; `null`: nothing can be adopted); each volume in Jellyfin: `item_id`, `path` (as Jellyfin sees it), `size`, the number proposed (`volume` or `chapter`: its `IndexNumber`, else a chapter or a volume its file name gives, read as the placement reads them; else both `null`), `origin` (`jellyfin`, `name`, `null`), `target` (the name it would take in its folder: `<Series> - T03.cbz`, `<Series> - Ch. 120.cbz`; `null` without a number), `adopted` (on the shelf already). `POST {"items": [{"item_id", "volume", "chapter", "include"}], "place": false}`: the files included recorded on the shelf (`files`) as files of the work, under the numbers given, untouched; with `place`, the placement worker renames each to its `target` in the same folder first, at its next round (a hardlink to the new name, then the old one removed; never over a file), then records them and asks Jellyfin to refresh the folder. Answers `{"adopted": 2, "renamed": true, "conflicts": ["<item id>"]}`: `conflicts`, the files whose name is taken by another file of the folder, adopted under their name. Nothing is done when a file is refused: `422 adoption_refused`, `data.reason` `no_work`, `unknown` (no volume of the series), `adopted`, `unnumbered` (neither a volume nor a chapter), `duplicate` (a number another file included, or the shelf, holds), `data.item_ids` the files. `404 series_not_found`, `503 jellyfin_unavailable`.
 
 ## GET /api/v1/library/series/{id}/volumes
 A series (as `GET /api/v1/library/series` gives it), its volumes by number and the numbers missing: those between 1 and the highest held (by the number of a volume in Jellyfin, else in the name of its file) that no volume holds. Each volume: `id` (its item in Jellyfin), `type` (`Book`, `AudioBook`), `name`, `number` (`null` without one), `summary`, `authors`, `has_image`, `image_tag` (as for a series), `file_name`, `size` (bytes, `null` when Jellyfin does not tell it). `404 series_not_found`, `503 jellyfin_unavailable`.

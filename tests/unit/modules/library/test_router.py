@@ -1,9 +1,20 @@
-"""shelfdrop.modules.library.router: the name of a file downloaded, the cache of an image."""
+"""shelfdrop.modules.library.router: the name of a file downloaded, the cache of an image, the
+errors of a link and of an adoption."""
 
 import pytest
 
-from shelfdrop.modules.library.router import attachment, read_image
-from tests.unit.library.test_service import JPEG, service_of, shelf
+from shelfdrop.http.errors.exceptions import ApiError
+from shelfdrop.http.errors.types import ErrorCode
+from shelfdrop.modules.library.router import adopt_files, attachment, link_work, read_image
+from shelfdrop.modules.library.schemas import AdoptionBody, AdoptionChoiceBody, WorkLinkBody
+from tests.unit.library.test_service import (
+    JPEG,
+    Works,
+    adoption_shelf,
+    berserk_work,
+    service_of,
+    shelf,
+)
 
 
 @pytest.fixture
@@ -32,3 +43,25 @@ async def test_an_image_with_its_tag_is_kept_for_good_and_a_minute_without() -> 
     assert tagged.body == untagged.body == JPEG
     assert tagged.headers["cache-control"] == "private, max-age=31536000, immutable"
     assert untagged.headers["cache-control"] == "private, max-age=60"
+
+
+@pytest.mark.anyio
+async def test_a_work_unknown_is_a_404() -> None:
+    service, _ = service_of(shelf(), Works([berserk_work()]))
+
+    with pytest.raises(ApiError) as raised:
+        await link_work("berserk", WorkLinkBody(work_id="kitsu:404"), service)
+
+    assert (raised.value.status_code, raised.value.code) == (404, ErrorCode.WORK_NOT_FOUND)
+
+
+@pytest.mark.anyio
+async def test_an_adoption_refused_is_a_422_naming_its_files() -> None:
+    service, _ = service_of(adoption_shelf(), Works([berserk_work()]))
+    body = AdoptionBody(items=[AdoptionChoiceBody(item_id="x")], place=True)
+
+    with pytest.raises(ApiError) as raised:
+        await adopt_files("berserk", body, service)
+
+    assert (raised.value.status_code, raised.value.code) == (422, ErrorCode.ADOPTION_REFUSED)
+    assert raised.value.data == {"reason": "unnumbered", "item_ids": ["x"]}

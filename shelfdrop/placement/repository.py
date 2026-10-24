@@ -10,8 +10,10 @@ from sqlalchemy.orm import Session
 
 from shelfdrop.db.models import LibraryTask as LibraryTaskRow
 from shelfdrop.db.models import PlaceItem as PlaceItemRow
+from shelfdrop.db.models import SeriesLink as SeriesLinkRow
 from shelfdrop.db.models import ShelfFile as ShelfFileRow
 from shelfdrop.placement.types import (
+    AdoptOrder,
     ItemOrigin,
     ItemState,
     LibraryTask,
@@ -19,6 +21,7 @@ from shelfdrop.placement.types import (
     PlacedFile,
     PlaceItem,
     PlaceRequest,
+    SeriesLink,
     ShelfFile,
     TaskKind,
 )
@@ -32,8 +35,14 @@ REQUEST: Final = TypeAdapter[PlaceRequest](PlaceRequest)
 PATHS: Final = TypeAdapter[tuple[str, ...]](tuple[str, ...])
 CHAPTERS: Final = TypeAdapter[tuple[float, ...]](tuple[float, ...])
 VOLUMES: Final = TypeAdapter[tuple[int, ...]](tuple[int, ...])
+ADOPT: Final = TypeAdapter(AdoptOrder)
 # The states of a file of Ranger still to place.
 OPEN: Final = ("unlinked", "chapters", "misplaced")
+
+
+def adopt_order_of(data: bytes) -> AdoptOrder:
+    """The adoption a task `adopt` holds."""
+    return ADOPT.validate_json(data)
 
 
 def file_of(row: ShelfFileRow) -> ShelfFile:
@@ -132,10 +141,52 @@ class PlacementRepository:
         )
         return [file_of(row) for row in self.session.scalars(found)]
 
+    def set_work(self, file_ids: Sequence[int], work_id: str) -> None:
+        """The files `file_ids` given to the work `work_id` (a series linked to another work)."""
+        if file_ids:
+            self.session.execute(
+                update(ShelfFileRow).where(ShelfFileRow.id.in_(file_ids)).values(work_id=work_id)
+            )
+
+    def read_link(self, series_id: str) -> SeriesLink | None:
+        row = self.session.get(SeriesLinkRow, series_id)
+        if row is None:
+            return None
+        return SeriesLink(
+            series_id=row.series_id,
+            kind=KIND.validate_python(row.kind),
+            work_id=row.work_id,
+            title=row.title,
+            updated_at=row.updated_at,
+        )
+
+    def save_link(self, link: SeriesLink) -> None:
+        self.session.merge(
+            SeriesLinkRow(
+                series_id=link.series_id,
+                kind=link.kind,
+                work_id=link.work_id,
+                title=link.title,
+                updated_at=link.updated_at,
+            )
+        )
+
+    def remove_link(self, series_id: str) -> bool:
+        """Whether there was one."""
+        row = self.session.get(SeriesLinkRow, series_id)
+        if row is None:
+            return False
+        self.session.delete(row)
+        return True
+
     def add_task(self, kind: TaskKind, path: str, data: bytes, now: int) -> None:
         self.session.add(
             LibraryTaskRow(kind=kind, path=path, data=data, state="pending", created_at=now)
         )
+
+    def add_adoption(self, order: AdoptOrder, now: int) -> None:
+        """The renames of an adoption, asked of the worker."""
+        self.add_task("adopt", order.series_id, ADOPT.dump_json(order), now)
 
     def read_tasks(self) -> list[LibraryTask]:
         rows = self.session.scalars(

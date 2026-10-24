@@ -6,8 +6,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-from shelfdrop.library.types import ScanMode, SyncStage
-from shelfdrop.works.types import Kind
+from shelfdrop.library.types import NumberOrigin, ScanMode, SyncStage
+from shelfdrop.works.types import Kind, SourceName
 
 type ShortText = Annotated[str, StringConstraints(max_length=300)]
 # An image sent in base64: 5 MB, a third more.
@@ -66,6 +66,30 @@ class SourceSummaryRead(BaseModel):
     text: str
 
 
+class ProposedNameRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    title: str
+    # "fr", "en", "ja-ro" (romaji), "ja"... or "latin" when the language is not known.
+    language: str
+    # The sources that gave it, the most trusted first, and the first of them.
+    sources: list[SourceName]
+    source: SourceName | None
+
+
+class ProposedWorkRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    # Its id in the work search; its cover at /works/cover?id={id} when `cover_url` is set.
+    id: str
+    title: str
+    shelf_name: str
+    authors: list[str]
+    year: int | None
+    sources: list[SourceName]
+    cover_url: str | None
+
+
 class ProposalsRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,6 +97,67 @@ class ProposalsRead(BaseModel):
     covers: list[SourceCoverRead]
     summaries: list[SourceSummaryRead]
     work_id: str | None
+    # The work the proposals come from: the one the series was linked to (`linked`), else the
+    # first the sources find under its name; null without one.
+    work: ProposedWorkRead | None
+    linked: bool
+    # The names of that work: the proposals of the title.
+    names: list[ProposedNameRead]
+
+
+class WorkLinkBody(BaseModel):
+    # A work a search returned in the last days.
+    work_id: str = Field(min_length=1, max_length=200)
+
+
+class AdoptionFileRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    item_id: str
+    # Its file, as Jellyfin sees it, and its size (null when Jellyfin does not tell it).
+    path: str
+    size: int | None
+    # The number proposed: a volume, or a chapter; none when nothing gives one.
+    volume: int | None
+    chapter: float | None
+    # Where it comes from: `jellyfin` (its IndexNumber), `name` (its file name), or null.
+    origin: NumberOrigin | None
+    # The name it would take in its folder; null without a number.
+    target: str | None
+    # On the shelf already: it cannot be adopted again.
+    adopted: bool
+
+
+class AdoptionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    series_id: str
+    # The work the files would belong to; null: no work, nothing can be adopted.
+    work_id: str | None
+    files: list[AdoptionFileRead]
+
+
+class AdoptionChoiceBody(BaseModel):
+    item_id: str = Field(min_length=1, max_length=64)
+    volume: int | None = Field(default=None, ge=0, le=9999)
+    chapter: float | None = Field(default=None, ge=0, le=99999)
+    include: bool = True
+
+
+class AdoptionBody(BaseModel):
+    items: list[AdoptionChoiceBody] = Field(min_length=1, max_length=2000)
+    # Renamed to the names of the shelf by the placement worker, then recorded.
+    place: bool = False
+
+
+class AdoptionResultRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    adopted: int
+    # Asked of the placement worker (`place`): it renames then records them at its next round.
+    renamed: bool
+    # The files whose name is taken in their folder: adopted under their name of before.
+    conflicts: list[str]
 
 
 class ImageBody(BaseModel):

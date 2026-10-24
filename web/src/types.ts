@@ -14,7 +14,12 @@ export type Volumes =
 
 export type AltTitle = {
   readonly title: string;
+  /** L'étiquette de sa langue (« FR », « Romaji »), vide si inconnue. */
   readonly language: string;
+  /** Le code de sa langue dans l'API (« fr », « ja-ro », « latin »). */
+  readonly code?: string;
+  /** Les sources qui le donnent, de la plus sûre à la moins sûre. */
+  readonly sources?: readonly string[];
   /** Cherché dans Prowlarr par défaut. */
   readonly checked?: boolean;
 };

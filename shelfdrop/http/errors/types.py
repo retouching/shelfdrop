@@ -104,6 +104,11 @@ class ErrorCode(StrEnum):
     JELLYFIN_UNAVAILABLE = "jellyfin_unavailable"
     # 404: no series of a library of books of Jellyfin has this id; data = null.
     SERIES_NOT_FOUND = "series_not_found"
+    # 422: an adoption of the files of a series refused, nothing done; data = {"reason":
+    # "no_work" (the series has no work), "unknown" (no volume of the series), "adopted" (on
+    # the shelf already), "unnumbered" (no volume nor chapter), "duplicate" (a number another
+    # file chosen, or the shelf, holds), "item_ids": [the files concerned]}.
+    ADOPTION_REFUSED = "adoption_refused"
     # 404: no book nor audiobook of a library of books of Jellyfin has this id (any other
     # item of Jellyfin is refused alike); data = null.
     VOLUME_NOT_FOUND = "volume_not_found"

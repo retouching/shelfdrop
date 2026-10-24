@@ -1,6 +1,7 @@
 // La page Jellyfin : les séries des bibliothèques de Jellyfin, leurs propositions, leurs changements, les scans.
 import { texts } from "../texts";
 import type { Kind } from "../types";
+import type { TitleProposal } from "../utils/titles";
 import { request } from "./http";
 
 export type Series = {
@@ -29,12 +30,80 @@ export function itemImage(id: string, tag: string | null, width = 400): string {
   return `/api/v1/library/items/${encodeURIComponent(id)}/image?width=${String(width)}${versioned}`;
 }
 
+/** L'œuvre d'où viennent les propositions d'une série. */
+export type SeriesWork = {
+  readonly id: string;
+  readonly title: string;
+  readonly shelfName: string;
+  readonly authors: readonly string[];
+  readonly year: number | null;
+  readonly sources: readonly string[];
+  /** L'adresse de sa couverture, servie par l'API ; null sans couverture. */
+  readonly cover: string | null;
+};
+
 export type Proposals = {
   /** Les tomes qui ont une image dans Jellyfin. */
   readonly volumes: readonly { readonly itemId: string; readonly label: string; readonly imageTag: string | null }[];
   readonly covers: readonly { readonly source: string; readonly url: string }[];
   readonly summaries: readonly { readonly source: string; readonly text: string }[];
+  /** L'œuvre choisie à la main (`linked`), sinon la première trouvée sous son nom ; null sans œuvre. */
+  readonly work?: SeriesWork | null;
+  readonly linked?: boolean;
+  /** Les noms de l'œuvre : les propositions du titre. */
+  readonly names?: readonly TitleProposal[];
 };
+
+type ProposalsRead = {
+  readonly volumes: readonly {
+    readonly item_id: string;
+    readonly label: string;
+    readonly number: number | null;
+    readonly format: string;
+    readonly image_tag: string | null;
+  }[];
+  readonly covers: Proposals["covers"];
+  readonly summaries: Proposals["summaries"];
+  readonly work: {
+    readonly id: string;
+    readonly title: string;
+    readonly shelf_name: string;
+    readonly authors: readonly string[];
+    readonly year: number | null;
+    readonly sources: readonly string[];
+    readonly cover_url: string | null;
+  } | null;
+  readonly linked: boolean;
+  readonly names: readonly TitleProposal[];
+};
+
+function proposalsOf(body: ProposalsRead): Proposals {
+  const work = body.work;
+  return {
+    volumes: body.volumes.map((volume) => ({
+      itemId: volume.item_id,
+      // « Tome 3 · CBZ » de l'API, réécrit dans la langue de la page ; sans numéro, le nom du tome.
+      label: volume.number === null ? volume.label : `${texts.volumes.number(volume.number)} · ${volume.format}`,
+      imageTag: volume.image_tag,
+    })),
+    covers: body.covers,
+    summaries: body.summaries,
+    work:
+      work === null
+        ? null
+        : {
+            id: work.id,
+            title: work.title,
+            shelfName: work.shelf_name,
+            authors: work.authors,
+            year: work.year,
+            sources: work.sources,
+            cover: work.cover_url === null ? null : `/api/v1/works/cover?id=${encodeURIComponent(work.id)}`,
+          },
+    linked: body.linked,
+    names: body.names.map((name) => ({ title: name.title, language: name.language, sources: name.sources })),
+  };
+}
 
 export type ImageChoice =
   | { readonly kind: "item"; readonly itemId: string }
@@ -100,27 +169,97 @@ export async function readSeries(): Promise<readonly Series[]> {
 }
 
 export async function readProposals(id: string): Promise<Proposals> {
+  return proposalsOf(await request<ProposalsRead>("GET", `/v1/library/series/${encodeURIComponent(id)}/proposals`));
+}
+
+/** La série liée à une autre œuvre ; ses propositions relues. */
+export async function linkWork(id: string, workId: string): Promise<Proposals> {
+  return proposalsOf(
+    await request<ProposalsRead>("PUT", `/v1/library/series/${encodeURIComponent(id)}/work`, { work_id: workId }),
+  );
+}
+
+/** Le lien de la série défait : l'œuvre trouvée sous son nom revient. */
+export async function unlinkWork(id: string): Promise<Proposals> {
+  return proposalsOf(await request<ProposalsRead>("DELETE", `/v1/library/series/${encodeURIComponent(id)}/work`));
+}
+
+/** Un tome d'une série vu par une adoption : le numéro proposé et le nom qu'il prendrait. */
+export type AdoptionFile = {
+  readonly itemId: string;
+  readonly path: string;
+  readonly size: number | null;
+  readonly volume: number | null;
+  readonly chapter: number | null;
+  /** D'où vient le numéro : Jellyfin, le nom du fichier, ou rien. */
+  readonly origin: "jellyfin" | "name" | null;
+  readonly target: string | null;
+  /** Déjà rangé : il ne s'adopte plus. */
+  readonly adopted: boolean;
+};
+
+export type Adoption = {
+  readonly workId: string | null;
+  readonly files: readonly AdoptionFile[];
+};
+
+export type AdoptionChoice = {
+  readonly itemId: string;
+  readonly volume: number | null;
+  readonly chapter: number | null;
+  readonly include: boolean;
+};
+
+export type AdoptionResult = {
+  readonly adopted: number;
+  readonly renamed: boolean;
+  readonly conflicts: readonly string[];
+};
+
+export async function readAdoption(id: string): Promise<Adoption> {
   const body = await request<{
-    readonly volumes: readonly {
+    readonly work_id: string | null;
+    readonly files: readonly {
       readonly item_id: string;
-      readonly label: string;
-      readonly number: number | null;
-      readonly format: string;
-      readonly image_tag: string | null;
+      readonly path: string;
+      readonly size: number | null;
+      readonly volume: number | null;
+      readonly chapter: number | null;
+      readonly origin: "jellyfin" | "name" | null;
+      readonly target: string | null;
+      readonly adopted: boolean;
     }[];
-    readonly covers: Proposals["covers"];
-    readonly summaries: Proposals["summaries"];
-  }>("GET", `/v1/library/series/${encodeURIComponent(id)}/proposals`);
+  }>("GET", `/v1/library/series/${encodeURIComponent(id)}/adoption`);
   return {
-    volumes: body.volumes.map((volume) => ({
-      itemId: volume.item_id,
-      // « Tome 3 · CBZ » de l'API, réécrit dans la langue de la page ; sans numéro, le nom du tome.
-      label: volume.number === null ? volume.label : `${texts.volumes.number(volume.number)} · ${volume.format}`,
-      imageTag: volume.image_tag,
+    workId: body.work_id,
+    files: body.files.map((file) => ({
+      itemId: file.item_id,
+      path: file.path,
+      size: file.size,
+      volume: file.volume,
+      chapter: file.chapter,
+      origin: file.origin,
+      target: file.target,
+      adopted: file.adopted,
     })),
-    covers: body.covers,
-    summaries: body.summaries,
   };
+}
+
+/** Les fichiers choisis adoptés ; `place` : renommés d'abord par le rangement. */
+export async function adoptFiles(
+  id: string,
+  choices: readonly AdoptionChoice[],
+  place: boolean,
+): Promise<AdoptionResult> {
+  return request<AdoptionResult>("POST", `/v1/library/series/${encodeURIComponent(id)}/adoption`, {
+    items: choices.map((choice) => ({
+      item_id: choice.itemId,
+      volume: choice.volume,
+      chapter: choice.chapter,
+      include: choice.include,
+    })),
+    place,
+  });
 }
 
 function imageBody(image: ImageChoice | null): object | null {

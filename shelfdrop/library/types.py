@@ -4,10 +4,12 @@ from dataclasses import dataclass
 from typing import Literal
 
 from shelfdrop.clients.types import JellyfinFile
-from shelfdrop.works.types import Kind
+from shelfdrop.works.types import Kind, NameChoice, Work
 
 type ScanMode = Literal["new", "missing", "all"]
 type SyncStage = Literal["idle", "running", "done", "failed"]
+# Where the number of a file adopted comes from: its `IndexNumber` in Jellyfin, its file name.
+type NumberOrigin = Literal["jellyfin", "name"]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -70,6 +72,13 @@ class SeriesProposals:
     summaries: tuple[SourceSummary, ...]
     work_id: str | None
     """The work the sources found, None without one."""
+    work: Work | None = None
+    """That work: the one the series was linked to by hand (`linked`), else the first the
+    sources find under its name."""
+    linked: bool = False
+    names: tuple[NameChoice, ...] = ()
+    """The names of that work, with their language and their sources: the proposals of its
+    title."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -191,3 +200,52 @@ class SyncState:
     """The files placed that Jellyfin does not list."""
     started_at: int | None = None
     ended_at: int | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class AdoptionFile:
+    """A volume of a series in Jellyfin, as an adoption would take it: the number proposed (its
+    `IndexNumber`, else a volume or a chapter its file name gives, else none), the name it
+    would take in its folder, and whether it is on the shelf already."""
+
+    item_id: str
+    path: str
+    """Its file, as Jellyfin sees it."""
+    size: int | None
+    volume: int | None
+    chapter: float | None
+    origin: NumberOrigin | None
+    target: str | None
+    """Its name once renamed; None without a number."""
+    adopted: bool
+
+
+@dataclass(frozen=True, kw_only=True)
+class SeriesAdoption:
+    """The preview of the adoption of the files of a series shelfdrop did not place."""
+
+    series_id: str
+    work_id: str | None
+    """The work the files would belong to: the one linked, else the one found by its name."""
+    files: tuple[AdoptionFile, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class AdoptionChoice:
+    """A file of the preview, as the page confirms it."""
+
+    item_id: str
+    volume: int | None
+    chapter: float | None
+    include: bool
+
+
+@dataclass(frozen=True, kw_only=True)
+class AdoptionResult:
+    """What an adoption did: the files recorded on the shelf (or, with `renamed`, asked of the
+    placement worker, which renames them first), and those whose name is taken in their
+    folder, adopted under their name of before."""
+
+    adopted: int
+    renamed: bool
+    conflicts: tuple[str, ...]

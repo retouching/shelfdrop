@@ -117,6 +117,18 @@ def moving_mode(mode: PlaceMode) -> PlaceMode:
     return "hardlink" if mode == "hardlink" else "hardlink_or_copy"
 
 
+def rename_new(source: Path, target: Path) -> bool:
+    """`source` renamed `target` in the same library, never over a file: a hardlink `target`,
+    then `source` removed. False when `target` exists (both left as they are). Raises
+    LinkRefusedError."""
+    if source == target:
+        return True
+    if place_file(source, target, "hardlink") == "exists":
+        return False
+    source.unlink()
+    return True
+
+
 def write_new(target: Path, data: bytes) -> bool:
     """`data` written to `target` through a `.part`; False when `target` exists."""
     if target.exists():

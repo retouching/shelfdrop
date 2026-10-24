@@ -12,22 +12,16 @@ from shelfdrop.works.types import (
     Name,
     NameChoice,
     SourceName,
+    TitleOrder,
     Work,
     WorkMerge,
     WorkPart,
 )
 
-# Most trusted first, for the title, the authors, the form and the year.
-PRIORITY: tuple[SourceName, ...] = (
-    "myanimelist",
-    "anilist",
-    "mangaupdates",
-    "kitsu",
-    "mangadex",
-    "openlibrary",
-    "wikidata",
-    "bnf",
-)
+# The orders of the title and of the name on the shelf by default (the settings change them).
+DEFAULT_ORDER = TitleOrder()
+# Most trusted first, for the id of a work, its authors, its form and its year.
+PRIORITY: tuple[SourceName, ...] = DEFAULT_ORDER.sources
 COVER_PRIORITY: tuple[SourceName, ...] = (
     "openlibrary",
     "mangaupdates",
@@ -232,26 +226,30 @@ def group(candidates: list[Candidate]) -> list[list[Candidate]]:
 @dataclass(frozen=True)
 class MergedName:
     """A name of a merged work: its best casing, its language, whether a French edition was
-    published under it (BnF), and whether its language was guessed rather than given."""
+    published under it (BnF), whether its language was guessed rather than given, and the
+    sources that gave it, in the order of the members."""
 
     title: str
     language: str
     published: bool
     guessed: bool
+    sources: tuple[SourceName, ...] = ()
 
 
 def names_of(members: list[Candidate]) -> list[MergedName]:
-    """Every name once, with the most precise language known, the best casing, and whether a
-    French edition was published under it (BnF).
+    """Every name once, with the most precise language known, the best casing, whether a
+    French edition was published under it (BnF), and every source that gave it.
 
     The BnF writes titles in catalogue case ("Dusk maiden of amnesia"): when another source has
     the same name, its casing wins, but the name stays French. A name no source gave a language
     for gets the one its letters and its words tell (`language_of`), if any.
     """
     by_key: dict[str, tuple[str, str, int, bool]] = {}
+    sources: dict[str, dict[SourceName, None]] = defaultdict(dict)
     for member in members:
         for name in (Name(title=member.title, language="latin"), *member.names):
             key = match_key(name.title) or name.title
+            sources[key][member.source] = None
             casing_rank = 1 if member.source == "bnf" else 0
             published = member.source == "bnf"
             current = by_key.get(key)
@@ -270,8 +268,9 @@ def names_of(members: list[Candidate]) -> list[MergedName]:
             language=language_of(title) if language == "latin" else language,
             published=published,
             guessed=language == "latin",
+            sources=tuple(sources[key]),
         )
-        for title, language, _, published in by_key.values()
+        for key, (title, language, _, published) in by_key.items()
     ]
 
 
@@ -307,18 +306,29 @@ def choices(names: list[MergedName], title: str) -> list[NameChoice]:
         if checked:
             checked_keys.append(key)
             checked_compact.add(compact(name.title))
-        found.append(NameChoice(title=name.title, language=name.language, checked=checked))
+        found.append(
+            NameChoice(
+                title=name.title, language=name.language, checked=checked, sources=name.sources
+            )
+        )
     return sorted(found, key=lambda c: not c.checked)
 
 
-def shelf_name(names: list[MergedName], fallback: str) -> str:
-    """The title of the French edition (BnF) first, then any French name, English, romaji, as
-    the sources gave them; a name whose language was guessed comes after."""
-    for name in names:
-        if name.published and name.language == "fr" and not is_abbreviation(name.title):
-            return name.title
+def shelf_name(
+    names: list[MergedName], fallback: str, languages: Sequence[str] = DEFAULT_ORDER.languages
+) -> str:
+    """The first name in the order of `languages` (by default French, English, romaji, then a
+    name of a language not known), as the sources gave them; a name whose language was guessed
+    comes after. A name a French edition was published under (BnF) comes first in its language:
+    with French first, before any other name."""
+    if list(languages[:1]) == ["fr"]:
+        for name in names:
+            if name.published and name.language == "fr" and not is_abbreviation(name.title):
+                return name.title
+    else:
+        names = sorted(names, key=lambda n: not n.published)
     for guessed in (False, True):
-        for wanted in ("fr", "en", "ja-ro", "latin"):
+        for wanted in languages:
             for name in names:
                 wanted_name = name.guessed == guessed and name.language == wanted
                 if wanted_name and not is_abbreviation(name.title):
@@ -333,9 +343,14 @@ def form_of(members: list[Candidate]) -> Form:
     return "other"
 
 
-def build_work(members: list[Candidate]) -> Work:
+def build_work(members: list[Candidate], order: TitleOrder = DEFAULT_ORDER) -> Work:
+    """The work of `members` (the most trusted of PRIORITY first: its id); its title and its
+    name on the shelf chosen in `order`."""
     best = members[0]
-    names = names_of(members)
+    rank = {source: i for i, source in enumerate(order.sources)}
+    ordered = sorted(members, key=lambda m: rank.get(m.source, len(rank)))
+    lead = ordered[0]
+    names = names_of(ordered)
     authors = next((list(m.authors) for m in members if m.authors), [])
     years = [m.year for m in members if m.year and m.source != "bnf"] or [
         m.year for m in members if m.year
@@ -353,7 +368,7 @@ def build_work(members: list[Candidate]) -> Work:
         ),
         None,
     )
-    title = best.title
+    title = lead.title
     if is_abbreviation(title) or not is_latin(title):
         title = next(
             (n.title for n in names if n.language == "en" and not is_abbreviation(n.title)), title
@@ -361,7 +376,7 @@ def build_work(members: list[Candidate]) -> Work:
     return Work(
         id=f"{best.source}:{best.source_id}",
         title=title,
-        shelf_name=shelf_name(names, best.title),
+        shelf_name=shelf_name(names, lead.title, order.languages),
         authors=tuple(authors),
         year=min(years) if years else None,
         volumes=volumes,
@@ -378,8 +393,10 @@ def build_work(members: list[Candidate]) -> Work:
     )
 
 
-def merge(candidates: list[Candidate]) -> list[tuple[Work, list[Candidate]]]:
-    return [(build_work(members), members) for members in group(candidates)]
+def merge(
+    candidates: list[Candidate], order: TitleOrder = DEFAULT_ORDER
+) -> list[tuple[Work, list[Candidate]]]:
+    return [(build_work(members, order), members) for members in group(candidates)]
 
 
 def part_of(work: Work) -> WorkPart:
@@ -387,7 +404,9 @@ def part_of(work: Work) -> WorkPart:
 
 
 def join_merges(
-    merged: list[tuple[Work, list[Candidate]]], merges: Sequence[WorkMerge]
+    merged: list[tuple[Work, list[Candidate]]],
+    merges: Sequence[WorkMerge],
+    order: TitleOrder = DEFAULT_ORDER,
 ) -> list[tuple[Work, list[Candidate]]]:
     """The works a merge by hand joins made one, in the place of the first of them: built again
     from all their members, under the name on the shelf chosen. A merge whose works the search
@@ -407,7 +426,7 @@ def join_merges(
         works = [merged[i][0] for i in indexes]
         members = [c for i in indexes for c in merged[i][1]]
         built = replace(
-            build_work(members),
+            build_work(members, order),
             shelf_name=by_id[merge_id].shelf_name,
             merge_id=merge_id,
             parts=tuple(part_of(w) for w in works),

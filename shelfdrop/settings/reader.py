@@ -14,6 +14,7 @@ from shelfdrop.settings.catalog import (
     LIBRARIES,
     PLACE_MODES,
     SOURCES,
+    TITLE_ORDER,
     TORRENT_FOLDERS,
     VALUES,
     sealed_names,
@@ -23,7 +24,7 @@ from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.exceptions import SecretUnreadableError
 from shelfdrop.settings.repository import SettingsRepositoryFactory
 from shelfdrop.settings.types import SettingValue, TorrentSettings
-from shelfdrop.works.types import Kind
+from shelfdrop.works.types import Kind, SourceName, TitleOrder
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +140,26 @@ class SettingsReader:
 
     async def work_answer_seconds(self) -> int:
         return 3600 * await self.number("search.work_cache_hours")
+
+    async def title_order(self) -> TitleOrder:
+        """The orders of the languages and of the sources the title of a work and its name on
+        the shelf are chosen by; a value the catalog would refuse gives its default."""
+        keys = ("search.language_order", "search.source_order")
+        values, _ = await anyio.to_thread.run_sync(self.read, keys, ())
+        languages, sources = (values[key] for key in keys)
+        known: dict[str, SourceName] = {source: source for source in TITLE_ORDER.sources}
+        return TitleOrder(
+            languages=(
+                tuple(languages)
+                if isinstance(languages, list) and set(languages) == set(TITLE_ORDER.languages)
+                else TITLE_ORDER.languages
+            ),
+            sources=(
+                tuple(known[s] for s in sources)
+                if isinstance(sources, list) and set(sources) == set(known)
+                else TITLE_ORDER.sources
+            ),
+        )
 
     async def jellyfin(self) -> tuple[str | None, str | None]:
         """The address of Jellyfin and its API key."""

@@ -3,11 +3,13 @@
 import pytest
 
 from shelfdrop.placement.naming import (
+    adopted_name,
     book_folder,
     book_name,
     chapter_name,
     chapter_sort_name,
     comic_name,
+    file_chapter,
     file_volume,
     safe,
     volume_title,
@@ -105,3 +107,24 @@ def test_the_title_of_a_volume_comes_after_its_number_and_before_its_tags(
     release: str, volume: int, title: str
 ) -> None:
     assert volume_title(release, volume, "Ne cède jamais") == title
+
+
+def test_a_file_adopted_takes_the_name_of_its_volume_or_of_its_chapter() -> None:
+    assert adopted_name("Berserk", 3, None, ".CBZ") == "Berserk - T03.cbz"
+    assert adopted_name("Berserk", None, 120.5, ".cbz") == "Berserk - Ch. 120.5.cbz"
+    assert adopted_name("Berserk", 4, 121, ".cbz") == "Berserk - T04 - Ch. 121.cbz"
+    with pytest.raises(ValueError, match="a volume or a chapter"):
+        adopted_name("Berserk", None, None, ".cbz")
+
+
+@pytest.mark.parametrize(
+    ("stem", "chapter"),
+    [
+        ("Berserk Ch. 120", 120.0),
+        ("Berserk #12", 12.0),
+        ("Berserk c012.5", 12.5),
+        ("Berserk T03", None),
+    ],
+)
+def test_the_chapter_of_a_file_is_the_one_of_the_releases(stem: str, chapter: float | None) -> None:
+    assert file_chapter(stem) == chapter

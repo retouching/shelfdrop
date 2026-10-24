@@ -29,6 +29,7 @@ from shelfdrop.placement.types import (
     PlaceItem,
     PlacementOptions,
     PlaceRequest,
+    SeriesLink,
     ShelfFile,
     TaskKind,
 )
@@ -79,6 +80,7 @@ class FakePlacementRepository(PlacementRepository):
         self.items: dict[int, PlaceItem] = {}
         self.scans: list[int] = []
         self.owners: dict[str, int | None] = {}
+        self.links: dict[str, SeriesLink] = {}
 
     @override
     def add_files(self, files: Sequence[PlacedFile], now: int) -> None:
@@ -99,6 +101,24 @@ class FakePlacementRepository(PlacementRepository):
                     copied_from=placed.copied_from,
                 )
             )
+
+    @override
+    def set_work(self, file_ids: Sequence[int], work_id: str) -> None:
+        self.files = [
+            dataclasses.replace(f, work_id=work_id) if f.id in file_ids else f for f in self.files
+        ]
+
+    @override
+    def read_link(self, series_id: str) -> SeriesLink | None:
+        return self.links.get(series_id)
+
+    @override
+    def save_link(self, link: SeriesLink) -> None:
+        self.links[link.series_id] = link
+
+    @override
+    def remove_link(self, series_id: str) -> bool:
+        return self.links.pop(series_id, None) is not None
 
     @override
     def read_unlocked(self, since: int) -> list[ShelfFile]:

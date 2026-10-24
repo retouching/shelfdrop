@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { mergeWorks } from "../api/works";
+import { useSettings, valueOf } from "../state/settings";
 import { texts } from "../texts";
+import { firstInOrder, languageOrderOf, proposalsOf } from "../utils/titles";
 import type { AltTitle, Kind, Work } from "../types";
 import { Spinner } from "./Skeletons";
-import { field, WorkPicker } from "./WorkPicker";
+import { TitleField } from "./TitleField";
+import { WorkPicker } from "./WorkPicker";
 import { dialogBody, dialogFrame } from "./dialog";
 
 type Props = {
@@ -40,10 +43,13 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
     ref.current?.showModal();
   }, []);
 
+  const settings = useSettings();
   const members = work.mergedFrom ?? [work];
   const titles = others.length === 0 ? [] : unionTitles([...members, ...others]);
-  const french = titles.find((alt) => alt.language === "FR")?.title;
-  const chosenName = shelfName ?? french ?? work.title;
+  const names = proposalsOf([...members, ...others].flatMap((entry) => entry.titles));
+  // Le nom retenu d'office : le premier dans l'ordre des langues des titres.
+  const proposed = firstInOrder(names, languageOrderOf(valueOf(settings, "search.language_order"))) ?? work.title;
+  const chosenName = shelfName ?? proposed;
 
   async function merge(): Promise<void> {
     if (others.length === 0) {
@@ -52,7 +58,11 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
     setPending(true);
     setFailed(false);
     try {
-      await mergeWorks(kind, [work.id, ...others.map((other) => other.id)], chosenName);
+      await mergeWorks(
+        kind,
+        [work.id, ...others.map((other) => other.id)],
+        chosenName.trim() === "" ? proposed : chosenName.trim(),
+      );
     } catch {
       setPending(false);
       setFailed(true);
@@ -97,22 +107,13 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
 
           {others.length === 0 ? null : (
             <>
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium">{texts.place.shelfName}</span>
-                <select
-                  value={chosenName}
-                  onChange={(event) => {
-                    setShelfName(event.target.value);
-                  }}
-                  className={field}
-                >
-                  {titles.map((alt) => (
-                    <option key={alt.title} value={alt.title}>
-                      {alt.title} ({alt.language})
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <TitleField
+                label={texts.place.shelfName}
+                value={chosenName}
+                onChange={setShelfName}
+                names={names}
+                chosen={proposed}
+              />
               <div className="rounded-lg bg-band px-4 py-3">
                 <p className="text-xs text-slate-500">{texts.works.mergedNames}</p>
                 <ul className="mt-2 flex flex-wrap gap-1.5">

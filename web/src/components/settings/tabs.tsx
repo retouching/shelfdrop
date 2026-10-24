@@ -8,6 +8,7 @@ import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } fr
 import { languages } from "../../i18n/language";
 import { texts } from "../../texts";
 import type { Kind, PlaceMode, TorrentClient } from "../../types";
+import { sourceName } from "../../api/works";
 import { Spinner } from "../Skeletons";
 import { stacked } from "../stacked";
 import {
@@ -22,6 +23,20 @@ import {
   useConnectionTest,
   type ConnectionTest,
 } from "./parts";
+import { OrderField } from "./OrderField";
+
+/** Les langues et les sources des titres, dans leur ordre par défaut (celui de l'API). */
+const TITLE_LANGUAGES: readonly string[] = ["fr", "en", "ja-ro", "latin"];
+const TITLE_SOURCES: readonly string[] = [
+  "myanimelist",
+  "anilist",
+  "mangaupdates",
+  "kitsu",
+  "mangadex",
+  "openlibrary",
+  "wikidata",
+  "bnf",
+];
 
 type ServiceId = "prowlarr" | "torrent" | "jellyfin";
 
@@ -657,6 +672,20 @@ export function SearchTab(): ReactElement {
             max={1440}
           />
           <NumberField label={texts.settings.cacheWorks} settingKey="search.work_cache_hours" min={0} max={720} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <OrderField
+            label={texts.titleOrder.languages}
+            settingKey="search.language_order"
+            options={TITLE_LANGUAGES}
+            nameOf={(language) => texts.titleOrder.languageNames[language] ?? language}
+          />
+          <OrderField
+            label={texts.titleOrder.sources}
+            settingKey="search.source_order"
+            options={TITLE_SOURCES}
+            nameOf={sourceName}
+          />
         </div>
         <Toggle label={texts.settings.hideNoSeed} checked={hideNoSeed} onChange={setHideNoSeed} />
         <Toggle label={texts.settings.relevance} checked={relevance} onChange={setRelevance} />
