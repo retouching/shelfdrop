@@ -30,6 +30,8 @@ class LibrarySeries:
     volumes_without_image: int
     path: str
     """Its folder, as Jellyfin sees it."""
+    image_tag: str | None = None
+    """The tag of its image in Jellyfin, which changes with it; None without one."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -39,6 +41,7 @@ class VolumeImage:
     item_id: str
     label: str
     """'Tome 3 · CBZ'."""
+    image_tag: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -134,6 +137,8 @@ class LibraryVolume:
     file_name: str
     size: int | None
     """The size of its file, None when Jellyfin does not tell it."""
+    image_tag: str | None = None
+    """The tag of its image in Jellyfin, which changes with it; None without one."""
 
 
 @dataclass(frozen=True, kw_only=True)

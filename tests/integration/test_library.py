@@ -1,6 +1,7 @@
 """The page Jellyfin through the real API: the series of the fake
 Jellyfin, a change of its fields, its summary and its image, locked; the cover.jpg written by
-the placement worker; a scan and its progress; the volumes of a series, the file of one
+the placement worker; the images kept by the browser with their tag; the refresh of Jellyfin
+after each change; a scan and its progress; the volumes of a series, the file of one
 downloaded, one changed; the sync of the metadata of a file placed."""
 
 import base64
@@ -24,6 +25,19 @@ pytestmark = [pytest.mark.library]
 
 JPEG = b"\xff\xd8\xff\xe0shelfdrop-library-test"
 SERIES = "/files/comics/Shelfdrop Library Test"
+# The parameters of the refresh after a change: nothing written is replaced (F40).
+AFTER_CHANGE = (
+    "metadataRefreshMode=FullRefresh",
+    "imageRefreshMode=Default",
+    "replaceAllMetadata=false",
+    "replaceAllImages=false",
+)
+
+
+def refreshed_after_change(fake_sources: FakeSources, item_id: str) -> None:
+    """The item was refreshed once after its change, in the mode that keeps what was written."""
+    [refresh] = wait_for_requests(fake_sources, "POST", f"/Items/{item_id}/Refresh")
+    assert all(parameter in refresh["url"] for parameter in AFTER_CHANGE), refresh["url"]
 
 
 def library_items() -> list[dict[str, object]]:
@@ -73,6 +87,11 @@ def test_a_series_is_read_changed_locked_and_its_cover_written(
     assert (series["kind"], series["volumes"], series["volumes_without_summary"]) == ("manga", 1, 1)
     image = client.get("/api/v1/library/items/lib-t01/image")
     assert (image.status_code, image.content) == (200, JPEG)
+    assert image.headers["Cache-Control"] == "private, max-age=60"
+    # With its tag, the address changes with the image: the browser keeps it for good.
+    tagged = client.get("/api/v1/library/items/lib-t01/image", params={"tag": "t"})
+    assert (tagged.status_code, tagged.content) == (200, JPEG)
+    assert tagged.headers["Cache-Control"] == "private, max-age=31536000, immutable"
 
     changed = client.put(
         "/api/v1/library/series/lib-series",
@@ -97,6 +116,9 @@ def test_a_series_is_read_changed_locked_and_its_cover_written(
     assert json.loads(volume["body"])["Overview"] == "Denji."
     [sent] = fake_sources.requests("POST", "/Items/lib-series/Images/Primary")
     assert base64.b64decode(sent["body"]) == JPEG
+    # The folder of the series refreshed, its volumes with it; not each volume.
+    refreshed_after_change(fake_sources, "lib-series")
+    assert fake_sources.requests("POST", "/Items/lib-t01/Refresh") == []
     # The worker writes the cover.jpg of the series within a round.
     written = ""
     for _ in range(30):
@@ -114,6 +136,8 @@ def test_a_series_is_read_changed_locked_and_its_cover_written(
     assert (refused.status_code, refused.json()["code"]) == (422, "image_refused")
     missing = client.put("/api/v1/library/series/nope", json={"name": "x"})
     assert (missing.status_code, missing.json()["code"]) == (404, "series_not_found")
+    # Neither refused change refreshed anything.
+    assert len(fake_sources.requests("POST", "/Items/lib-series/Refresh")) == 1
 
 
 @pytest.mark.usefixtures("jellyfin_saved")
@@ -204,6 +228,7 @@ def test_the_volumes_of_a_series_are_listed_downloaded_and_changed(
         ("vol-t03", 3, "Shelfdrop Volumes Test - T03.cbz", None),
     ]
     assert body["missing"] == [2]
+    assert [v["image_tag"] for v in body["volumes"]] == ["t", None]
 
     downloaded = client.get("/api/v1/library/items/vol-t01/file")
     assert downloaded.status_code == 200, downloaded.text
@@ -237,6 +262,7 @@ def test_the_volumes_of_a_series_are_listed_downloaded_and_changed(
     )
     assert sent["People"] == [{"Name": "Shelfdrop Author", "Type": "Author", "Role": ""}]
     assert sent["LockedFields"] == ["Cast", "Name", "Overview"]
+    refreshed_after_change(fake_sources, "vol-t01")
     missing = client.put("/api/v1/library/items/nope", json={"name": "x"})
     assert (missing.status_code, missing.json()["code"]) == (404, "volume_not_found")
 
@@ -309,6 +335,9 @@ def test_a_sync_sends_the_metadata_of_a_file_placed_with_its_authors(
         assert sent["People"] == [{"Name": "Shelfdrop Sync Author", "Type": "Author", "Role": ""}]
         assert sent["LockedFields"] == ["Cast", "Name"]
         assert fake_sources.requests("POST", "/Items/sync-t01/Images/Primary") == []
+        # The folder of the series refreshed once, not the volume (F40).
+        refreshed_after_change(fake_sources, "sync-series")
+        assert fake_sources.requests("POST", "/Items/sync-t01/Refresh") == []
         unknown = client.post("/api/v1/library/sync", json={"series_id": "nope"})
         assert (unknown.status_code, unknown.json()["code"]) == (404, "series_not_found")
     finally:

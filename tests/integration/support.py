@@ -666,7 +666,7 @@ WEBHOOK: Final = f"{FAKE_ORIGIN}{WEBHOOK_PATH}"
 
 def jellyfin_library_stubs(folder: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The items of the library of `folder` of the fake Jellyfin (`GET /Items?parentId=`), each
-    readable and writable by its id, and the scans of the library."""
+    readable, writable and refreshable by its id, and the scans of the library."""
     key = {"Authorization": {"contains": f'Token="{JELLYFIN_API_KEY}"'}}
     stubs: list[dict[str, Any]] = [
         {
@@ -714,6 +714,16 @@ def jellyfin_library_stubs(folder: str, items: list[dict[str, Any]]) -> list[dic
             {
                 "priority": 1,
                 "request": {"method": "POST", "urlPath": f"/Items/{item['Id']}", "headers": key},
+                "response": {"status": 204},
+            },
+            {
+                # The refresh after a change (F40): Jellyfin queues it and answers at once.
+                "priority": 1,
+                "request": {
+                    "method": "POST",
+                    "urlPath": f"/Items/{item['Id']}/Refresh",
+                    "headers": key,
+                },
                 "response": {"status": 204},
             },
         ]

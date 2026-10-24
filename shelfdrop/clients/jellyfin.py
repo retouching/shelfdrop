@@ -26,8 +26,16 @@ CLIENT: Final = "shelfdrop"
 # The fields `GET /Items` adds to each item.
 ITEM_FIELDS: Final = "Path,Overview,Genres,People,ProductionYear,OriginalTitle"
 # The refresh modes of `POST /Items/{id}/Refresh` for each scan mode: the new and changed files,
-# the missing metadata, everything replaced.
+# the missing metadata, everything replaced; and `changed`, the refresh after a change of
+# shelfdrop (F40): every provider asked, but only for what is empty, the images validated and
+# none replaced, so that nothing just written is overwritten.
 REFRESH_MODES: Final[Mapping[str, dict[str, str]]] = {
+    "changed": {
+        "metadataRefreshMode": "FullRefresh",
+        "imageRefreshMode": "Default",
+        "replaceAllMetadata": "false",
+        "replaceAllImages": "false",
+    },
     "new": {"metadataRefreshMode": "Default", "imageRefreshMode": "Default"},
     "missing": {
         "metadataRefreshMode": "FullRefresh",
@@ -87,6 +95,9 @@ def item_of(body: object) -> JellyfinItem | None:
         original_title=str(body.get("OriginalTitle") or ""),
         has_image=isinstance(images, dict) and bool(images.get("Primary")),
         index_number=number(body.get("IndexNumber")),
+        image_tag=(
+            str(images["Primary"]) if isinstance(images, dict) and images.get("Primary") else None
+        ),
     )
 
 
@@ -313,7 +324,8 @@ class JellyfinClient:
 
     async def refresh(self, url: str | None, api_key: str | None, item_id: str, mode: str) -> None:
         """`POST /Items/{id}/Refresh` (a library, a folder or a book, and what it holds) in
-        the scan mode `new`, `missing` or `all`."""
+        the scan mode `new`, `missing` or `all`, or `changed` after a change of shelfdrop;
+        Jellyfin queues it and answers at once."""
         await self.call(
             "POST",
             url,

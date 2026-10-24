@@ -51,6 +51,8 @@ class FakeJellyfin:
     gets its first byte and its size (`206`, `Content-Range`), as `PhysicalFile` sends it."""
     refreshed: list[tuple[str, dict[str, str]]] = field(default_factory=list)
     """The items refreshed (`/Library/Refresh`: `library`) and the parameters of each."""
+    refresh_fails: bool = False
+    """`POST /Items/{id}/Refresh` answers `500`."""
     administrator: bool = True
     """`GET /Users` lists, after the accounts, the administrator `ADMIN_ID`."""
 
@@ -117,11 +119,15 @@ class FakeJellyfin:
         if rest == "/Download":
             return self.download(request, item_id)
         if rest == "/Refresh":
+            if self.refresh_fails:
+                return httpx.Response(500, request=request)
             self.refreshed.append((item_id, params))
             return httpx.Response(204, request=request)
         if rest == "/Images/Primary":
             if request.method == "POST":
                 self.images[item_id] = base64.b64decode(request.content)
+                # A new image, a new tag (the path of the item and the date of the image).
+                self.items[item_id]["ImageTags"] = {"Primary": f"tag-{len(self.requests)}"}
                 return httpx.Response(204, request=request)
             if item_id not in self.images:
                 return httpx.Response(404, request=request)

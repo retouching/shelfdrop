@@ -2190,7 +2190,7 @@
           "library"
         ],
         "summary": "Read Image",
-        "description": "The image Jellyfin holds for a series or a volume, for the page (the session of the\npage is asked; Jellyfin is not reachable from the browser).",
+        "description": "The image Jellyfin holds for a series or a volume, for the page (the session of the\npage is asked; Jellyfin is not reachable from the browser). With `tag` (its `image_tag`),\nthe browser keeps it for good: a new image comes with a new tag.",
         "operationId": "read_image_api_v1_library_items__item_id__image_get",
         "parameters": [
           {
@@ -2212,6 +2212,23 @@
               "minimum": 50,
               "default": 400,
               "title": "Width"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
             }
           }
         ],
@@ -5318,6 +5335,17 @@
           "volumes_without_image": {
             "type": "integer",
             "title": "Volumes Without Image"
+          },
+          "image_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Tag"
           }
         },
         "type": "object",
@@ -5333,7 +5361,8 @@
           "has_image",
           "volumes",
           "volumes_without_summary",
-          "volumes_without_image"
+          "volumes_without_image",
+          "image_tag"
         ],
         "title": "SeriesRead"
       },
@@ -6068,12 +6097,24 @@
           "label": {
             "type": "string",
             "title": "Label"
+          },
+          "image_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Tag"
           }
         },
         "type": "object",
         "required": [
           "item_id",
-          "label"
+          "label",
+          "image_tag"
         ],
         "title": "VolumeImageRead"
       },
@@ -6156,6 +6197,17 @@
               }
             ],
             "title": "Size"
+          },
+          "image_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Tag"
           }
         },
         "type": "object",
@@ -6168,7 +6220,8 @@
           "authors",
           "has_image",
           "file_name",
-          "size"
+          "size",
+          "image_tag"
         ],
         "title": "VolumeRead"
       },

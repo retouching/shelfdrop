@@ -12,7 +12,13 @@ import anyio.to_thread
 
 from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.library.exceptions import LibraryUnavailableError
-from shelfdrop.library.service import VOLUME_TYPES, LibraryReader, PlacementRepositoryFactory
+from shelfdrop.library.service import (
+    ITEM_TYPES,
+    VOLUME_TYPES,
+    LibraryReader,
+    PlacementRepositoryFactory,
+    series_folder,
+)
 from shelfdrop.library.types import LibrarySeries, SyncStage, SyncState
 from shelfdrop.placement.metadata import locked_item
 from shelfdrop.placement.paths import to_jellyfin
@@ -122,21 +128,25 @@ class LibrarySync:
         """Each file placed of the series (or of every library) that Jellyfin lists by its
         path: its name, series, number, sort and authors set as the placement sets them, the
         authors of shelfdrop over those of Jellyfin, `Name` and `Cast` locked, its image left;
-        whatever the setting `placement.lock_jellyfin` says (the sync is asked)."""
+        whatever the setting `placement.lock_jellyfin` says (the sync is asked). Then the
+        folder of each series whose items changed refreshed in Jellyfin, once (F40)."""
         jellyfin = self.reader.jellyfin
         url, key = await self.reader.settings.jellyfin()
         roots = await self.reader.settings.libraries()
         files = await anyio.to_thread.run_sync(self.read_files)
         administrator: str | None = None
         synced: list[int] = []
+        # The folders of the series whose items changed, in their order.
+        touched: dict[str, None] = {}
         for shelf in await self.reader.kinds():
             if series is not None and shelf.kind != series.kind:
                 continue
             placed = [f for f in files if f.kind == shelf.kind]
             if not placed:
                 continue
-            items = await jellyfin.items(url, key, shelf.item_id, VOLUME_TYPES)
-            by_path = {item.path: item for item in items}
+            items = await jellyfin.items(url, key, shelf.item_id, ITEM_TYPES)
+            by_path = {item.path: item for item in items if item.type in VOLUME_TYPES}
+            folders = {item.path: item.id for item in items if item.type == "Folder"}
             for entry in placed:
                 try:
                     path = to_jellyfin(entry.path, roots[shelf.kind], shelf.location)
@@ -158,9 +168,14 @@ class LibrarySync:
                 else:
                     await jellyfin.update_item(url, key, item.id, wanted)
                     self.counted(changed=1)
+                    folder = series_folder(item.path, shelf.location, shelf.kind)
+                    if folder is not None and folder in folders:
+                        touched[folders[folder]] = None
                 synced.append(entry.id)
         if synced:
             await anyio.to_thread.run_sync(self.mark_locked, synced)
+        for folder_id in touched:
+            await self.reader.refresh_changed(folder_id)
 
     def read_files(self) -> list[ShelfFile]:
         repository = self.placement()

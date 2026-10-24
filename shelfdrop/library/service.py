@@ -258,6 +258,7 @@ class LibraryReader:
                         volumes_without_summary=sum(1 for b in books if not b.overview),
                         volumes_without_image=sum(1 for b in books if not b.has_image),
                         path=path,
+                        image_tag=owner.image_tag,
                     ),
                     books,
                 )
@@ -283,6 +284,18 @@ class LibraryReader:
                 if item.id == item_id and item.type in VOLUME_TYPES:
                     return shelf, item
         raise VolumeNotFoundError(item_id)
+
+    async def refresh_changed(self, item_id: str) -> None:
+        """The refresh of an item of Jellyfin after a change of shelfdrop, and of what it holds
+        (F40): what depends on its fields follows them, nothing written is replaced. Jellyfin
+        queues it; a failure is logged by its class and never fails the change."""
+        try:
+            url, key = await self.settings.jellyfin()
+            await self.jellyfin.refresh(url, key, item_id, "changed")
+        except ServiceError as exc:
+            logger.warning(
+                "Jellyfin refresh after a change failed", extra={"error": type(exc).__name__}
+            )
 
     @jellyfin_down
     async def volumes_of(self, kind: Kind, name: str) -> set[int]:
@@ -321,7 +334,7 @@ class LibraryService(LibraryReader):
         sources find under its name (none when no source answers)."""
         found, books = await self.series(series_id)
         volumes = tuple(
-            VolumeImage(item_id=b.id, label=volume_label(b, found.kind))
+            VolumeImage(item_id=b.id, label=volume_label(b, found.kind), image_tag=b.image_tag)
             for b in books
             if b.has_image
         )[:VOLUME_PROPOSALS]
@@ -375,7 +388,8 @@ class LibraryService(LibraryReader):
 
     @jellyfin_down
     async def change_volume(self, item_id: str, change: VolumeChange) -> LibraryVolume:
-        """The change of a volume, then the volume read again."""
+        """The change of a volume, then the volume read again (its new image tag with it), then
+        its refresh in Jellyfin."""
         await self.volume(item_id)
         picture = await self.picture(change.image) if change.image is not None else None
         url, key = await self.settings.jellyfin()
@@ -384,7 +398,9 @@ class LibraryService(LibraryReader):
         if picture is not None:
             await self.jellyfin.set_image(url, key, item_id, *picture)
         _, changed = await self.volume(item_id)
-        return volume_of(changed, await self.jellyfin.file_size(url, key, item_id))
+        read = volume_of(changed, await self.jellyfin.file_size(url, key, item_id))
+        await self.refresh_changed(item_id)
+        return read
 
     @jellyfin_down
     async def image(self, item_id: str, width: int) -> tuple[bytes, str]:
@@ -414,7 +430,8 @@ class LibraryService(LibraryReader):
 
     @jellyfin_down
     async def change(self, series_id: str, change: SeriesChange) -> LibrarySeries:
-        """The change of a series, then the series read again."""
+        """The change of a series, then the series read again (its new image tag with it), then
+        the refresh of its folder in Jellyfin."""
         found, books = await self.series(series_id)
         picture = await self.picture(change.image) if change.image is not None else None
         url, key = await self.settings.jellyfin()
@@ -440,6 +457,7 @@ class LibraryService(LibraryReader):
             if change.save_cover:
                 await self.ask_cover(found.path, data)
         changed, _ = await self.series(series_id)
+        await self.refresh_changed(series_id)
         return changed
 
     async def ask_cover(self, path: str, data: bytes) -> None:
@@ -511,6 +529,7 @@ def volume_of(item: JellyfinItem, size: int | None) -> LibraryVolume:
         has_image=item.has_image,
         file_name=PurePosixPath(item.path).name,
         size=size,
+        image_tag=item.image_tag,
     )
 
 

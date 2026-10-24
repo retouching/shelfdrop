@@ -70,6 +70,8 @@ class JellyfinItem:
     has_image: bool
     """Its `Primary` image."""
     index_number: int | None
+    image_tag: str | None = None
+    """The tag of its `Primary` image (`ImageTags.Primary`): it changes with the image."""
 
 
 @dataclass(frozen=True, kw_only=True)

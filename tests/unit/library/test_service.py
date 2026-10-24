@@ -30,6 +30,14 @@ from tests.unit.placement.support import FakePlacementRepository, libraries_of
 from tests.unit.works.support import FixedClock
 
 JPEG = b"\xff\xd8\xff\xe0image"
+# The refresh after a change: every provider, for what is empty alone; no image replaced (F40).
+AFTER_CHANGE = {
+    "recursive": "true",
+    "metadataRefreshMode": "FullRefresh",
+    "imageRefreshMode": "Default",
+    "replaceAllMetadata": "false",
+    "replaceAllImages": "false",
+}
 ROOTS: dict[Kind, str] = {
     "manga": "/data/files/comics",
     "ebook": "/data/files/ebooks",
@@ -252,6 +260,8 @@ async def test_a_change_sets_and_locks_the_fields_and_copies_the_summary() -> No
     assert jellyfin.items["b2"]["LockedFields"] == ["Overview"]
     assert jellyfin.items["b1"]["Overview"] == "T1"
     assert changed.volumes_without_summary == 0
+    # Then its folder refreshed, never replacing what was written (F40).
+    assert jellyfin.refreshed == [("berserk", AFTER_CHANGE)]
 
 
 @pytest.mark.anyio
@@ -279,6 +289,42 @@ async def test_an_image_goes_to_the_series_the_volumes_without_one_and_the_worke
 
 
 @pytest.mark.anyio
+async def test_a_new_image_is_read_back_with_its_new_tag() -> None:
+    jellyfin = shelf()
+    service, _ = service_of(jellyfin)
+    [before, *_] = await service.read()
+
+    changed = await service.change("berserk", change(image=LinkImage(url="https://x.test/c.jpg")))
+    volume = await service.change_volume(
+        "b1", volume_change(image=LinkImage(url="https://x.test/c.jpg"))
+    )
+
+    assert before.image_tag == "t"
+    assert changed.image_tag not in (None, "t")
+    assert changed.image_tag == jellyfin.items["berserk"]["ImageTags"]["Primary"]
+    assert volume.image_tag == jellyfin.items["b1"]["ImageTags"]["Primary"] != "t"
+    proposals = await service.proposals("berserk")
+    assert [(v.item_id, v.image_tag) for v in proposals.volumes] == [("b1", volume.image_tag)]
+
+
+@pytest.mark.anyio
+async def test_a_refresh_that_fails_after_a_change_never_fails_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    jellyfin = shelf()
+    jellyfin.refresh_fails = True
+    service, _ = service_of(jellyfin)
+
+    changed = await service.change("berserk", change(name="Berserk Deluxe"))
+    volume = await service.change_volume("b2", volume_change())
+
+    assert (changed.name, volume.name) == ("Berserk Deluxe", "Berserk - T02 - Le Guerrier noir")
+    assert jellyfin.refreshed == []
+    failures = [r for r in caplog.records if r.message == "Jellyfin refresh after a change failed"]
+    assert [getattr(r, "error", None) for r in failures] == ["ServiceError", "ServiceError"]
+
+
+@pytest.mark.anyio
 async def test_an_image_that_is_not_one_is_refused_before_any_change() -> None:
     jellyfin = shelf()
     service, _ = service_of(jellyfin)
@@ -292,6 +338,8 @@ async def test_an_image_that_is_not_one_is_refused_before_any_change() -> None:
             await service.change("berserk", change(name="Other", image=image))
 
     assert jellyfin.items["berserk"]["Name"] == "Berserk"
+    # Nothing changed, nothing refreshed.
+    assert jellyfin.refreshed == []
     await service.change("berserk", change(image=LinkImage(url="https://x.test/c.jpg")))
     assert jellyfin.images["berserk"] == JPEG
 
@@ -429,6 +477,7 @@ async def test_a_volume_change_sets_its_fields_locked_its_image_and_reads_it_aga
     assert volume["Path"] == "/files/comics/Berserk/Berserk - T02.cbz"
     assert jellyfin.images["b2"] == JPEG
     assert (changed.id, changed.number, changed.size) == ("b2", 3, 10)
+    assert jellyfin.refreshed == [("b2", AFTER_CHANGE)]
     unlocked = await service.change_volume("b1", volume_change(lock=False))
     assert "LockedFields" not in jellyfin.items["b1"] or not jellyfin.items["b1"]["LockedFields"]
     assert unlocked.name == "Berserk - T02 - Le Guerrier noir"

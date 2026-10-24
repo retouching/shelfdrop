@@ -30,6 +30,9 @@ class SeriesRead(BaseModel):
     volumes: int
     volumes_without_summary: int
     volumes_without_image: int
+    # The tag of its image in Jellyfin, which changes with it (null without one): the `tag` of
+    # /library/items/{id}/image.
+    image_tag: str | None
 
 
 class LibraryRead(BaseModel):
@@ -39,9 +42,10 @@ class LibraryRead(BaseModel):
 class VolumeImageRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    # The image is at /library/items/{item_id}/image.
+    # The image is at /library/items/{item_id}/image?tag={image_tag}.
     item_id: str
     label: str
+    image_tag: str | None
 
 
 class SourceCoverRead(BaseModel):
@@ -142,6 +146,8 @@ class VolumeRead(BaseModel):
     file_name: str
     # The size of its file in bytes, null when Jellyfin does not tell it.
     size: int | None
+    # The tag of its image in Jellyfin, which changes with it (null without one).
+    image_tag: str | None
 
 
 class VolumesRead(BaseModel):

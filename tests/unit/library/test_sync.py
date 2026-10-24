@@ -99,6 +99,10 @@ async def test_a_sync_of_a_series_overwrites_the_authors_locks_and_leaves_the_im
     assert "SeriesName" not in jellyfin.items["mer1b"]
     assert jellyfin.paths().count("/Users") == 1
     assert [f.locked for f in repository.files] == [True, True, False, False]
+    # Its folder refreshed once, not each volume (F40).
+    assert [
+        (i, p["metadataRefreshMode"], p["replaceAllMetadata"]) for i, p in jellyfin.refreshed
+    ] == [("berserk", "FullRefresh", "false")]
 
 
 @pytest.mark.anyio
@@ -116,8 +120,25 @@ async def test_a_sync_of_every_library_counts_what_held_its_metadata_already() -
     assert jellyfin.items["mer1b"]["SeriesName"] == "Les Aventuriers de la mer"
     again = sync.state()
     assert (again.stage, again.changed, again.unchanged, again.series_id) == ("done", 0, 3, None)
-    posts = [r for r in jellyfin.requests if r.method == "POST"]
+    # The first sync refreshed each series it changed, once; the second, nothing.
+    assert [item_id for item_id, _ in jellyfin.refreshed] == ["berserk", "mer"]
+    posts = [
+        r for r in jellyfin.requests if r.method == "POST" and not r.url.path.endswith("/Refresh")
+    ]
     assert all("IndexNumber" in json.loads(r.content) for r in posts)
+
+
+@pytest.mark.anyio
+async def test_a_refresh_that_fails_after_a_sync_never_fails_it() -> None:
+    jellyfin = shelf()
+    jellyfin.refresh_fails = True
+    sync, repository = sync_of(jellyfin)
+
+    await sync.start("berserk")
+    await ended(sync)
+
+    assert (sync.state().stage, sync.state().changed) == ("done", 2)
+    assert [f.locked for f in repository.files] == [True, True, False, False]
 
 
 @pytest.mark.anyio

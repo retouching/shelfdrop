@@ -54,6 +54,10 @@ from shelfdrop.modules.library.schemas import (
 
 router = APIRouter(prefix="/v1/library", tags=["library"], route_class=WireupRoute)
 
+# The cache of an image: for good at an address with its tag (a new image has a new tag, so a
+# new address), a minute without one.
+TAGGED_CACHE: Final = "private, max-age=31536000, immutable"
+UNTAGGED_CACHE: Final = "private, max-age=60"
 # The characters a quoted file name keeps in the fallback `filename=` of a download.
 PLAIN: Final = frozenset(chr(c) for c in range(0x20, 0x7F)) - {'"', "\\"}
 
@@ -185,16 +189,17 @@ async def read_image(
     item_id: str,
     service: Injected[LibraryService],
     width: int = Query(default=400, ge=50, le=2000),
+    tag: str | None = Query(default=None, max_length=64),
 ) -> Response:
     """The image Jellyfin holds for a series or a volume, for the page (the session of the
-    page is asked; Jellyfin is not reachable from the browser)."""
+    page is asked; Jellyfin is not reachable from the browser). With `tag` (its `image_tag`),
+    the browser keeps it for good: a new image comes with a new tag."""
     try:
         data, content_type = await service.image(item_id, width)
     except LibraryUnavailableError as exc:
         raise jellyfin_unavailable() from exc
-    return Response(
-        content=data, media_type=content_type, headers={"Cache-Control": "private, max-age=300"}
-    )
+    cache = TAGGED_CACHE if tag else UNTAGGED_CACHE
+    return Response(content=data, media_type=content_type, headers={"Cache-Control": cache})
 
 
 @router.post("/summaries")
