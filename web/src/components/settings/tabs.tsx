@@ -127,7 +127,6 @@ function TorrentFields(): ReactElement {
   const choices = offered.includes(client) ? offered : [...offered, client];
   const username = textOf(valueOf(settings, "torrent.username"));
   const optional = client === "transmission" ? texts.settings.optional : undefined;
-  const folders = client === "deluge" || client === "transmission";
   return (
     <>
       <Field label={texts.settings.torrentClient}>
@@ -164,20 +163,16 @@ function TorrentFields(): ReactElement {
         </Field>
       ) : null}
       <TorrentSecret client={client} note={optional} />
-      {folders ? (
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-medium text-ink">{texts.settings.torrentFolders}</h3>
-            <p className="text-xs text-slate-500">{texts.settings.torrentFoldersHint}</p>
-          </div>
-          {kinds.map((kind) => (
-            <OptionalPathField key={kind} label={texts.libraries[kind]} settingKey={`torrent.folder.${kind}`} />
-          ))}
-          <OptionalPathField label={texts.settings.manualFolder} settingKey="torrent.folder.manual" />
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-ink">{texts.settings.torrentFolders}</h3>
+          <p className="text-xs text-slate-500">{texts.settings.torrentFoldersHint(name)}</p>
         </div>
-      ) : (
-        <p className="text-xs text-slate-500">{texts.settings.categoryFolder(name)}</p>
-      )}
+        {kinds.map((kind) => (
+          <OptionalPathField key={kind} label={texts.libraries[kind]} settingKey={`torrent.folder.${kind}`} />
+        ))}
+        <OptionalPathField label={texts.settings.manualFolder} settingKey="torrent.folder.manual" />
+      </div>
     </>
   );
 }

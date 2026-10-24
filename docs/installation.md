@@ -58,7 +58,7 @@ shelfdrop sends its downloads to one torrent client, chosen on the page Paramèt
 
 **Transmission 3.00 or later is required** (the labels came with 3.00), **otherwise shelfdrop refuses to send**: the test of the connection gives the version found (`unsupported`). The address is the one of Transmission (`http://transmission:9091`; shelfdrop adds `/transmission/rpc`). Its credentials are optional: set both, or neither when Transmission asks for none. Without credentials, a Transmission whose host whitelist is on must list the host name of the address shelfdrop uses. Transmission keeps no list of labels: a label exists once a torrent carries it, so none is missing.
 
-**The download folders of Deluge and Transmission**: neither has a folder by label, so the settings `torrent.folder.manga`, `.ebook`, `.audiobook`, `.manual` give the folder of each kind as the client sees it (for example `/data/torrents/manga`); unset, the download goes to the default folder of the client, which must then be under `/data`.
+**The download folders**: Deluge and Transmission have no folder by label, and qBittorrent saves into its default save path unless its automatic torrent management is on; the settings `torrent.folder.manga`, `.ebook`, `.audiobook`, `.manual` give the folder of each kind as the client sees it (for example `/data/torrents/manga`), for every client; unset, the download goes to the default folder of the client, which must then be under `/data`.
 
 ## The placement worker
 What the worker needs, on the machine of the libraries:
