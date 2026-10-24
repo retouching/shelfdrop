@@ -116,6 +116,8 @@ markers = [
     "access_tokens: block of access, the tokens created, scoped, counted, revoked (test_tokens.py)",
     "access_openapi: block of access, the OpenAPI document and its page (test_openapi.py)",
     "access_mcp: block of access, the MCP server called by a real client with a token (test_mcp.py)",
+    "torrents: integration part, the real torrent clients of the test stack, each under a profile of its own",
+    "torrent_qbittorrent: block of torrents, a real qBittorrent signed in directly: the connection, a release sent, listed, marked (test_torrent_qbittorrent.py)",
 ]
 
 [dependency-groups]

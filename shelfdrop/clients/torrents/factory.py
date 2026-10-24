@@ -12,6 +12,7 @@ import httpx
 
 from shelfdrop.clients.exceptions import ServiceNotConfiguredError
 from shelfdrop.clients.torrents.client import Connector, TorrentClient, TorrentConnection
+from shelfdrop.clients.torrents.qbittorrent import QbittorrentClient
 from shelfdrop.clients.torrents.qui import QuiClient
 from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 
@@ -19,6 +20,7 @@ from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 # connector serves yet (shelfdrop.settings.catalog.CLIENTS) gets `UnavailableClient`.
 CONNECTORS: Final[Mapping[str, Connector]] = {
     "qui": QuiClient.of,
+    "qbittorrent": QbittorrentClient.of,
 }
 
 
