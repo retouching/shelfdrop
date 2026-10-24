@@ -3,8 +3,8 @@ worker completes a download, compares it with the shelf, links the volumes missi
 `<Series> - TXX.cbz` (hardlinks: the torrent seeds on), writes the cover of the series, tags
 the torrent, has Jellyfin scan, locks the metadata, posts on the journal; a torrent with a book
 without a volume is placed in part, the rest left to Ranger; a release in chapters goes to
-Ranger. qBittorrent, Jellyfin and Discord are the fake sources; the files are
-made in the volume of the worker."""
+Ranger; in `copy` (`placement.mode`), the volumes are copies of their own. qBittorrent,
+Jellyfin and Discord are the fake sources; the files are made in the volume of the worker."""
 
 import json
 
@@ -195,3 +195,55 @@ def test_a_torrent_with_a_book_without_a_volume_is_placed_in_part(
         for r in fake_sources.requests("POST", f"{QUI_PROXY}/torrents/addTags")
         if digest in r["body"]
     ]
+
+
+@pytest.mark.usefixtures("media", "torrent_saved", "copy_mode")
+def test_in_copy_the_volumes_are_copies_of_their_own(
+    client: httpx.Client, fake_sources: FakeSources, stack: Stack
+) -> None:
+    series = "Shelfdrop Copy Test"
+    torrent = f"/data/torrents/manga/{series}"
+    shelf = f"/data/files/comics/{series}"
+    stack.exec_placement(
+        "python",
+        "-c",
+        MAKE_CBZ,
+        *(f"{torrent}/Shelfdrop.Copy.Test.T0{n}.FRENCH.cbz" for n in (1, 2)),
+    )
+
+    download, _ = send_completed(
+        client,
+        fake_sources,
+        name=series,
+        kind="manga",
+        content_path=torrent,
+        volumes={"kind": "range", "first": 1, "last": 2},
+        author="Tatsuki Fujimoto",
+    )
+
+    placed = wait_for_download(
+        client, download["id"], lambda d: d["progress"]["state"] in ("placed", "to_place")
+    )
+    assert (placed["progress"]["state"], placed["progress"]["copied"]) == ("placed", True)
+    listing = stack.exec_placement("ls", "-1A", shelf).stdout.splitlines()
+    # No `.part` left: each copy was named once whole.
+    assert listing == [f"{series} - T01.cbz", f"{series} - T02.cbz", "cover.jpg"]
+    inodes = stack.exec_placement(
+        "stat",
+        "-c",
+        "%i %h",
+        f"{shelf}/{series} - T02.cbz",
+        f"{torrent}/Shelfdrop.Copy.Test.T02.FRENCH.cbz",
+    )
+    [copied, seeding] = inodes.stdout.splitlines()
+    # Two files, one name each: the torrent keeps its own.
+    assert copied.split()[0] != seeding.split()[0]
+    assert (copied.split()[1], seeding.split()[1]) == ("1", "1")
+    # The same bytes (exec_placement fails on a difference).
+    stack.exec_placement(
+        "python",
+        "-c",
+        "import filecmp, sys; sys.exit(not filecmp.cmp(sys.argv[1], sys.argv[2], shallow=False))",
+        f"{shelf}/{series} - T02.cbz",
+        f"{torrent}/Shelfdrop.Copy.Test.T02.FRENCH.cbz",
+    )
