@@ -150,7 +150,7 @@ export function DownloadsTable({
                           onRetry(download);
                         }}
                         aria-label={texts.downloads.retryFor(download.label)}
-                        className="hover:bg-accent-strong-strong flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:cursor-wait disabled:opacity-80"
+                        className="flex items-center gap-1.5 rounded-lg border border-transparent bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80"
                       >
                         {retrying.has(download.id) ? <Spinner className="size-3.5" /> : null}
                         {retrying.has(download.id) ? texts.downloads.retrying : texts.downloads.retry}

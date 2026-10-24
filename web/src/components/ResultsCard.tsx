@@ -100,7 +100,7 @@ export function ResultsCard({
             <button
               type="button"
               onClick={onWait}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong"
+              className="rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong"
             >
               {texts.waiting.add}
             </button>

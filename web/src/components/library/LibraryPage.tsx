@@ -240,7 +240,7 @@ export function LibraryPage(): ReactElement {
           onClick={() => {
             setFilling(true);
           }}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
         >
           {texts.library.fillSummaries(fillable.length)}
         </button>
@@ -418,9 +418,9 @@ function FillDialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby="fill-title"
-      className="m-auto max-h-[90vh] w-full max-w-3xl rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
+      className="m-auto max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
     >
-      <div className="flex max-h-[90vh] flex-col">
+      <div className="flex max-h-[calc(90vh-2px)] flex-col">
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 id="fill-title" className="text-lg font-semibold">
             {texts.library.fillTitle}
@@ -500,7 +500,7 @@ function FillDialog({
             onClick={() => {
               void apply();
             }}
-            className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <Spinner /> : null}
             {pending ? texts.library.applying : texts.library.fillApply(picked.size)}

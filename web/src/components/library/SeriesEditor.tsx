@@ -217,9 +217,9 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
       ref={ref}
       onClose={onClose}
       aria-labelledby="editor-title"
-      className="m-auto max-h-[92vh] w-full max-w-5xl rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
+      className="m-auto max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
     >
-      <div className="flex max-h-[92vh] flex-col">
+      <div className="flex max-h-[calc(92vh-2px)] flex-col">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
           <div>
             <h2 id="editor-title" className="text-lg font-semibold">
@@ -460,7 +460,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
               onClick={() => {
                 void apply();
               }}
-              className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? <Spinner /> : null}
               {pending ? texts.library.applying : texts.editor.apply}

@@ -78,7 +78,7 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
         <button
           type="button"
           onClick={onAdd}
-          className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-strong"
+          className="rounded-lg border border-transparent bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-strong"
         >
           {texts.waiting.addNew}
         </button>
@@ -174,7 +174,7 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
                           onClick={() => {
                             onOpen(search);
                           }}
-                          className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
+                          className="rounded-lg border border-transparent bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
                         >
                           {texts.waiting.open}
                         </button>

@@ -227,7 +227,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
                           setChaptering(file);
                         }}
                         aria-label={texts.chapters.linkFor(file.name)}
-                        className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
+                        className="rounded-lg border border-transparent bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
                       >
                         {texts.chapters.open}
                       </button>

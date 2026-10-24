@@ -87,7 +87,7 @@ export function LoginPage({ onSignedIn }: Props): ReactElement {
         <button
           type="submit"
           disabled={pending}
-          className="hover:bg-accent-strong-strong flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 font-medium text-white disabled:cursor-wait disabled:opacity-80"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-accent px-4 py-2.5 font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80"
         >
           {pending ? <Spinner /> : null}
           {pending ? texts.loading.signingIn : texts.login.submit}
