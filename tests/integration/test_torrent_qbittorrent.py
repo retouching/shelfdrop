@@ -7,6 +7,7 @@ qBittorrent finds no peer there: a torrent added stays stalled (`stalledDL`, F63
 
 import asyncio
 from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any, Final
 
 import httpx
@@ -85,12 +86,13 @@ def qbittorrent_chosen(client: httpx.Client, qbittorrent: str) -> Iterator[None]
     client.put("/api/v1/settings", json=cleared).raise_for_status()
 
 
-def webui(address: str) -> httpx.Client:
-    """A client of the WebUI API of qBittorrent at `address`, signed in."""
-    http = httpx.Client(base_url=address, timeout=30.0, headers={"Referer": f"{address}/"})
-    login = {"username": USERNAME, "password": PASSWORD}
-    http.post("/api/v2/auth/login", data=login).raise_for_status()
-    return http
+@contextmanager
+def webui(address: str) -> Iterator[httpx.Client]:
+    """A client of the WebUI API of qBittorrent at `address`, signed in, closed at the end."""
+    with httpx.Client(base_url=address, timeout=30.0, headers={"Referer": f"{address}/"}) as http:
+        login = {"username": USERNAME, "password": PASSWORD}
+        http.post("/api/v2/auth/login", data=login).raise_for_status()
+        yield http
 
 
 def probe(client: httpx.Client, body: dict[str, Any]) -> dict[str, Any]:
