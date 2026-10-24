@@ -180,7 +180,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
             {needle === "" && filter !== "ignored" ? texts.place.allPlaced : texts.place.none}
           </p>
         ) : (
-          <table className={`${stacked.table} md:table-fixed`}>
+          <table className={`${stacked.table} w-full md:table-fixed`}>
             <colgroup className={stacked.columns}>
               <col />
               <col className="w-32" />
@@ -207,7 +207,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
                 </th>
               </tr>
             </thead>
-            <tbody className={stacked.body}>
+            <tbody className={`${stacked.body} divide-slate-100`}>
               {shown.map((file) => (
                 <tr key={file.id} className={stacked.row}>
                   <td className={`${stacked.cell} basis-full md:px-5 md:py-2.5`}>

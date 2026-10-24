@@ -384,7 +384,7 @@ export function SearchTab(): ReactElement {
           </button>
         }
       >
-        <table className={`${stacked.table} rounded-lg border border-slate-200`}>
+        <table className={`${stacked.table} w-full rounded-lg border border-slate-200`}>
           <thead className={stacked.head}>
             <tr>
               <th scope="col" className="w-10 px-3 py-2 font-semibold">
@@ -410,7 +410,7 @@ export function SearchTab(): ReactElement {
               </th>
             </tr>
           </thead>
-          <tbody className={stacked.body}>
+          <tbody className={`${stacked.body} divide-slate-100`}>
             {shown.map((tracker, index) => (
               <Fragment key={tracker.indexer_id}>
                 <tr className={`${stacked.row} ${tracker.used ? "" : "text-slate-400"}`}>

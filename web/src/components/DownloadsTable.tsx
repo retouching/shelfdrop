@@ -77,7 +77,7 @@ export function DownloadsTable({
       {shown.length === 0 ? (
         <p className="px-5 py-8 text-center text-sm text-slate-500">{texts.downloads.empty}</p>
       ) : (
-        <table className={`${stacked.table} md:table-fixed`}>
+        <table className={`${stacked.table} w-full md:table-fixed`}>
           <colgroup className={stacked.columns}>
             <col className="w-24" />
             <col />
@@ -104,7 +104,7 @@ export function DownloadsTable({
               </th>
             </tr>
           </thead>
-          <tbody className={stacked.body}>
+          <tbody className={`${stacked.body} divide-slate-100`}>
             {shown.map((download) => (
               <tr key={download.id} className={stacked.row}>
                 <td className={`${stacked.cell} text-xs text-slate-500 tabular-nums md:px-5 md:py-3 md:text-sm`}>

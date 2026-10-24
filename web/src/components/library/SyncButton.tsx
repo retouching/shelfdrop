@@ -48,12 +48,12 @@ export function SyncButton({ seriesId, question, onDone }: Props): ReactElement 
         {running ? texts.sync.running : texts.sync.action}
       </button>
       <dialog ref={ref} aria-label={texts.sync.action} className={dialogFrame.md}>
-        <div className={`${dialogBody.regular} p-4 md:p-6`}>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className={dialogBody.regular}>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 md:px-6 md:pt-6">
             <p className="text-sm font-medium">{question}</p>
             <p className="mt-2 text-sm text-slate-500">{texts.sync.confirmHint}</p>
           </div>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <div className="mt-5 flex flex-wrap justify-end gap-2 px-4 pb-4 md:px-6 md:pb-6">
             <button
               type="button"
               onClick={() => {

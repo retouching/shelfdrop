@@ -96,7 +96,7 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
       ) : searches.length === 0 ? (
         <p className="px-5 py-10 text-center text-sm text-slate-500">{texts.waiting.empty}</p>
       ) : (
-        <table className={`${stacked.table} md:table-fixed`}>
+        <table className={`${stacked.table} w-full md:table-fixed`}>
           <colgroup className={stacked.columns}>
             <col />
             <col className="w-28" />
@@ -127,7 +127,7 @@ export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {
               </th>
             </tr>
           </thead>
-          <tbody className={stacked.body}>
+          <tbody className={`${stacked.body} divide-slate-100`}>
             {searches.map((search) => {
               const state = searching.has(search.id) ? "searching" : search.state.kind;
               return (

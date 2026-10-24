@@ -121,7 +121,7 @@ export function ResultsCard({
           )}
         </div>
       ) : (
-        <table className={`${stacked.table} md:table-fixed`}>
+        <table className={`${stacked.table} w-full md:table-fixed`}>
           <caption className="sr-only">{texts.results.caption}</caption>
           <colgroup className={stacked.columns}>
             <col className="w-12" />
@@ -169,7 +169,7 @@ export function ResultsCard({
               </th>
             </tr>
           </thead>
-          <tbody className={stacked.body}>
+          <tbody className={`${stacked.body} divide-slate-100`}>
             {releases.map((release) => {
               const isSelected = selected.has(release.id);
               return (

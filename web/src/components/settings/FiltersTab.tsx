@@ -37,7 +37,7 @@ export function FiltersTab(): ReactElement {
     <div className="space-y-4">
       <Card title={texts.filters.title} hint={texts.filters.hint}>
         <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className={stacked.table}>
+          <table className={`${stacked.table} w-full`}>
             <thead className={stacked.head}>
               <tr>
                 <th scope="col" className="w-16 px-3 py-2 font-semibold">
@@ -60,7 +60,7 @@ export function FiltersTab(): ReactElement {
                 </th>
               </tr>
             </thead>
-            <tbody className={stacked.body}>
+            <tbody className={`${stacked.body} divide-slate-100`}>
               {filters.rules.map((rule) => {
                 const invalid = rule.pattern !== "" && ruleRegex(rule) === null;
                 return (
