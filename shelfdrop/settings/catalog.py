@@ -43,6 +43,8 @@ EVENTS: Final = (
     "login",
     "found",
 )
+# The languages of the messages of the journal.
+LANGUAGES: Final = ("fr", "en")
 # The libraries of each kind, as the container sees them (one mount of the media folder on
 # /data, the torrents and the libraries on one file system).
 LIBRARIES: Final[dict[Kind, str]] = {
@@ -66,6 +68,7 @@ VALUES: Final[Mapping[str, Entry]] = {
     "search.release_cache_minutes": Entry(kind="number", default=10, minimum=0, maximum=1440),
     "search.work_cache_hours": Entry(kind="number", default=24, minimum=0, maximum=720),
     **{f"discord.events.{event}": Entry(kind="switch", default=True) for event in EVENTS},
+    "journal.language": Entry(kind="choice", default="fr", options=LANGUAGES),
     **{
         f"placement.library.{kind}": Entry(kind="path", default=path)
         for kind, path in LIBRARIES.items()

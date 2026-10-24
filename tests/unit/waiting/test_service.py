@@ -219,7 +219,14 @@ async def test_a_round_searches_those_due_and_a_release_found_goes_to_the_journa
     assert views["volume"].next_search_at == bench.clock.now() + 6 * HOUR
     assert bench.searcher.asked[0] == ("manga", "Chainsaw Man", ("Chainsaw Man", "チェンソーマン"))
     [event] = bench.journal.of("found")
-    assert event.facts == {"work": "Chainsaw Man", "target": "T23", "releases": 1}
+    assert event.facts == {
+        "work": "Chainsaw Man",
+        "wanted": "volume",
+        "volume": 23,
+        "chapter_from": None,
+        "chapter_to": None,
+        "releases": 1,
+    }
     # Not due before the interval; found again: no second message.
     assert await bench.service.round() == 0
     bench.clock.at += 6 * HOUR

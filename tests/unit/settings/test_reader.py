@@ -90,6 +90,9 @@ async def test_the_placement_reads_its_libraries_and_its_switches() -> None:
     webhook, events = await reader.discord()
     assert webhook == "https://discord.test/api/webhooks/1/t"
     assert "found" in events
+    assert await reader.journal_language() == "fr"
+    reader.values["journal.language"] = "en"
+    assert await reader.journal_language() == "en"
 
 
 @pytest.mark.anyio

@@ -15,7 +15,7 @@ from shelfdrop.journal.types import NewEvent
 from shelfdrop.placement.repository import PlacementRepository
 from shelfdrop.releases.types import Release
 from shelfdrop.waiting.exceptions import WaitingNotFoundError
-from shelfdrop.waiting.matching import found, is_done, label, next_chapter
+from shelfdrop.waiting.matching import found, is_done, next_chapter
 from shelfdrop.waiting.repository import WaitingRepository, WaitingRepositoryFactory
 from shelfdrop.waiting.types import (
     Waiting,
@@ -162,7 +162,14 @@ class WaitingService:
             event = NewEvent(
                 type="found",
                 group=f"found:{waiting.kind}:{waiting.title}",
-                facts={"work": waiting.title, "target": label(waiting.wanted), "releases": count},
+                facts={
+                    "work": waiting.title,
+                    "wanted": waiting.wanted.target,
+                    "volume": waiting.wanted.volume,
+                    "chapter_from": waiting.wanted.chapter_from,
+                    "chapter_to": waiting.wanted.chapter_to,
+                    "releases": count,
+                },
             )
             await anyio.to_thread.run_sync(self.events.record, event)
         read = await self.run(lambda r: r.read(waiting.id))

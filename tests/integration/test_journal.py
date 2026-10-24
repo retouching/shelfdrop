@@ -1,6 +1,7 @@
 """The journal through the real API: the events posted on the webhook
 of Discord as embeds, one message for the volumes sent by one request, the color of each type,
-a type switched off, a failure. The webhook is played by the fake sources."""
+a type switched off, a failure, the messages in English. The webhook is played by the fake
+sources."""
 
 import base64
 from typing import Any
@@ -218,3 +219,27 @@ def test_a_send_without_a_work_has_no_cover(
     missing = client.get(f"/api/v1/downloads/{download['id']}/cover")
     assert missing.status_code == 404
     assert missing.json()["code"] == "download_cover_not_found"
+
+
+@pytest.mark.usefixtures("torrent_saved", "webhook_saved")
+def test_the_messages_are_in_the_language_of_the_setting(
+    client: httpx.Client, fake_sources: FakeSources
+) -> None:
+    client.put("/api/v1/settings", json={"values": {"journal.language": "en"}}).raise_for_status()
+    try:
+        downloads = send_volumes(client, fake_sources, "Shelfdrop Journal English", [1, 2])
+        for download in downloads:
+            wait_for_download(client, download["id"], lambda d: d["progress"]["state"] != "waiting")
+
+        [message] = wait_for_messages(fake_sources, "Shelfdrop Journal English")
+
+        [embed] = message["embeds"]
+        assert embed["title"] == "Sent: Shelfdrop Journal English"
+        fields = {f["name"]: f["value"] for f in embed["fields"]}
+        assert fields["Volumes"] == "Vol. 01 to 02"
+        assert fields["Mode"] == "Automatic"
+        assert fields["By"] == "admin"
+    finally:
+        client.put(
+            "/api/v1/settings", json={"values": {"journal.language": "fr"}}
+        ).raise_for_status()

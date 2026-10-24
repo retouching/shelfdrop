@@ -196,3 +196,10 @@ class SettingsReader:
             event for event, key in zip(EVENTS, keys, strict=True) if values[key] is True
         )
         return secrets[WEBHOOK_KEY], events
+
+    async def journal_language(self) -> str:
+        """The language of the messages of the journal: `fr` or `en`."""
+        key = "journal.language"
+        values, _ = await anyio.to_thread.run_sync(self.read, (key,), ())
+        value = values[key]
+        return value if isinstance(value, str) else "fr"

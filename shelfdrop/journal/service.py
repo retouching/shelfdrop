@@ -18,6 +18,7 @@ from shelfdrop.clients.discord import DiscordClient, RateLimitedError
 from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.journal.embeds import embed_of
 from shelfdrop.journal.repository import EventRepository, EventRepositoryFactory
+from shelfdrop.journal.texts import texts_of
 from shelfdrop.journal.types import Event, EventState, JournalOptions, NewEvent
 from shelfdrop.utils.pictures import picture_of
 from shelfdrop.works.types import Clock
@@ -29,10 +30,12 @@ COVER_MAX_BYTES: Final = 8 * 1024 * 1024
 
 
 class DiscordSettings(Protocol):
-    """The webhook of the journal and the events switched on, read at each look (the
-    settings)."""
+    """The webhook of the journal, the events switched on and the language of the messages,
+    read at each look (the settings)."""
 
     async def discord(self) -> tuple[str | None, frozenset[str]]: ...
+
+    async def journal_language(self) -> str: ...
 
 
 class Journal:
@@ -119,6 +122,7 @@ class JournalSender:
         if not ready:
             return 0
         webhook, enabled = await self.settings.discord()
+        texts = texts_of(await self.settings.journal_language())
         posted = 0
         for batch in ready:
             ids = [e.id for e in batch]
@@ -128,7 +132,7 @@ class JournalSender:
             if posted >= self.options.per_round:
                 break
             cover = cover_of(batch)
-            embed = embed_of(batch, self.public_url, None if cover is None else cover[0])
+            embed = embed_of(batch, self.public_url, None if cover is None else cover[0], texts)
             try:
                 await self.discord.post(webhook, {"embeds": [embed]}, cover)
             except RateLimitedError as exc:

@@ -69,3 +69,52 @@ class JournalOptions:
     tries: int = 3
     # Messages posted at most in one look: Discord takes 30 a minute on a webhook.
     per_round: int = 5
+
+
+@dataclass(frozen=True, kw_only=True)
+class JournalTexts:
+    """The texts of the messages in one language (`shelfdrop.journal.texts`). A format takes its
+    values by position (`volume`: the number) or by name (`hours`: `hours` and `minutes`)."""
+
+    titles: Mapping[EventType, str]
+    # Between the title of a type and its subject: "Envoyé : Berserk", "Sent: Berserk".
+    separator: str
+    volumes: str
+    already: str
+    trackers: str
+    size: str
+    type: str
+    mode: str
+    modes: Mapping[str, str]
+    by: str
+    duration: str
+    reason: str
+    attempt: str
+    result: str
+    # `{client}`: the name of the torrent client.
+    results: Mapping[str, str]
+    error: str
+    done: str
+    country: str
+    refused: str
+    releases: str
+    place: str
+    # Why a download was not placed alone: the page Ranger takes it.
+    reasons: Mapping[str, str]
+    # What failed, and what shelfdrop did then (`{client}`: the name of the torrent client).
+    failures: Mapping[str, str]
+    actions: Mapping[str, str]
+    # A volume, a run of volumes, and the word before the last run of a list.
+    volume: str
+    volume_range: str
+    last_join: str
+    gigabytes: str
+    megabytes: str
+    decimal: str
+    seconds: str
+    minutes: str
+    hours: str
+    # What a waiting search found (`found`): any release, chapters from one, chapters a to b.
+    any_release: str
+    chapters_from: str
+    chapters_range: str
