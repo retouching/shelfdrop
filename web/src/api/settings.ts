@@ -2,6 +2,15 @@
 import type { Kind } from "../types";
 import { request } from "./http";
 
+/** Une catégorie de l'indexeur dans Prowlarr ; une sous-catégorie porte le nom de son parent. */
+export type TrackerCategory = {
+  readonly id: number;
+  readonly name: string;
+};
+
+/** Catégories cherchées pour chaque type ; aucune : l'indexeur n'est pas interrogé pour ce type. */
+export type KindCategories = Readonly<Record<Kind, readonly number[]>>;
+
 export type Tracker = {
   readonly indexer_id: number;
   readonly name: string;
@@ -12,6 +21,11 @@ export type Tracker = {
   readonly used: boolean;
   /** Autorisé pour les téléchargements automatiques. */
   readonly auto: boolean;
+  /** Catégories lues dans Prowlarr à la dernière lecture des indexeurs. */
+  readonly available_categories: readonly TrackerCategory[];
+  readonly categories: KindCategories;
+  /** Jamais choisies : celles par défaut. */
+  readonly default_categories: boolean;
 };
 
 export type FilterRule = {
@@ -43,7 +57,13 @@ export async function refreshTrackers(): Promise<readonly Tracker[]> {
 
 export async function saveTrackers(trackers: readonly Tracker[]): Promise<readonly Tracker[]> {
   const body = {
-    trackers: trackers.map((tracker) => ({ indexer_id: tracker.indexer_id, used: tracker.used, auto: tracker.auto })),
+    trackers: trackers.map((tracker) => ({
+      indexer_id: tracker.indexer_id,
+      used: tracker.used,
+      auto: tracker.auto,
+      // Celles par défaut restent par défaut tant qu'elles ne sont pas changées.
+      categories: tracker.default_categories ? null : tracker.categories,
+    })),
   };
   return (await request<TrackersRead>("PUT", "/v1/trackers", body)).trackers;
 }

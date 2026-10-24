@@ -1,11 +1,12 @@
 // Rubriques Services, Sources, Recherche, Rangement et Journal Discord, lues et enregistrées par l'API ;
 // le dossier des envois et la durée des envois viennent avec l'envoi de fichiers.
-import { useEffect, useState, type ReactElement } from "react";
+import { Fragment, useEffect, useState, type ReactElement } from "react";
 
 import { testConnection, type SettingValue, type Tracker } from "../../api/settings";
 import { setSecret, setValue, useSettings, valueOf } from "../../state/settings";
 import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } from "../../state/searchSettings";
 import { texts } from "../../texts";
+import type { Kind } from "../../types";
 import { Spinner } from "../Skeletons";
 import {
   Card,
@@ -245,6 +246,66 @@ function NumberField({
   );
 }
 
+const kinds: readonly Kind[] = ["manga", "ebook", "audiobook"];
+
+/** Les catégories proposées : celles lues dans Prowlarr, puis celles choisies qu'il ne donne plus. */
+function categoryOptions(tracker: Tracker): readonly { readonly id: number; readonly name: string }[] {
+  const known = new Set(tracker.available_categories.map((category) => category.id));
+  const missing = [...new Set(kinds.flatMap((kind) => tracker.categories[kind]))]
+    .filter((id) => !known.has(id))
+    .map((id) => ({ id, name: texts.settings.trackerCategoryUnknown(id) }));
+  return [...tracker.available_categories, ...missing];
+}
+
+/** Les catégories d'un indexeur, une liste à cocher par type. */
+function TrackerCategories({
+  tracker,
+  onChange,
+}: {
+  readonly tracker: Tracker;
+  readonly onChange: (kind: Kind, ids: readonly number[]) => void;
+}): ReactElement {
+  const options = categoryOptions(tracker);
+  return (
+    <div className="space-y-2">
+      {tracker.available_categories.length === 0 ? (
+        <p className="text-xs text-slate-500">{texts.settings.trackerCategoriesUnread}</p>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {kinds.map((kind) => {
+          const chosen = tracker.categories[kind];
+          return (
+            <fieldset key={kind} className="min-w-0">
+              <legend className="mb-1 text-xs font-semibold text-ink">{texts.kinds[kind]}</legend>
+              <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                {options.map((category) => (
+                  <label key={category.id} className="flex cursor-pointer items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={chosen.includes(category.id)}
+                      onChange={(event) => {
+                        onChange(
+                          kind,
+                          event.target.checked ? [...chosen, category.id] : chosen.filter((id) => id !== category.id),
+                        );
+                      }}
+                      className="size-3.5 accent-accent"
+                    />
+                    <span className="truncate" title={category.name}>
+                      {category.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          );
+        })}
+      </div>
+      <p className="text-xs text-slate-500">{texts.settings.trackerCategoriesHint}</p>
+    </div>
+  );
+}
+
 /** « fr-FR » → « FR » ; rien quand Prowlarr ne donne pas la langue. */
 function languageOf(tracker: Tracker): string {
   return (tracker.language ?? "").split("-")[0]?.toUpperCase() ?? "";
@@ -255,6 +316,7 @@ export function SearchTab(): ReactElement {
   const [hideNoSeed, setHideNoSeed] = useState(true);
   const [relevance, setRelevance] = useState(true);
   const [reading, setReading] = useState(false);
+  const [opened, setOpened] = useState<number | null>(null);
   const shown = trackers.filter((tracker) => tracker.prowlarr_enabled);
   const off = trackers.filter((tracker) => !tracker.prowlarr_enabled);
 
@@ -282,6 +344,10 @@ export function SearchTab(): ReactElement {
 
   function update(id: number, change: Partial<Tracker>): void {
     setTrackers(trackers.map((tracker) => (tracker.indexer_id === id ? { ...tracker, ...change } : tracker)));
+  }
+
+  function choose(tracker: Tracker, kind: Kind, ids: readonly number[]): void {
+    update(tracker.indexer_id, { categories: { ...tracker.categories, [kind]: ids }, default_categories: false });
   }
 
   async function reread(): Promise<void> {
@@ -332,6 +398,9 @@ export function SearchTab(): ReactElement {
               <th scope="col" className="w-36 px-3 py-2 font-semibold">
                 {texts.settings.trackerAuto}
               </th>
+              <th scope="col" className="w-32 px-3 py-2 font-semibold">
+                {texts.settings.trackerCategories}
+              </th>
               <th scope="col" className="w-24 px-3 py-2">
                 <span className="sr-only">{texts.settings.trackerOrder}</span>
               </th>
@@ -339,61 +408,91 @@ export function SearchTab(): ReactElement {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {shown.map((tracker, index) => (
-              <tr key={tracker.indexer_id} className={tracker.used ? "" : "text-slate-400"}>
-                <td className="px-3 py-2 tabular-nums">{tracker.used ? index + 1 : "–"}</td>
-                <td className="px-3 py-2 font-medium">{tracker.name}</td>
-                <td className="px-3 py-2 text-slate-500">{languageOf(tracker)}</td>
-                <td className="px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={tracker.used}
-                    aria-label={`${texts.settings.trackerUsed} : ${tracker.name}`}
-                    onChange={(event) => {
-                      update(tracker.indexer_id, {
-                        used: event.target.checked,
-                        auto: event.target.checked && tracker.auto,
-                      });
-                    }}
-                    className="size-4 accent-accent"
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={tracker.auto}
-                    disabled={!tracker.used}
-                    aria-label={`${texts.settings.trackerAuto} : ${tracker.name}`}
-                    onChange={(event) => {
-                      update(tracker.indexer_id, { auto: event.target.checked });
-                    }}
-                    className="size-4 accent-accent disabled:opacity-40"
-                  />
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    disabled={index === 0}
-                    onClick={() => {
-                      move(tracker.indexer_id, -1);
-                    }}
-                    aria-label={texts.settings.moveUp(tracker.name)}
-                    className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    disabled={index === shown.length - 1}
-                    onClick={() => {
-                      move(tracker.indexer_id, 1);
-                    }}
-                    aria-label={texts.settings.moveDown(tracker.name)}
-                    className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
-                  >
-                    ↓
-                  </button>
-                </td>
-              </tr>
+              <Fragment key={tracker.indexer_id}>
+                <tr className={tracker.used ? "" : "text-slate-400"}>
+                  <td className="px-3 py-2 tabular-nums">{tracker.used ? index + 1 : "–"}</td>
+                  <td className="px-3 py-2 font-medium">{tracker.name}</td>
+                  <td className="px-3 py-2 text-slate-500">{languageOf(tracker)}</td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={tracker.used}
+                      aria-label={`${texts.settings.trackerUsed} : ${tracker.name}`}
+                      onChange={(event) => {
+                        update(tracker.indexer_id, {
+                          used: event.target.checked,
+                          auto: event.target.checked && tracker.auto,
+                        });
+                      }}
+                      className="size-4 accent-accent"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={tracker.auto}
+                      disabled={!tracker.used}
+                      aria-label={`${texts.settings.trackerAuto} : ${tracker.name}`}
+                      onChange={(event) => {
+                        update(tracker.indexer_id, { auto: event.target.checked });
+                      }}
+                      className="size-4 accent-accent disabled:opacity-40"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      aria-expanded={opened === tracker.indexer_id}
+                      aria-label={texts.settings.trackerCategoriesOf(tracker.name)}
+                      onClick={() => {
+                        setOpened(opened === tracker.indexer_id ? null : tracker.indexer_id);
+                      }}
+                      className="rounded px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-100 hover:text-ink"
+                    >
+                      {tracker.default_categories
+                        ? texts.settings.trackerCategoriesDefault
+                        : texts.settings.trackerCategoriesChosen}{" "}
+                      {opened === tracker.indexer_id ? "▴" : "▾"}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={() => {
+                        move(tracker.indexer_id, -1);
+                      }}
+                      aria-label={texts.settings.moveUp(tracker.name)}
+                      className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === shown.length - 1}
+                      onClick={() => {
+                        move(tracker.indexer_id, 1);
+                      }}
+                      aria-label={texts.settings.moveDown(tracker.name)}
+                      className="rounded px-2 text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                  </td>
+                </tr>
+                {opened === tracker.indexer_id ? (
+                  <tr>
+                    <td colSpan={7} className="bg-slate-50 px-3 py-3">
+                      <TrackerCategories
+                        tracker={tracker}
+                        onChange={(kind, ids) => {
+                          choose(tracker, kind, ids);
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
             ))}
           </tbody>
         </table>
