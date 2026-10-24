@@ -64,13 +64,15 @@ class Order:
 
 @dataclass(frozen=True, kw_only=True)
 class Laid:
-    """The files a download put on the shelf, the volumes already there, and a cover."""
+    """The files a download put on the shelf, the volumes already there, a cover, and the
+    files of the torrent whose volume it could not read (left to Ranger)."""
 
     folder: Path
     files: tuple[PlacedFile, ...]
     volumes: tuple[int, ...]
     present: tuple[int, ...]
     cover: bytes | None
+    unknown: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -104,31 +106,39 @@ def placed_file(order: Order, path: Path, volume: int | None) -> PlacedFile:
     )
 
 
-def comic_volumes(order: Order, books: Sequence[Path]) -> list[tuple[str, int]]:
+def comic_volumes(order: Order, books: Sequence[Path]) -> tuple[list[tuple[str, int]], list[str]]:
     """Each book and its volume: read in its name; a release of one file without a number is
-    its volume (or T01, as `comics_rename.py` did). Raises NotPlacedError (`no_volume`)."""
+    its volume (or T01, as `comics_rename.py` did). The books whose volume it cannot read come
+    second."""
     found: list[tuple[str, int]] = []
+    unknown: list[str] = []
     for book in books:
         volume = file_volume(book.stem)
         if volume is None and len(books) == 1:
             volume = order.volumes.first if order.volumes.kind == "single" else 1
         if volume is None:
-            raise NotPlacedError("no_volume")
+            unknown.append(str(book))
+            continue
         found.append((str(book), volume or 1))
-    return found
+    return found, unknown
 
 
 def place_comics(order: Order, files: Sequence[Path], root: Path, covers: bool) -> Laid:
     """The volumes of a manga as `<Series> - TXX.<ext>` in the folder of its series, those the
     shelf has left aside; the cover of the series (`cover.<ext>`, the first page of its first
-    volume) when it has none; a picture of each PDF. Raises NotPlacedError."""
+    volume) when it has none; a picture of each PDF. The books whose volume it cannot read are
+    left (`unknown`), the others placed. Raises NotPlacedError (`no_volume` when it can read
+    none)."""
     books = [f for f in files if f.suffix.lower() in COMIC_EXTENSIONS]
     if not books:
         raise NotPlacedError("no_files")
     if is_chapters_release([b.name for b in books], known_volumes(order.volumes)):
         raise NotPlacedError("chapters")
+    volumes, unknown = comic_volumes(order, books)
+    if not volumes:
+        raise NotPlacedError("no_volume")
     folder = root / safe(order.series)
-    split = split_volumes(comic_volumes(order, books), content_of(names_in(folder)))
+    split = split_volumes(volumes, content_of(names_in(folder)))
     make_folder(folder)
     placed: list[PlacedFile] = []
     present = list(split.present)
@@ -150,6 +160,7 @@ def place_comics(order: Order, files: Sequence[Path], root: Path, covers: bool) 
         volumes=tuple(sorted(p.volume for p in placed if p.volume is not None)),
         present=tuple(sorted(set(present))),
         cover=cover,
+        unknown=tuple(unknown),
     )
 
 
@@ -173,22 +184,24 @@ def series_cover(folder: Path) -> bytes | None:
     return None
 
 
-def book_volumes(order: Order, books: Sequence[Path]) -> dict[int, list[Path]]:
+def book_volumes(order: Order, books: Sequence[Path]) -> tuple[dict[int, list[Path]], list[str]]:
     """The files of each volume of a book: all of them for one volume; in a pack, the volume
-    its folder or its name states; one book without one is volume 1. Raises NotPlacedError
-    (`no_volume`)."""
+    its folder or its name states; one book without one is volume 1. The files whose volume it
+    cannot read come second."""
     if order.volumes.kind == "single" and order.volumes.first is not None:
-        return {order.volumes.first: list(books)}
+        return {order.volumes.first: list(books)}, []
     found: dict[int, list[Path]] = {}
+    unknown: list[str] = []
     folders = {b.parent for b in books}
     for book in books:
         volume = stated_volume(book.parent.name) or stated_volume(book.stem)
         if volume is None and len(folders) == 1 and order.volumes.kind != "range":
             volume = 1
         if volume is None:
-            raise NotPlacedError("no_volume")
+            unknown.append(str(book))
+            continue
         found.setdefault(volume, []).append(book)
-    return found
+    return found, unknown
 
 
 def title_of(order: Order, volume: int, books: Sequence[Path]) -> str:
@@ -201,17 +214,21 @@ def title_of(order: Order, volume: int, books: Sequence[Path]) -> str:
 
 def place_books(order: Order, files: Sequence[Path], root: Path) -> Laid:
     """The volumes of a book as `<Author>/<Series>/<NN - Title>/<Series> - TNN - <Title>.<ext>`
-    (one file a format); a volume whose folder already holds a book is left. Raises
-    NotPlacedError."""
+    (one file a format); a volume whose folder already holds a book is left. The files whose
+    volume it cannot read are left (`unknown`), the others placed. Raises NotPlacedError
+    (`no_volume` when it can read none)."""
     books = [f for f in files if f.suffix.lower() in EBOOK_EXTENSIONS]
     if not books:
         raise NotPlacedError("no_files")
     if not order.author.strip():
         raise NotPlacedError("unknown_author")
+    volumes, unknown = book_volumes(order, books)
+    if not volumes:
+        raise NotPlacedError("no_volume")
     placed: list[PlacedFile] = []
     present: list[int] = []
     folder = root
-    for volume, group in sorted(book_volumes(order, books).items()):
+    for volume, group in sorted(volumes.items()):
         title = title_of(order, volume, group)
         folder = root.joinpath(*book_folder(order.author, order.series, volume, title))
         if any(Path(n).suffix.lower() in EBOOK_EXTENSIONS for n in names_in(folder)):
@@ -236,6 +253,7 @@ def place_books(order: Order, files: Sequence[Path], root: Path) -> Laid:
         volumes=tuple(sorted({p.volume for p in placed if p.volume is not None})),
         present=tuple(present),
         cover=None,
+        unknown=tuple(unknown),
     )
 
 
@@ -254,7 +272,8 @@ def lay_audio(
     """The volumes of an audiobook: one M4B linked as `<Series> - TNN - <Title>.m4b`; MP3
     tracks linked as `... - 001.mp3` in their order, to merge (`merge`) into one M4B; the
     picture of the torrent as `cover.<ext>`. A volume whose folder already holds an M4B, or
-    tracks, is left. Raises NotPlacedError."""
+    tracks, is left. Raises NotPlacedError (`no_volume` as soon as one track has no volume: the
+    tracks of an audiobook go by folder, not one by one)."""
     tracks = [f for f in files if f.suffix.lower() in AUDIO_EXTENSIONS]
     if not tracks:
         raise NotPlacedError("no_files")
@@ -265,7 +284,10 @@ def lay_audio(
     merges: list[AudioVolume] = []
     picture = torrent_picture(files)
     folder = root
-    for volume, group in sorted(book_volumes(order, tracks).items()):
+    volumes, unknown = book_volumes(order, tracks)
+    if unknown:
+        raise NotPlacedError("no_volume")
+    for volume, group in sorted(volumes.items()):
         title = title_of(order, volume, group)
         folder = root.joinpath(*book_folder(order.author, order.series, volume, title))
         if any(Path(n).suffix.lower() in AUDIO_EXTENSIONS for n in names_in(folder)):

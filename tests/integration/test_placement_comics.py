@@ -1,8 +1,9 @@
 """The placement of a manga through the real image (plan section 3, points 4 and 4 bis): the
 worker completes a download, compares it with the shelf, links the volumes missing as
 `<Series> - TXX.cbz` (hardlinks: the torrent seeds on), writes the cover of the series, tags
-the torrent, has Jellyfin scan, locks the metadata, posts on the journal; a release in
-chapters goes to Ranger. qBittorrent, Jellyfin and Discord are the fake sources; the files are
+the torrent, has Jellyfin scan, locks the metadata, posts on the journal; a torrent with a book
+without a volume is placed in part, the rest left to Ranger; a release in chapters goes to
+Ranger. qBittorrent, Jellyfin and Discord are the fake sources; the files are
 made in the volume of the worker."""
 
 import json
@@ -154,3 +155,43 @@ def test_a_release_in_chapters_is_left_to_ranger(
     assert left["progress"]["unplaced"] == "chapters"
     shelf = stack.exec_placement("sh", "-c", f"ls '/data/files/comics/{series}' 2>&1 || true")
     assert "No such file" in shelf.stdout
+
+
+@pytest.mark.usefixtures("media", "qbittorrent_saved")
+def test_a_torrent_with_a_book_without_a_volume_is_placed_in_part(
+    client: httpx.Client, fake_sources: FakeSources, stack: Stack
+) -> None:
+    series = "Shelfdrop Part Test"
+    torrent = f"/data/torrents/manga/{series}"
+    shelf = f"/data/files/comics/{series}"
+    stack.exec_placement(
+        "python",
+        "-c",
+        MAKE_CBZ,
+        f"{torrent}/Shelfdrop.Part.Test.T01.FRENCH.cbz",
+        f"{torrent}/Shelfdrop.Part.Test.T02.FRENCH.cbz",
+        f"{torrent}/Shelfdrop Part Test - Bonus.cbz",
+    )
+
+    download, digest = send_completed(
+        client,
+        fake_sources,
+        name=series,
+        kind="manga",
+        content_path=torrent,
+        volumes={"kind": "unknown"},
+        author="Tatsuki Fujimoto",
+    )
+
+    left = wait_for_download(
+        client, download["id"], lambda d: d["progress"]["state"] in ("placed", "to_place")
+    )
+    # The volumes read are on the shelf; the download waits in Ranger for the rest.
+    assert (left["progress"]["state"], left["progress"]["unplaced"]) == ("to_place", "no_volume")
+    listing = stack.exec_placement("ls", "-1", shelf).stdout.splitlines()
+    assert listing == [f"{series} - T01.cbz", f"{series} - T02.cbz", "cover.jpg"]
+    assert not [
+        r
+        for r in fake_sources.requests("POST", f"{QUI_PROXY}/torrents/addTags")
+        if digest in r["body"]
+    ]

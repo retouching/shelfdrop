@@ -102,7 +102,7 @@ markers = [
     "placement: integration part, the placement worker on the files of its volume",
     "library: integration part, the page Métadonnées on the fake Jellyfin (test_library.py)",
     "waiting: integration part, the waiting searches on the fake Prowlarr and Discord (test_waiting.py)",
-    "placement_comics: block of placement, a manga placed, a release in chapters (test_placement_comics.py)",
+    "placement_comics: block of placement, a manga placed, placed in part, a release in chapters (test_placement_comics.py)",
     "placement_audio: block of placement, MP3 tracks merged into one M4B, a book (test_placement_audio.py)",
     "uploads: integration part, the files sent in chunks, taken into Ranger (test_uploads.py)",
     "ranger: integration part, the page Ranger and the files the worker places from it",

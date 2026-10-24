@@ -117,6 +117,27 @@ def audiobook(bench: Bench, tmp_path: Path, *, picture: bool = False) -> int:
 
 
 @pytest.mark.anyio
+async def test_a_download_with_a_book_without_a_volume_is_placed_in_part(tmp_path: Path) -> None:
+    bench = new_bench(tmp_path)
+    torrent = berserk(bench, tmp_path)
+    cbz(torrent / "Berserk bonus.cbz", ["b.jpg"])
+    download = completed(bench, torrent)
+
+    await bench.service.round()
+
+    row = bench.downloads.rows[download.id]
+    assert (row.stage, row.unplaced) == ("unplaced", "no_volume")
+    assert [f.volume for f in bench.shelf.files] == [41, 42]
+    assert (bench.roots["manga"] / "Berserk" / "Berserk - T42.cbz").is_file()
+    # Placed in part: the event to place alone, no tag until Ranger ends it.
+    [left] = bench.journal.of("to_place")
+    assert left.facts["reason"] == "no_volume"
+    assert bench.journal.of("placed") == []
+    assert "tags" not in bench.qui.torrents[row.info_hash or ""]
+    assert bench.jellyfin.refreshed[0][0] == "lib-manga"
+
+
+@pytest.mark.anyio
 async def test_the_tracks_merge_into_one_m4b_with_the_cover_of_the_sources(tmp_path: Path) -> None:
     bench = new_bench(tmp_path, covers=FakeCovers({"openlibrary:OL1W": JPEG + b"source"}))
     download_id = audiobook(bench, tmp_path)

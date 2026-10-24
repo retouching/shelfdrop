@@ -163,12 +163,20 @@ class PlacementService:
                 await anyio.to_thread.run_sync(self.events.record, event)
 
     async def place(self, download: Download) -> None:
-        """A download complete put on the shelf, or left to Ranger with its reason."""
+        """A download complete put on the shelf, or left to Ranger with its reason; a download
+        of which some files have no volume it can read is placed in part, and left to Ranger
+        (`no_volume`) for the rest."""
         order = order_of(download)
         try:
             laid, library = await self.lay(download, order)
         except NotPlacedError as exc:
             await self.unplaced(download, exc.reason, exc.placed)
+            return
+        if laid.unknown:
+            # The volumes it read placed, the rest left to Ranger: the download stays to place
+            # (no `placed` yet, no tag) until Ranger links or ignores the rest.
+            await self.unplaced(download, "no_volume", laid.files)
+            await self.refresh_library(library)
             return
         destination = destination_label(order.kind, order.series, library)
         now = int(self.clock.now())

@@ -84,7 +84,7 @@ def test_one_file_without_a_number_is_the_volume_of_its_release(tmp_path: Path) 
             ["Chainsaw Man - Ch. 1.cbz", "Chainsaw Man - Ch. 2.cbz", "Chainsaw Man - Ch. 3.5.cbz"],
             "chapters",
         ),
-        (["Berserk T41.cbz", "Berserk bonus.cbz"], "no_volume"),
+        (["Berserk bonus.cbz", "Berserk extras.cbz"], "no_volume"),
         (["readme.txt"], "no_files"),
     ],
 )
@@ -98,6 +98,39 @@ def test_what_cannot_be_placed_alone_goes_to_ranger(
 
     assert refused.value.reason == reason
     assert not (tmp_path / "c").exists() or not any((tmp_path / "c").rglob("*.cbz"))
+
+
+def test_the_volumes_read_are_placed_and_the_books_without_one_left(tmp_path: Path) -> None:
+    torrent = tmp_path / "t" / "Berserk"
+    files = [cbz(torrent / n, ["1.jpg"]) for n in ("Berserk T41.cbz", "Berserk bonus.cbz")]
+
+    laid = place_comics(order(volumes=Volumes(kind="unknown")), files, tmp_path / "c", False)
+
+    assert laid.volumes == (41,)
+    assert laid.unknown == (str(files[1]),)
+    assert sorted(p.name for p in (tmp_path / "c" / "Berserk").iterdir()) == ["Berserk - T41.cbz"]
+
+
+def test_the_books_of_a_pack_without_a_volume_are_left(tmp_path: Path) -> None:
+    torrent = tmp_path / "t" / "Dune"
+    for folder in ("Tome 1", "Tome 2", "Bonus"):
+        (torrent / folder).mkdir(parents=True)
+        (torrent / folder / "book.epub").write_bytes(folder.encode())
+    pack = order(
+        kind="ebook",
+        series="Dune",
+        author="Frank Herbert",
+        release="Dune.Integrale.FRENCH.EPUB",
+        volumes=Volumes(kind="range", first=1, last=2),
+    )
+
+    laid = place_books(pack, sorted(torrent.rglob("*.epub")), tmp_path / "ebooks")
+
+    assert laid.volumes == (1, 2)
+    assert laid.unknown == (str(torrent / "Bonus" / "book.epub"),)
+    with pytest.raises(NotPlacedError) as refused:
+        place_books(pack, [torrent / "Bonus" / "book.epub"], tmp_path / "x")
+    assert refused.value.reason == "no_volume"
 
 
 def test_a_book_goes_under_its_author_its_series_and_its_volume(tmp_path: Path) -> None:
