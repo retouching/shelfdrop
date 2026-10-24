@@ -10,7 +10,7 @@
 | `SHELFDROP_STATIC_DIR` | `shelfdrop/static` (`/app/static` in the image) | The built front-end. Without an `index.html` there, no page is served. |
 | `SHELFDROP_API_PREFIX` | `/api` | The prefix of every route but `/health` and the pages: one or more `/segment`. |
 | `SHELFDROP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. SQLAlchemy, httpx and httpcore never log below `WARNING`. |
-| `SHELFDROP_LOG_FORMAT` | `json` | `json` (one object per line) or `text`, on stderr. The API and the placement worker also write their records to `logs/api.jsonl` and `logs/placement.jsonl` of `SHELFDROP_DATA_DIR`, always in JSON, 5 MiB and two older copies each, read by the tab Journaux of the settings ([ADR 0023](adr/0023-logs.md)). |
+| `SHELFDROP_LOG_FORMAT` | `json` | `json` (one object per line) or `text`, on stderr. The API and the placement worker also write their records to `logs/api.jsonl` and `logs/placement.jsonl` of `SHELFDROP_DATA_DIR`, always in JSON, 5 MiB and two older copies each, read by the Logs tab of the settings ([ADR 0023](adr/0023-logs.md)). |
 | `SHELFDROP_PUBLIC_URL` | none | The address of the pages as the browser reaches them (for example `https://shelfdrop.example.com`): the title of each message of the journal links there. |
 
 Imported once into the database, at the first start where they are set ([ADR 0012](adr/0012-settings-and-secrets.md)); then the settings page holds them, and a later change of the variable is ignored:
@@ -19,12 +19,12 @@ Imported once into the database, at the first start where they are set ([ADR 001
 | --- | --- |
 | `SHELFDROP_PROWLARR_URL` | `prowlarr.url`, the address of Prowlarr (`http://prowlarr:9696`) |
 | `SHELFDROP_PROWLARR_API_KEY` | the secret `prowlarr.api_key` |
-| `SHELFDROP_JELLYFIN_URL` | `jellyfin.url`, the address of Jellyfin (`http://jellyfin:8096`); set at the first start, it skips the set-up of the first launch ([ADR 0024](adr/0024-first-launch-setup.md)): the administrators of Jellyfin sign in, and the internal account is created on the page Paramètres › Accès |
+| `SHELFDROP_JELLYFIN_URL` | `jellyfin.url`, the address of Jellyfin (`http://jellyfin:8096`); set at the first start, it skips the set-up of the first launch ([ADR 0024](adr/0024-first-launch-setup.md)): the administrators of Jellyfin sign in, and the internal account is created in Settings › Access |
 | `SHELFDROP_MYANIMELIST_CLIENT_ID` | the secret `sources.myanimelist.client_id`, the Client ID of the MyAnimeList API (myanimelist.net/apiconfig) |
 | `SHELFDROP_DISCORD_WEBHOOK` | the secret `discord.webhook`, the webhook of Discord the journal posts on |
 
 ## The internal account and the first launch
-The internal account is the one account of shelfdrop itself: a name and a password (10 characters at least, kept as its scrypt), in the table `internal_account`. It signs in on the same page as the administrators of Jellyfin, and still does when Jellyfin is down ([ADR 0013](adr/0013-sign-in-and-sessions.md)). A new installation creates it at the first step of the set-up of the first launch, which then saves and tests Prowlarr, the torrent client, Jellyfin (required), the libraries and the folder of the uploads, before the rest of the site opens ([ADR 0024](adr/0024-first-launch-setup.md)); an installation signed in through Jellyfin creates it on the page Paramètres › Accès, where its password is changed (the current one given).
+The internal account is the one account of shelfdrop itself: a name and a password (10 characters at least, kept as its scrypt), in the table `internal_account`. It signs in on the same page as the administrators of Jellyfin, and still does when Jellyfin is down ([ADR 0013](adr/0013-sign-in-and-sessions.md)). A new installation creates it at the first step of the set-up of the first launch, which then saves and tests Prowlarr, the torrent client, Jellyfin (required), the libraries and the folder of the uploads, before the rest of the site opens ([ADR 0024](adr/0024-first-launch-setup.md)); an installation signed in through Jellyfin creates it in Settings › Access, where its password is changed (the current one given).
 
 ## Settings of the page
 Kept in the database (`settings`, `secrets`), read at each use, so a change applies without a restart. `shelfdrop.settings.catalog` lists them:
@@ -39,21 +39,23 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `search.max_names` | 6 | The names of a work searched in Prowlarr, 1 to 10. |
 | `search.release_cache_minutes` | 10 | How long an answer of Prowlarr is reused, 0 to 1440. |
 | `search.work_cache_hours` | 24 | How long an answer of a metadata source is reused, 0 to 720. |
-| `search.language_order` | `fr`, `en`, `ja-ro`, `latin` | The order of the languages the name on the shelf of a work is chosen in, by default (Paramètres › Recherche): French, English, romaji, then a name of a language not known (`latin`). With French first, the title of the French edition at the BnF comes before any other name. A list of the four, each once ([ADR 0007](adr/0007-work-search.md)). |
+| `search.language_order` | `fr`, `en`, `ja-ro`, `latin` | The order of the languages the name on the shelf of a work is chosen in, by default (Settings › Search): French, English, romaji, then a name of a language not known (`latin`). With French first, the title of the French edition at the BnF comes before any other name. A list of the four, each once ([ADR 0007](adr/0007-work-search.md)). |
 | `search.source_order` | `myanimelist`, `anilist`, `mangaupdates`, `kitsu`, `mangadex`, `openlibrary`, `wikidata`, `bnf` | The sources the title shown of a work comes from, the most trusted first, and the order of the sources of each name; the name on the shelf takes, in a language, the name of the first source. A list of the eight, each once. The id of a work, its authors and its year keep the order of the search. |
 | `placement.library.manga`, `.ebook`, `.audiobook` | `/data/files/comics`, `/data/files/ebooks`, `/data/files/audiobooks` | The folder of each library, as the placement worker sees it: an absolute path. Its library in Jellyfin is the one with a folder of the same name ([ADR 0016](adr/0016-placement.md)). |
 | `waiting.interval_hours` | `6` | The hours between two searches of a waiting search: 1, 3, 6, 12 or 24 ([ADR 0017](adr/0017-waiting.md)). |
-| `placement.mode` | `hardlink` | How a file of a download goes on the shelf ([ADR 0016](adr/0016-placement.md)): `hardlink` (no second copy, the torrents and the libraries on one file system; a link refused leaves the download to Ranger), `hardlink_or_copy` (a copy when the link is refused), `copy` (a copy always, twice the space). A copy is written beside its name then named, never over a file; the pages Ranger and Téléchargements mark it « copié ». A file of the libraries is moved in every mode. |
+| `placement.mode` | `hardlink` | How a file of a download goes on the shelf ([ADR 0016](adr/0016-placement.md)): `hardlink` (no second copy, the torrents and the libraries on one file system; a link refused leaves the download to Place), `hardlink_or_copy` (a copy when the link is refused), `copy` (a copy always, twice the space). A copy is written beside its name then named, never over a file; the Place and Downloads pages mark it copied. A file of the libraries is moved in every mode. |
 | `placement.merge_mp3` | on | The MP3 tracks of an audiobook merged into one M4B. |
 | `placement.covers` | on | The cover of a series written when it has none (the first page of its first volume). |
 | `placement.scan_time` | `04:30` | The time of the day (`HH:MM`, local time of the worker) of the scan of the files misplaced ([ADR 0018](adr/0018-ranger.md)). |
 | `placement.lock_jellyfin` | on | The name, the series, the number and the authors of a file placed set and locked in Jellyfin. The sync asked from the page Jellyfin runs whatever it says. |
-| `uploads.folder` | `/data/envois` | The folder the files sent from the page Manuel wait in until they are placed, as the placement worker sees it: on the mount of the libraries, writable by the worker ([ADR 0019](adr/0019-uploads.md)). |
-| `uploads.keep_days` | 7 | The days a file sent stays in Ranger without being placed, and an upload stopped is kept; then they are removed. |
+| `uploads.folder` | `/data/envois` | The folder the files sent from the Manual page wait in until they are placed, as the placement worker sees it: on the mount of the libraries, writable by the worker ([ADR 0019](adr/0019-uploads.md)). |
+| `uploads.keep_days` | 7 | The days a file sent stays in Place without being placed, and an upload stopped is kept; then they are removed. |
 | `journal.language` | `fr` | The language of the messages of the journal on Discord: `fr` or `en` ([ADR 0015](adr/0015-journal.md)). The language of the page is chosen on each device, in its sidebar ([ADR 0008](adr/0008-front-end-and-texts.md)). |
 | `discord.events.<event>` | on | The events of the journal sent to Discord: `sent`, `downloaded`, `placed`, `to_place`, `uploaded`, `retry`, `failed`, `misplaced`, `login`, `found` ([ADR 0015](adr/0015-journal.md)). Without the secret `discord.webhook`, nothing is posted. |
 
 The secrets: `prowlarr.api_key`, `torrent.api_key`, `torrent.password`, `jellyfin.api_key`, `sources.myanimelist.client_id`, `discord.webhook`. Sealed with AES-GCM under `SHELFDROP_SECRET_KEY`, opened in memory at the time of a call, never logged nor shown.
+
+Reserved for the test stack, set by `docker/compose.test.yaml` alone and ignored in a `.env` file (`TEST_STACK_SETTINGS`): `SHELFDROP_SOURCES_ORIGIN`, `SHELFDROP_SOURCE_REST_SECONDS`, `SHELFDROP_SEND_CHECK_SECONDS`, `SHELFDROP_JOURNAL_BATCH_SECONDS`, `SHELFDROP_PLACEMENT_EVERY_SECONDS`, `SHELFDROP_WAITING_EVERY_SECONDS`.
 
 Read by Compose alone (`docker/compose.yaml`):
 
