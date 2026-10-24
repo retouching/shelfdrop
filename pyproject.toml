@@ -116,6 +116,8 @@ markers = [
     "access_tokens: block of access, the tokens created, scoped, counted, revoked (test_tokens.py)",
     "access_openapi: block of access, the OpenAPI document and its page (test_openapi.py)",
     "access_mcp: block of access, the MCP server called by a real client with a token (test_mcp.py)",
+    "torrents: integration part, the connectors of the torrent clients against the real clients",
+    "torrent_deluge: block of torrents, the connector of Deluge against a real Deluge (test_torrent_deluge.py)",
 ]
 
 [dependency-groups]
