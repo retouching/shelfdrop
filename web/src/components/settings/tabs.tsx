@@ -6,7 +6,7 @@ import { testConnection, type SettingValue, type Tracker } from "../../api/setti
 import { isTorrentClient, setSecret, setValue, torrentClientOf, useSettings, valueOf } from "../../state/settings";
 import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } from "../../state/searchSettings";
 import { texts } from "../../texts";
-import type { Kind, TorrentClient } from "../../types";
+import type { Kind, PlaceMode, TorrentClient } from "../../types";
 import { Spinner } from "../Skeletons";
 import { stacked } from "../stacked";
 import {
@@ -710,6 +710,36 @@ function SwitchField({ label, settingKey }: { readonly label: string; readonly s
   );
 }
 
+const placeModes: readonly PlaceMode[] = ["hardlink", "hardlink_or_copy", "copy"];
+
+function isPlaceMode(value: unknown): value is PlaceMode {
+  return placeModes.some((mode) => mode === value);
+}
+
+/** Le mode de rangement d'un fichier de téléchargement : lien dur, lien dur sinon copie, copie. */
+function PlaceModeField(): ReactElement {
+  const settings = useSettings();
+  const value = valueOf(settings, "placement.mode");
+  const mode = isPlaceMode(value) ? value : "hardlink";
+  return (
+    <Field label={texts.settings.placeMode} hint={texts.settings.placeModeHints[mode]}>
+      <select
+        value={mode}
+        onChange={(event) => {
+          setValue("placement.mode", event.target.value);
+        }}
+        className={input}
+      >
+        {placeModes.map((choice) => (
+          <option key={choice} value={choice}>
+            {texts.settings.placeModes[choice]}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
 /** Les dossiers des bibliothèques et celui des envois (Rangement, et l'installation). */
 export function LibrariesCard(): ReactElement {
   return (
@@ -731,6 +761,7 @@ export function PlacementTab(): ReactElement {
     <div className="space-y-4">
       <LibrariesCard />
       <Card title={texts.nav.place}>
+        <PlaceModeField />
         <SwitchField label={texts.settings.mergeMp3} settingKey="placement.merge_mp3" />
         <SwitchField label={texts.settings.covers} settingKey="placement.covers" />
         <SwitchField label={texts.settings.lockJellyfin} settingKey="placement.lock_jellyfin" />

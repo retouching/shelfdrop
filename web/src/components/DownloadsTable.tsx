@@ -18,7 +18,9 @@ function stateText(state: DownloadState, client: string): string {
     case "placing":
       return texts.downloads.placing;
     case "placed":
-      return texts.downloads.placed(state.library);
+      return state.copied
+        ? `${texts.downloads.placed(state.library)} · ${texts.downloads.copied}`
+        : texts.downloads.placed(state.library);
     case "toPlace":
       return texts.downloads.toPlace;
     case "failed":

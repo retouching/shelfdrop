@@ -21,6 +21,8 @@ type ItemRead = {
   readonly series: string;
   readonly author: string;
   readonly work_id: string | null;
+  /** Rangé par une copie plutôt qu'un lien dur (mode de rangement). */
+  readonly copied: boolean;
 };
 
 type ItemsRead = { readonly items: readonly ItemRead[]; readonly open: number };
@@ -66,7 +68,7 @@ function fileOf(read: ItemRead): ShelfFile {
     read.state === "placing"
       ? { kind: "placing", destination: read.destination ?? "" }
       : read.state === "placed"
-        ? { kind: "placed", destination: read.destination ?? "" }
+        ? { kind: "placed", destination: read.destination ?? "", copied: read.copied }
         : read.state === "misplaced"
           ? { kind: "misplaced", reason: read.reason ?? "" }
           : { kind: read.state };
