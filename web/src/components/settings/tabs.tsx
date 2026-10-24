@@ -22,9 +22,9 @@ import {
   type ConnectionTest,
 } from "./parts";
 
-type ServiceId = "prowlarr" | "qbittorrent" | "jellyfin";
+type ServiceId = "prowlarr" | "torrent" | "jellyfin";
 
-const serviceIds: readonly ServiceId[] = ["prowlarr", "qbittorrent", "jellyfin"];
+const serviceIds: readonly ServiceId[] = ["prowlarr", "torrent", "jellyfin"];
 
 /** Le texte d'un champ d'adresse : la valeur modifiée, sinon celle enregistrée. */
 function textOf(value: SettingValue | undefined): string {
@@ -104,7 +104,7 @@ export type ServiceTests = Readonly<Record<ServiceId, ConnectionTest>>;
 export function useServiceTests(): ServiceTests {
   return {
     prowlarr: useServiceTest("prowlarr"),
-    qbittorrent: useServiceTest("qbittorrent"),
+    torrent: useServiceTest("torrent"),
     jellyfin: useServiceTest("jellyfin"),
   };
 }

@@ -1,9 +1,10 @@
-"""DownloadSender: the sends to qBittorrent of every request (a container singleton).
+"""DownloadSender: the sends to the torrent client of every request (a container singleton).
 
 A send outlives its request: its torrent is fetched through Prowlarr (or the one a first send
-read is taken again), its id read (`shelfdrop.utils.torrent`), then qBittorrent is asked for
-it: a torrent it already has, never added by shelfdrop, is a duplicate. Otherwise it is added
-into its category, and looked for by its hash, `tries` times `check_seconds` apart (qBittorrent
+read is taken again), its id read (`shelfdrop.utils.torrent`), then the torrent client chosen in
+the settings is asked for it: a torrent it already has, never added by shelfdrop, is a
+duplicate. Otherwise it is added into its category (and the folder of its kind, when the
+settings give one), and looked for by its hash, `tries` times `check_seconds` apart (a client
 may accept a torrent and lose it): found, it is sent; never found, not received. `parallel`
 torrents are fetched and added at a time.
 """
@@ -17,7 +18,7 @@ import anyio
 import anyio.to_thread
 
 from shelfdrop.clients.exceptions import ServiceError
-from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.clients.torrents.factory import TorrentClients
 from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.repository import DownloadRepository, DownloadRepositoryFactory
 from shelfdrop.downloads.types import Download, DownloadOptions, Failure
@@ -36,10 +37,11 @@ class TorrentSource(Protocol):
     async def torrent(self, link: str) -> Torrent: ...
 
 
-class QbittorrentAddress(Protocol):
-    """The address of qui and the key of its client proxy, read at each use (the settings)."""
+class TorrentFolders(Protocol):
+    """The folder of the torrent client of each kind of download (`manga`, `ebook`,
+    `audiobook`, `manual`) that has one, read at each send (the settings)."""
 
-    async def qbittorrent(self) -> tuple[str | None, str | None]: ...
+    async def torrent_folders(self) -> dict[str, str]: ...
 
 
 class DownloadEvents(Protocol):
@@ -101,11 +103,16 @@ def outcome_event(download: Download, failure: Failure | None) -> NewEvent | Non
 
 
 class SendFailedError(Exception):
-    """A send ends without the torrent in qBittorrent; `failure` says why."""
+    """A send ends without the torrent in the torrent client; `failure` says why."""
 
     def __init__(self, failure: Failure) -> None:
         super().__init__(failure)
         self.failure = failure
+
+
+def folder_of(download: Download, folders: dict[str, str]) -> str | None:
+    """The folder of the client of the kind of `download` (`manual` for a manual one)."""
+    return folders.get("manual" if download.mode == "manual" else download.kind)
 
 
 def id_of(torrent: Torrent) -> str | None:
@@ -118,8 +125,8 @@ class DownloadSender:
     def __init__(
         self,
         source: TorrentSource,
-        qbittorrent: QBittorrentClient,
-        address: QbittorrentAddress,
+        torrents: TorrentClients,
+        folders: TorrentFolders,
         repositories: DownloadRepositoryFactory,
         options: DownloadOptions,
         clock: Clock,
@@ -127,8 +134,8 @@ class DownloadSender:
         covers: DownloadCovers,
     ) -> None:
         self.source = source
-        self.qbittorrent = qbittorrent
-        self.address = address
+        self.torrents = torrents
+        self.folders = folders
         self.repositories = repositories
         self.options = options
         self.clock = clock
@@ -191,22 +198,22 @@ class DownloadSender:
 
     async def deliver(self, download: Download) -> None:
         """Raises SendFailedError."""
-        url, api_key = await self.address.qbittorrent()
+        client = await self.torrents.current()
+        directory = folder_of(download, await self.folders.torrent_folders())
         async with self.slots:
             torrent, digest = await self.torrent_of(download)
             try:
-                present = await self.qbittorrent.torrents(url, api_key, [digest])
+                present = await client.torrents([digest])
                 if present:
                     if download.added_at is None:
                         raise SendFailedError("duplicate")
                     # Added by an earlier attempt: received after all.
                     return
-                await self.qbittorrent.add(
-                    url,
-                    api_key,
+                await client.add(
                     category=download.category,
                     file=torrent.file,
                     magnet=torrent.magnet,
+                    directory=directory,
                 )
             except ServiceError as exc:
                 logger.info("qBittorrent refused a torrent", extra={"error": type(exc).__name__})
@@ -217,7 +224,7 @@ class DownloadSender:
             if attempt:
                 await anyio.sleep(self.options.check_seconds)
             try:
-                if await self.qbittorrent.torrents(url, api_key, [digest]):
+                if await client.torrents([digest]):
                     return
             except ServiceError as exc:
                 logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})

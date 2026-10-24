@@ -3,6 +3,7 @@
 does not open."""
 
 import secrets
+from collections.abc import Sequence
 from typing import Final
 
 from cryptography.exceptions import InvalidTag
@@ -36,3 +37,13 @@ class SecretBox:
         except (InvalidTag, ValueError) as exc:
             raise SecretUnreadableError(name) from exc
         return plain.decode()
+
+    def open_any(self, names: Sequence[str], sealed: bytes) -> str:
+        """The value sealed under the first of `names` that opens it (a secret moved to another
+        name opens under its former one). Raises SecretUnreadableError when none does."""
+        for name in names[:-1]:
+            try:
+                return self.open(name, sealed)
+            except SecretUnreadableError:
+                continue
+        return self.open(names[-1], sealed)

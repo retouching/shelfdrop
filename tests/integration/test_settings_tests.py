@@ -45,7 +45,7 @@ def test_a_key_typed_is_tested_before_it_is_saved(client: httpx.Client) -> None:
 
 
 def test_qbittorrent_through_qui_names_the_category_it_misses(client: httpx.Client) -> None:
-    result = probe(client, {"service": "qbittorrent", "url": FAKE_ORIGIN, "secret": QUI_KEY})
+    result = probe(client, {"service": "torrent", "url": FAKE_ORIGIN, "secret": QUI_KEY})
 
     assert result["ok"] is True
     assert result["version"] == "5.1.2"

@@ -115,16 +115,16 @@ Next fact ID: F42.
 
 - **F21** `GET /api/v2/app/version` answers the version as text (`v4.1.3`); `GET /api/v2/torrents/categories` a JSON object by name (`{"name", "savePath"}`). Every method but the sign-in needs the cookie `SID`.
   - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" (read on 2026-10-21). No real qBittorrent asked; `FakeQui` and `qbittorrent_stubs` answer in this shape.
-  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_the_version_and_the_categories_go_through_the_proxy_of_its_key`
+  - Pinned by: `tests/unit/clients/torrents/test_qui.py::test_the_version_and_the_categories_go_through_the_proxy_of_its_key`
   - Re-verify: before the first test against a real qBittorrent.
 - **F22** The client proxy of qui stands for a qBittorrent at `<qui>/proxy/<client API key>`: an application uses it as the address of qBittorrent with no credentials, qui keeps the session of qBittorrent; a key missing or wrong gets a `401` from qui.
   - Evidence: the documentation of qui, "Reverse proxy for external applications" (getqui.com/docs/features/reverse-proxy, read on 2026-10-21), and its issue #3167 ("the qui proxy middleware only returns 401 for a missing or invalid API key").
-  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_wrong_key_is_refused_and_a_missing_one_asks_nothing`
+  - Pinned by: `tests/unit/clients/torrents/test_qui.py::test_a_wrong_key_is_refused_and_a_missing_one_asks_nothing`
   - Re-verify: before the first test against a real qui, and when qui changes its major version.
 
-- **F25** `POST /api/v2/torrents/add` takes a `multipart/form-data` body: `torrents` (the `.torrent` files) or `urls` (links, a magnet among them, one per line), `category`, and the options (`savepath`, `tags`...). qBittorrent 5.0 answers `200` (`Ok.`, or `Fails.` when it added nothing) and `415` for a file it cannot read; its later versions answer `200` with `added_torrent_ids`, `202` for a link still to fetch, `409` when nothing was added. `GET /api/v2/torrents/info?hashes=<a>|<b>` lists the torrents of these hashes it has, each with `hash`, `name`, `state` (`downloading`, `stalledDL`, `metaDL`, `queuedDL`, `pausedDL`, `uploading`, `stalledUP`...), `progress` (0 to 1), `dlspeed` (bytes a second), `eta` (seconds, `8640000` when unknown), `category`. `QBittorrentClient.add` takes `200` and `202` as accepted but `Fails.`; the hash decides, not the answer.
+- **F25** `POST /api/v2/torrents/add` takes a `multipart/form-data` body: `torrents` (the `.torrent` files) or `urls` (links, a magnet among them, one per line), `category`, and the options (`savepath`, `tags`...). qBittorrent 5.0 answers `200` (`Ok.`, or `Fails.` when it added nothing) and `415` for a file it cannot read; its later versions answer `200` with `added_torrent_ids`, `202` for a link still to fetch, `409` when nothing was added. `GET /api/v2/torrents/info?hashes=<a>|<b>` lists the torrents of these hashes it has, each with `hash`, `name`, `state` (`downloading`, `stalledDL`, `metaDL`, `queuedDL`, `pausedDL`, `uploading`, `stalledUP`...), `progress` (0 to 1), `dlspeed` (bytes a second), `eta` (seconds, `8640000` when unknown), `category`. `WebUiClient.add` (`shelfdrop/clients/torrents/webui.py`) takes `200` and `202` as accepted but `Fails.`; the hash decides, not the answer.
   - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" ("Add new torrent", "Get torrent list"), and its source, branch master (`src/webui/api/torrentscontroller.cpp`, `TorrentsController::addAction`), read on 2026-10-21. No real qBittorrent asked; `FakeQui` and the stubs of the downloads answer in this shape (a list of several hashes through `qbittorrent-lists`, F33).
-  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_torrent_is_added_into_its_category_and_read_by_its_hash`
+  - Pinned by: `tests/unit/clients/torrents/test_qui.py::test_a_torrent_is_added_into_its_category_and_read_by_its_hash`
   - Re-verify: before the first download to a real qBittorrent, and when qBittorrent changes its major version.
 - **F23** qBittorrent names a torrent (`hash` of `GET /api/v2/torrents/info`, the `hashes` it filters on) by its `TorrentID`, libtorrent's `info_hash_t::get_best()`: the SHA-256 of the bencoded `info` cut to 20 bytes when the torrent is of BitTorrent v2 (hybrid ones included), otherwise its SHA-1, in hex. `shelfdrop.utils.torrent.torrent_id` and `magnet_id` give the same id.
   - Evidence: the source of qBittorrent (`src/base/bittorrent/infohash.cpp`, `InfoHash::toTorrentID` returns `m_nativeHash.get_best()` with libtorrent 2) and of libtorrent (`include/libtorrent/info_hash.hpp`, branch RC_2_0: "returns the v2 (truncated) info-hash, if there is one, otherwise returns the v1 info-hash"), read on 2026-10-21. No real qBittorrent asked.
@@ -133,7 +133,7 @@ Next fact ID: F42.
 
 - **F28** Each torrent of `GET /api/v2/torrents/info` gives `content_path`, where qBittorrent keeps it as qBittorrent sees it: the file of a torrent of one file, the root folder of the others. `POST /api/v2/torrents/addTags` takes a form body, `hashes` (separated by `|`) and `tags` (separated by commas).
   - Evidence: the wiki of qBittorrent, "WebUI API (qBittorrent 5.0)" ("Get torrent list", "Add torrent tags"), read on 2026-10-21. No real qBittorrent asked; `FakeQui` and the stubs of the placement answer in this shape.
-  - Pinned by: `tests/unit/clients/test_qbittorrent.py::test_a_torrent_gives_its_content_path_and_takes_a_tag`
+  - Pinned by: `tests/unit/clients/torrents/test_qui.py::test_a_torrent_gives_its_content_path_and_takes_the_mark_of_shelfdrop`
   - Re-verify: before the first placement of a download of a real qBittorrent.
 
 ### Discord (webhooks, API v10)

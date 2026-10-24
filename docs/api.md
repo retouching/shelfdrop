@@ -211,14 +211,14 @@ The settings of the page ([the list](configuration.md#settings-of-the-page)):
 
 ```json
 {"values": {"prowlarr.url": "http://prowlarr:9696", "search.max_names": 6, "sources.kitsu.enabled": true},
- "secrets": {"prowlarr.api_key": 1792598400, "qbittorrent.api_key": null}}
+ "secrets": {"prowlarr.api_key": 1792598400, "torrent.api_key": null}}
 ```
 
 - `values`: every setting, its default when never saved. `secrets`: when each secret was set (Unix seconds), or `null`; never its value.
 - `PUT` takes `{"values": {...}, "secrets": {"prowlarr.api_key": "new key", "jellyfin.api_key": null}}`: the keys given alone change, `null` clears a secret. Each change is audited (who, when, which key), never its value. Errors: `422 invalid_settings`, `data.keys` the keys unknown or whose value is refused, nothing saved.
 
 ## POST /api/v1/settings/test
-The test of a connection, with the values typed before they are saved: `{"service": "prowlarr", "url": null, "secret": null}`. `service`: `prowlarr`, `qbittorrent`, `jellyfin`, or a metadata source (`kitsu`, `myanimelist`...); `url` and `secret` `null` are the values saved, a `secret` `""` none.
+The test of a connection, with the values typed before they are saved: `{"service": "prowlarr", "url": null, "secret": null}`. `service`: `prowlarr`, `torrent` (the torrent client saved), `jellyfin`, or a metadata source (`kitsu`, `myanimelist`...); `url` and `secret` `null` are the values saved, a `secret` `""` none.
 
 ```json
 {"service": "prowlarr", "ok": true, "state": "connected", "status": null, "version": "2.1.5.5216",

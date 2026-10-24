@@ -17,7 +17,7 @@ class ScriptedProbes:
         self.asked: list[str] = []
 
     def names(self) -> tuple[str, ...]:
-        return ("prowlarr", "qbittorrent", "jellyfin")
+        return ("prowlarr", "torrent", "jellyfin")
 
     async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult:
         self.asked.append(service)

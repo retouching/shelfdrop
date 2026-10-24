@@ -13,7 +13,7 @@ import anyio.to_thread
 
 from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.jellyfin import JellyfinClient
-from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.clients.torrents.factory import TorrentClients
 from shelfdrop.clients.types import JellyfinLibrary
 from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.repository import DownloadRepository, DownloadRepositoryFactory
@@ -36,7 +36,6 @@ from shelfdrop.placement.paths import destination_label, library_of, to_jellyfin
 from shelfdrop.placement.repository import PlacementRepository, PlacementRepositoryFactory
 from shelfdrop.placement.shelf import files_of, remove_links, replace_with, write_new
 from shelfdrop.placement.types import (
-    PLACED_TAG,
     PlacedFile,
     PlacementOptions,
     ShelfFile,
@@ -52,8 +51,6 @@ FAILURES: frozenset[Unplaced] = frozenset({"link_refused", "merge_failed"})
 
 class PlacementSettings(Protocol):
     """The settings the placement reads at each round."""
-
-    async def qbittorrent(self) -> tuple[str | None, str | None]: ...
 
     async def jellyfin(self) -> tuple[str | None, str | None]: ...
 
@@ -103,7 +100,7 @@ class PlacementService:
         self,
         repositories: PlacementRepositoryFactory,
         downloads: DownloadRepositoryFactory,
-        qbittorrent: QBittorrentClient,
+        torrents: TorrentClients,
         jellyfin: JellyfinClient,
         settings: PlacementSettings,
         tools: AudioTools,
@@ -115,7 +112,7 @@ class PlacementService:
     ) -> None:
         self.repositories = repositories
         self.downloads = downloads
-        self.qbittorrent = qbittorrent
+        self.torrents = torrents
         self.jellyfin = jellyfin
         self.settings = settings
         self.tools = tools
@@ -136,15 +133,15 @@ class PlacementService:
         await self.run_tasks()
 
     async def complete(self) -> None:
-        """The downloads qBittorrent has all of are complete (whether the page reads them or
+        """The downloads the torrent client has all of are complete (whether the page reads them or
         not); each end once in the journal, with the cover of its work."""
         sent = await self.on_downloads(lambda r: r.read_sent(), commit=False)
         hashes = [d.info_hash for d in sent if d.info_hash]
         if not hashes:
             return
-        url, api_key = await self.settings.qbittorrent()
+        client = await self.torrents.current()
         try:
-            torrents = {t.hash: t for t in await self.qbittorrent.torrents(url, api_key, hashes)}
+            torrents = {t.hash: t for t in await client.torrents(hashes)}
         except ServiceError as exc:
             logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
             return
@@ -198,9 +195,9 @@ class PlacementService:
 
     async def lay(self, download: Download, order: Order) -> tuple[Laid, JellyfinLibrary | None]:
         """The files of the torrent laid on the shelf. Raises NotPlacedError."""
-        url, api_key = await self.settings.qbittorrent()
+        client = await self.torrents.current()
         try:
-            torrents = await self.qbittorrent.torrents(url, api_key, [download.info_hash or ""])
+            torrents = await client.torrents([download.info_hash or ""])
         except ServiceError as exc:
             logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
             raise NotPlacedError("missing_files") from exc
@@ -317,11 +314,12 @@ class PlacementService:
             await anyio.to_thread.run_sync(self.events.record, failed)
 
     async def after_placement(self, download: Download, library: JellyfinLibrary | None) -> None:
-        """The tag `placé` in qBittorrent (another tool that places may leave it alone), and the
-        new files scanned by Jellyfin; neither failure undoes the placement."""
-        url, api_key = await self.settings.qbittorrent()
+        """The mark of shelfdrop in the torrent client (the tag `placé` of qBittorrent: another
+        tool that places may leave it alone), and the new files scanned by Jellyfin; neither
+        failure undoes the placement."""
+        client = await self.torrents.current()
         try:
-            await self.qbittorrent.add_tags(url, api_key, [download.info_hash or ""], PLACED_TAG)
+            await client.mark_placed([download.info_hash or ""])
         except ServiceError as exc:
             logger.info("Tag not set", extra={"error": type(exc).__name__})
         await self.refresh_library(library)

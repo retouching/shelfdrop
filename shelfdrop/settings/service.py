@@ -7,7 +7,16 @@ from typing import Final, Protocol
 import anyio
 import anyio.to_thread
 
-from shelfdrop.settings.catalog import ADDRESS, SECRETS, SERVICES, VALUES, invalid_keys, is_valid
+from shelfdrop.settings.catalog import (
+    ADDRESS,
+    SECRETS,
+    SERVICES,
+    VALUES,
+    invalid_keys,
+    is_valid,
+    sealed_names,
+    torrent_secret,
+)
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.exceptions import InvalidSettingsError, SecretUnreadableError
 from shelfdrop.settings.monitor import ConnectionMonitor
@@ -28,8 +37,10 @@ class Probes(Protocol):
     async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult: ...
 
 
-def secret_key_of(service: str) -> str | None:
-    """The key of the secret a test of `service` uses."""
+def secret_key_of(service: str, client: str) -> str | None:
+    """The key of the secret a test of `service` uses; `client`: the torrent client saved."""
+    if service == "torrent":
+        return torrent_secret(client)
     if service in SERVICES:
         return f"{service}.api_key"
     return "sources.myanimelist.client_id" if service == "myanimelist" else None
@@ -101,13 +112,16 @@ class SettingsService:
         )
 
     def saved_connection(self, service: str) -> tuple[str | None, str | None]:
-        url_key, secret_key = f"{service}.url", secret_key_of(service)
+        client = self.repository.read_values(["torrent.client"]).get("torrent.client")
+        url_key = f"{service}.url"
+        default = str(VALUES["torrent.client"].default)
+        secret_key = secret_key_of(service, client if isinstance(client, str) else default)
         url = self.repository.read_values([url_key]).get(url_key) if service in SERVICES else None
         sealed = None if secret_key is None else self.repository.read_sealed(secret_key)
         secret = None
         if secret_key is not None and sealed is not None:
             try:
-                secret = self.box.open(secret_key, sealed)
+                secret = self.box.open_any(sealed_names(secret_key), sealed)
             except SecretUnreadableError:
                 secret = None
         return (url if isinstance(url, str) else None), secret

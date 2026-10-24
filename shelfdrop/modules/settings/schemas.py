@@ -25,7 +25,7 @@ class SettingsUpdate(BaseModel):
 
 
 class ProbeBody(BaseModel):
-    # prowlarr, qbittorrent, jellyfin, or a metadata source (kitsu, myanimelist...).
+    # prowlarr, torrent (the torrent client), jellyfin, or a source (kitsu, myanimelist...).
     service: str = Field(min_length=1, max_length=40)
     # The address typed; null: the one saved. A source has none.
     url: str | None = None

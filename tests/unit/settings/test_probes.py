@@ -4,18 +4,24 @@ import httpx
 import pytest
 
 from shelfdrop.clients.jellyfin import JellyfinClient
-from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
 from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.works.clients.kitsu import KitsuClient
 from shelfdrop.works.clients.myanimelist import MyAnimeListClient
 from shelfdrop.works.service import WorkSources
 from tests.unit.clients.support import API_KEY as JELLYFIN_KEY
+from tests.unit.clients.support import (
+    QUI_URL,
+    FakeJellyfin,
+    FakeQui,
+    FakeTorrentSettings,
+    torrent_clients,
+)
 from tests.unit.clients.support import URL as JELLYFIN_URL
-from tests.unit.clients.support import FakeJellyfin, FakeQui
 from tests.unit.releases.support import API_KEY, URL, ProwlarrReplay
+from tests.unit.settings.support import FakeSettingsReader
 
-QUI = "http://qui.test:7476"
+QUI = QUI_URL
 
 
 @pytest.fixture
@@ -31,6 +37,7 @@ def new_probes(
     sources: httpx.AsyncClient | None = None,
     qui: FakeQui | None = None,
     jellyfin: FakeJellyfin | None = None,
+    saved: FakeSettingsReader | None = None,
 ) -> ConnectionProbes:
     source_http = sources or http(lambda r: httpx.Response(200, json={"data": []}))
 
@@ -39,9 +46,10 @@ def new_probes(
 
     return ConnectionProbes(
         ProwlarrClient(http(ProwlarrReplay()), fixed(None, None)),
-        QBittorrentClient(http(qui or FakeQui(categories=["manga", "ebook", "audiobook"]))),
+        torrent_clients(qui or FakeQui(categories=["manga", "ebook", "audiobook"])),
         JellyfinClient(http(jellyfin or FakeJellyfin()), "0.3.0"),
         WorkSources(clients=(KitsuClient(source_http), MyAnimeListClient(source_http, no_id))),
+        saved or FakeSettingsReader(),
     )
 
 
@@ -73,13 +81,29 @@ async def test_without_address_or_key_nothing_is_asked(
 
 
 @pytest.mark.anyio
-async def test_qbittorrent_names_the_categories_of_shelfdrop_it_misses() -> None:
-    result = await new_probes().run("qbittorrent", QUI, FakeQui.KEY)
+async def test_the_torrent_client_names_the_categories_of_shelfdrop_it_misses() -> None:
+    qui = FakeQui(categories=["manga", "ebook", "audiobook"])
 
+    result = await new_probes(qui=qui).run("torrent", QUI, FakeQui.KEY)
+
+    assert result.service == "torrent"
     assert result.ok
     assert result.version == "5.1.2"
     assert result.count == 3
     assert result.missing == ("shelfdrop-manual",)
+    # The client saved (qui by default), at the address typed, with the key typed.
+    assert qui.requests[0].url.path == f"/proxy/{FakeQui.KEY}/api/v2/app/version"
+
+
+@pytest.mark.anyio
+async def test_a_torrent_client_no_connector_serves_is_unavailable() -> None:
+    qui = FakeQui()
+    saved = FakeSettingsReader({"torrent.client": "deluge"})
+
+    result = await new_probes(qui=qui, saved=saved).run("torrent", QUI, "a-password")
+
+    assert result.state == "unavailable"
+    assert qui.requests == []
 
 
 @pytest.mark.anyio
@@ -106,9 +130,9 @@ async def test_unreachable_is_unavailable() -> None:
         raise httpx.ConnectError("refused", request=request)
 
     probes = new_probes()
-    probes.qbittorrent = QBittorrentClient(http(refuse))
+    probes.torrents = torrent_clients(refuse, FakeTorrentSettings())
 
-    result = await probes.run("qbittorrent", QUI, FakeQui.KEY)
+    result = await probes.run("torrent", QUI, FakeQui.KEY)
 
     assert result.state == "unavailable"
     assert result.status is None

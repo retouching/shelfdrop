@@ -1,9 +1,7 @@
-"""What the page shows of a download, from its stage and the torrent qBittorrent lists. Pure:
-no I/O."""
+"""What the page shows of a download, from its stage and the torrent the torrent client lists
+(its generic status, `shelfdrop.clients.torrents.types.TorrentStatus`). Pure: no I/O."""
 
-from typing import Final
-
-from shelfdrop.clients.types import TorrentInfo
+from shelfdrop.clients.torrents.types import TorrentInfo
 from shelfdrop.downloads.types import (
     CATEGORIES,
     MANUAL_CATEGORY,
@@ -14,37 +12,26 @@ from shelfdrop.downloads.types import (
 from shelfdrop.journal.types import NewEvent
 from shelfdrop.works.types import Kind
 
-# The states of qBittorrent of a torrent it has all of (the WebUI API: `stoppedUP` from
-# qBittorrent 5, `pausedUP` before).
-COMPLETE: Final = frozenset(
-    {"uploading", "pausedUP", "stoppedUP", "queuedUP", "stalledUP", "checkingUP", "forcedUP"}
-)
-# The states of a torrent that downloads, or tries to (no peer: `stalledDL`). The others
-# (`metaDL`, `queuedDL`, `pausedDL`, `checkingDL`, `allocating`, `moving`, `error`...) wait.
-DOWNLOADING: Final = frozenset({"downloading", "forcedDL", "stalledDL"})
-# The `eta` of qBittorrent when it cannot tell.
-UNKNOWN_ETA: Final = 8640000
-
 
 def category_of(kind: Kind, mode: DownloadMode) -> str:
     return MANUAL_CATEGORY if mode == "manual" else CATEGORIES[kind]
 
 
 def is_complete(info: TorrentInfo) -> bool:
-    return info.progress >= 1 or info.state in COMPLETE
+    return info.status == "complete"
 
 
 def finished(download: Download) -> Progress:
-    """A download qBittorrent has all of: an automatic one waits for its placement (the percent
-    of its merge of MP3 tracks while it runs), a manual one is placed by hand."""
+    """A download the torrent client has all of: an automatic one waits for its placement (the
+    percent of its merge of MP3 tracks while it runs), a manual one is placed by hand."""
     if download.mode == "manual":
         return Progress(state="to_place", unplaced="manual")
     return Progress(state="placing", percent=download.placing_percent)
 
 
 def progress_of(download: Download, info: TorrentInfo | None) -> Progress:
-    """`info`: the torrent of `download` qBittorrent lists, None when it lists none (or does not
-    answer)."""
+    """`info`: the torrent of `download` the torrent client lists, None when it lists none (or
+    does not answer)."""
     match download.stage:
         case "failed":
             return Progress(state="failed", reason=download.failure or "not_received")
@@ -61,12 +48,14 @@ def progress_of(download: Download, info: TorrentInfo | None) -> Progress:
                 return Progress(state="waiting")
             if is_complete(info):
                 return finished(download)
-            if info.state in DOWNLOADING:
+            # A torrent stalled (no peer) still downloads, as far as the page tells; one waiting
+            # or stopped on an error waits.
+            if info.status in ("downloading", "stalled"):
                 return Progress(
                     state="downloading",
                     percent=int(info.progress * 100),
                     speed=max(0, info.speed),
-                    eta=info.eta if 0 <= info.eta < UNKNOWN_ETA else 0,
+                    eta=max(0, info.eta) if info.eta is not None else 0,
                 )
             return Progress(state="waiting")
 

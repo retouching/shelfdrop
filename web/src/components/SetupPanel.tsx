@@ -15,7 +15,7 @@ import { probeMessage } from "./settings/parts";
 import { LibrariesCard, ServiceCard, useServiceTests } from "./settings/tabs";
 import { Spinner } from "./Skeletons";
 
-const steps = ["account", "prowlarr", "qbittorrent", "jellyfin", "libraries", "finish"] as const;
+const steps = ["account", "prowlarr", "torrent", "jellyfin", "libraries", "finish"] as const;
 
 type Step = (typeof steps)[number];
 
@@ -35,8 +35,8 @@ function firstStep(saved: (key: string) => SettingValue | undefined): Step {
   if (typeof saved("prowlarr.url") !== "string") {
     return "prowlarr";
   }
-  if (typeof saved("qbittorrent.url") !== "string") {
-    return "qbittorrent";
+  if (typeof saved("torrent.url") !== "string") {
+    return "torrent";
   }
   if (typeof saved("jellyfin.url") !== "string") {
     return "jellyfin";
@@ -189,7 +189,7 @@ function Configure({
       {current === "account" ? (
         <p className="text-sm text-slate-600">{texts.setup.accountDone(account.username)}</p>
       ) : null}
-      {current === "prowlarr" || current === "qbittorrent" || current === "jellyfin" ? (
+      {current === "prowlarr" || current === "torrent" || current === "jellyfin" ? (
         <ServiceCard id={current} test={tests[current]} />
       ) : null}
       {current === "jellyfin" ? <p className="text-sm text-slate-500">{texts.setup.jellyfinRequired}</p> : null}

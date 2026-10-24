@@ -28,8 +28,6 @@ type ItemState = Literal["unlinked", "chapters", "misplaced", "placed", "ignored
 type Misplaced = Literal["root", "naming", "tracks", "chapters"]
 type Rest = Literal["place", "keep"]
 
-# The tag of qBittorrent on what shelfdrop placed: a tool that places on its own may leave it alone.
-PLACED_TAG: Final = "placé"
 # The folder names of the libraries as the journal and the page name them, without Jellyfin.
 LIBRARY_NAMES: Final[dict[Kind, str]] = {
     "manga": "BD & Mangas",

@@ -8,17 +8,33 @@ from typing import Final
 import anyio
 import anyio.to_thread
 
-from shelfdrop.settings.catalog import EVENTS, LIBRARIES, SOURCES, VALUES
+from shelfdrop.settings.catalog import (
+    CLIENTS,
+    EVENTS,
+    LIBRARIES,
+    SOURCES,
+    TORRENT_FOLDERS,
+    VALUES,
+    sealed_names,
+    torrent_secret,
+)
 from shelfdrop.settings.cipher import SecretBox
 from shelfdrop.settings.exceptions import SecretUnreadableError
 from shelfdrop.settings.repository import SettingsRepositoryFactory
-from shelfdrop.settings.types import SettingValue
+from shelfdrop.settings.types import SettingValue, TorrentSettings
 from shelfdrop.works.types import Kind
 
 logger = logging.getLogger(__name__)
 
 MYANIMELIST_KEY: Final = "sources.myanimelist.client_id"
 WEBHOOK_KEY: Final = "discord.webhook"
+
+
+def secret_of(torrent: TorrentSettings) -> str | None:
+    """The secret the torrent client chosen signs in with."""
+    if torrent_secret(torrent.client) == "torrent.api_key":
+        return torrent.api_key
+    return torrent.password
 
 
 class SettingsReader:
@@ -44,13 +60,17 @@ class SettingsReader:
         if sealed is None:
             return None
         try:
-            return self.box.open(key, sealed)
+            return self.box.open_any(sealed_names(key), sealed)
         except SecretUnreadableError:
             logger.warning("Secret unreadable", extra={"setting": key})
             return None
 
     async def connection(self, service: str) -> tuple[str | None, str | None]:
-        """The address and the API key of a service (`prowlarr`, `qbittorrent`, `jellyfin`)."""
+        """The address and the secret of a service (`prowlarr`, `torrent`, `jellyfin`): its API
+        key, or the secret the torrent client chosen signs in with."""
+        if service == "torrent":
+            torrent = await self.torrent()
+            return torrent.url, secret_of(torrent)
         url_key, secret_key = f"{service}.url", f"{service}.api_key"
         values, secrets = await anyio.to_thread.run_sync(self.read, (url_key,), (secret_key,))
         url = values[url_key]
@@ -59,9 +79,30 @@ class SettingsReader:
     async def prowlarr(self) -> tuple[str | None, str | None]:
         return await self.connection("prowlarr")
 
-    async def qbittorrent(self) -> tuple[str | None, str | None]:
-        """The address of qui and the key of its client proxy."""
-        return await self.connection("qbittorrent")
+    async def torrent(self) -> TorrentSettings:
+        """The torrent client chosen, its address and how it signs in."""
+        keys = ("torrent.client", "torrent.url", "torrent.username")
+        secrets = ("torrent.password", "torrent.api_key")
+        values, opened = await anyio.to_thread.run_sync(self.read, keys, secrets)
+        client, url, username = (values[key] for key in keys)
+        return TorrentSettings(
+            client=client if isinstance(client, str) and client in CLIENTS else CLIENTS[0],
+            url=url if isinstance(url, str) else None,
+            username=username if isinstance(username, str) else None,
+            password=opened["torrent.password"],
+            api_key=opened["torrent.api_key"],
+        )
+
+    async def torrent_folders(self) -> dict[str, str]:
+        """The folder of the torrent client of each kind of download (`manga`, `ebook`,
+        `audiobook`, `manual`) that has one."""
+        keys = tuple(f"torrent.folder.{name}" for name in TORRENT_FOLDERS)
+        values, _ = await anyio.to_thread.run_sync(self.read, keys, ())
+        return {
+            name: value
+            for name, key in zip(TORRENT_FOLDERS, keys, strict=True)
+            if isinstance(value := values[key], str)
+        }
 
     async def jellyfin_url(self) -> str | None:
         url, _ = await self.connection("jellyfin")

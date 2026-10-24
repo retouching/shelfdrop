@@ -1,13 +1,10 @@
 """What the tests of the downloads share: the downloads in memory, Prowlarr giving torrents,
-qBittorrent behind qui (`FakeQui`), and the releases of a search."""
+the torrent client qui (`FakeQui`, through the real connector), and the releases of a search."""
 
 import dataclasses
 from collections.abc import Sequence
 from typing import Final, override
 
-import httpx
-
-from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.repository import DownloadRepository
 from shelfdrop.downloads.sender import DownloadSender
@@ -24,11 +21,11 @@ from shelfdrop.releases.types import (
     Volumes,
 )
 from shelfdrop.works.types import Kind
-from tests.unit.clients.support import FakeQui
+from tests.unit.clients.support import QUI_URL, FakeQui, FakeTorrentSettings, torrent_clients
 from tests.unit.support import FakeJournal, no_session
 from tests.unit.works.support import FixedClock
 
-URL: Final = "http://qui.test:7476"
+URL: Final = QUI_URL
 # Looks of a send, at once: the tests wait on nothing.
 FAST: Final = DownloadOptions(check_seconds=0)
 
@@ -186,17 +183,6 @@ class FakeWorkCovers:
         return self.covers.get(work_id)
 
 
-class FakeAddress:
-    """The address of qui and the key of its client proxy, as the settings give them."""
-
-    def __init__(self, url: str | None = URL, key: str | None = FakeQui.KEY) -> None:
-        self.url = url
-        self.key = key
-
-    async def qbittorrent(self) -> tuple[str | None, str | None]:
-        return self.url, self.key
-
-
 class FakeFinder:
     """The searches kept, by id."""
 
@@ -278,22 +264,22 @@ def new_desk(
     *,
     qui: FakeQui | None = None,
     options: DownloadOptions = FAST,
-    address: FakeAddress | None = None,
+    settings: FakeTorrentSettings | None = None,
 ) -> Desk:
     repository = FakeDownloadRepository()
     prowlarr = FakeProwlarr()
     qui = qui or FakeQui()
     finder = FakeFinder()
     clock = FixedClock()
-    qbittorrent = QBittorrentClient(httpx.AsyncClient(transport=httpx.MockTransport(qui)))
-    address = address or FakeAddress()
+    settings = settings or FakeTorrentSettings()
+    torrents = torrent_clients(qui, settings)
     journal = FakeJournal()
     covers = FakeWorkCovers()
     download_covers = DownloadCovers(covers, clock, 30)
     sender = DownloadSender(
-        prowlarr, qbittorrent, address, lambda: repository, options, clock, journal, download_covers
+        prowlarr, torrents, settings, lambda: repository, options, clock, journal, download_covers
     )
     service = DownloadService(
-        repository, sender, qbittorrent, address, finder, options, clock, journal, download_covers
+        repository, sender, torrents, finder, options, clock, journal, download_covers
     )
     return Desk(service, sender, repository, prowlarr, qui, finder, clock, journal, covers)

@@ -8,8 +8,17 @@ from typing import Final
 from shelfdrop.settings.types import Entry, SettingValue
 from shelfdrop.works.types import Kind, SourceName
 
-# The services shelfdrop calls: an address and an API key each.
-SERVICES: Final = ("prowlarr", "qbittorrent", "jellyfin")
+# The services shelfdrop calls: an address and a secret each (the torrent client: the secret of
+# its client, `torrent_secret`).
+SERVICES: Final = ("prowlarr", "torrent", "jellyfin")
+# The torrent clients the setting `torrent.client` takes; a client no connector serves yet is
+# refused by the test of the connection (shelfdrop.clients.torrents.factory.CONNECTORS).
+CLIENTS: Final = ("qui", "qbittorrent", "deluge", "transmission")
+# The downloads that may have a folder of their own in the torrent client: by kind, and manual.
+TORRENT_FOLDERS: Final = ("manga", "ebook", "audiobook", "manual")
+# The name a secret was sealed under before a revision moved it: it opens under it until it is
+# saved again (shelfdrop/db/migrations/versions/, the move of `qbittorrent.*` to `torrent.*`).
+FORMER_NAMES: Final[Mapping[str, str]] = {"torrent.api_key": "qbittorrent.api_key"}
 # The metadata sources, in the order of the page.
 SOURCES: Final[tuple[SourceName, ...]] = (
     "mangaupdates",
@@ -48,6 +57,7 @@ WAITING_HOURS: Final = (1, 3, 6, 12, 24)
 TIME: Final = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 ADDRESS: Final = re.compile(r"^https?://[A-Za-z0-9.-]+(:\d+)?(/\S*)?$")
 SECRET_MAX_LENGTH: Final = 1000
+TEXT_MAX_LENGTH: Final = 255
 
 VALUES: Final[Mapping[str, Entry]] = {
     **{f"{service}.url": Entry(kind="address", default=None) for service in SERVICES},
@@ -70,14 +80,34 @@ VALUES: Final[Mapping[str, Entry]] = {
     # file system of the libraries.
     "uploads.folder": Entry(kind="path", default="/data/envois"),
     "uploads.keep_days": Entry(kind="number", default=7, minimum=1, maximum=365),
+    # The torrent client and how it signs in (its address: `torrent.url`, its secrets:
+    # `torrent.password`, `torrent.api_key`, the key of the client proxy of qui).
+    "torrent.client": Entry(kind="choice", default="qui", options=CLIENTS),
+    "torrent.username": Entry(kind="text", default=None),
+    # The folder of the client the downloads of a kind go to, as the client sees it; unset, the
+    # client chooses (qBittorrent: the folder of the category).
+    **{f"torrent.folder.{name}": Entry(kind="path", default=None) for name in TORRENT_FOLDERS},
 }
 SECRETS: Final = frozenset(
     {
         *(f"{service}.api_key" for service in SERVICES),
+        "torrent.password",
         "sources.myanimelist.client_id",
         "discord.webhook",
     }
 )
+
+
+def torrent_secret(client: str) -> str:
+    """The key of the secret `client` signs in with: the key of the proxy of qui, the password
+    of the others."""
+    return "torrent.api_key" if client == "qui" else "torrent.password"
+
+
+def sealed_names(key: str) -> tuple[str, ...]:
+    """The names a secret saved under `key` may be sealed under: its own, then its former one."""
+    former = FORMER_NAMES.get(key)
+    return (key,) if former is None else (key, former)
 
 
 def is_valid(entry: Entry, value: SettingValue) -> bool:
@@ -95,9 +125,20 @@ def is_valid(entry: Entry, value: SettingValue) -> bool:
                 and (entry.choices is None or value in entry.choices)
             )
         case "path":
+            if value is None:
+                return entry.default is None
             return isinstance(value, str) and is_path(value)
         case "time":
             return isinstance(value, str) and TIME.match(value) is not None
+        case "choice":
+            return isinstance(value, str) and value in (entry.options or ())
+        case "text":
+            return value is None or (
+                isinstance(value, str)
+                and 0 < len(value) <= TEXT_MAX_LENGTH
+                and value.isprintable()
+                and value == value.strip()
+            )
 
 
 def is_path(value: str) -> bool:

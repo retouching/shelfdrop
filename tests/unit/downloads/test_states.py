@@ -4,7 +4,7 @@ import dataclasses
 
 import pytest
 
-from shelfdrop.clients.types import TorrentInfo
+from shelfdrop.clients.torrents.types import TorrentInfo, TorrentStatus
 from shelfdrop.downloads.states import category_of, progress_of
 from shelfdrop.downloads.types import Download, Progress, Stage
 from shelfdrop.releases.types import Volumes
@@ -34,11 +34,13 @@ SENT = Download(
 )
 
 
-def torrent(state: str, progress: float = 0.5, speed: int = 2048, eta: int = 96) -> TorrentInfo:
+def torrent(
+    status: TorrentStatus, progress: float = 0.5, speed: int = 2048, eta: int | None = 96
+) -> TorrentInfo:
     return TorrentInfo(
         hash="a" * 40,
         name="Berserk",
-        state=state,
+        status=status,
         progress=progress,
         speed=speed,
         eta=eta,
@@ -53,23 +55,26 @@ def torrent(state: str, progress: float = 0.5, speed: int = 2048, eta: int = 96)
             torrent("downloading", 0.776),
             Progress(state="downloading", percent=77, speed=2048, eta=96),
         ),
-        (torrent("stalledDL", speed=0), Progress(state="downloading", percent=50, speed=0, eta=96)),
+        # No peer: it still downloads, as far as the page tells.
+        (torrent("stalled", speed=0), Progress(state="downloading", percent=50, speed=0, eta=96)),
+        # A time left the client cannot tell: none shown.
         (
-            torrent("forcedDL", eta=8640000),
+            torrent("downloading", eta=None),
             Progress(state="downloading", percent=50, speed=2048, eta=0),
         ),
-        (torrent("metaDL", 0), Progress(state="waiting")),
-        (torrent("queuedDL"), Progress(state="waiting")),
-        (torrent("stoppedDL"), Progress(state="waiting")),
-        (torrent("checkingResumeData"), Progress(state="waiting")),
-        (torrent("uploading", 1), Progress(state="placing")),
-        (torrent("stalledUP", 1), Progress(state="placing")),
-        (torrent("stoppedUP", 1), Progress(state="placing")),
-        (torrent("moving", 1), Progress(state="placing")),
+        (
+            torrent("downloading", speed=-1),
+            Progress(state="downloading", percent=50, speed=0, eta=96),
+        ),
+        (torrent("waiting", 0), Progress(state="waiting")),
+        (torrent("error"), Progress(state="waiting")),
+        (torrent("complete", 1), Progress(state="placing")),
+        # The status alone tells it complete, whatever its progress.
+        (torrent("complete", 0.99), Progress(state="placing")),
         (None, Progress(state="waiting")),
     ],
 )
-def test_a_download_sent_shows_what_qbittorrent_says(
+def test_a_download_sent_shows_what_its_client_says(
     info: TorrentInfo | None, expected: Progress
 ) -> None:
     assert progress_of(SENT, info) == expected
@@ -92,7 +97,7 @@ def test_a_download_not_sent_or_completed_shows_its_stage(stage: Stage, expected
 def test_a_manual_download_completed_is_to_place_and_a_duplicate_says_so() -> None:
     manual = dataclasses.replace(SENT, mode="manual", category="shelfdrop-manual")
 
-    assert progress_of(manual, torrent("uploading", 1)) == Progress(
+    assert progress_of(manual, torrent("complete", 1)) == Progress(
         state="to_place", unplaced="manual"
     )
     assert progress_of(dataclasses.replace(manual, stage="completed"), None).state == "to_place"

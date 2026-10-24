@@ -96,7 +96,7 @@ class FakeProbes:
         self.runs: list[tuple[str, str | None, str | None]] = []
 
     def names(self) -> tuple[str, ...]:
-        return ("prowlarr", "qbittorrent", "jellyfin", "kitsu", "myanimelist")
+        return ("prowlarr", "torrent", "jellyfin", "kitsu", "myanimelist")
 
     async def run(self, service: str, url: str | None, secret: str | None) -> ProbeResult:
         self.runs.append((service, url, secret))

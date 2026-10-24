@@ -105,12 +105,12 @@ def anonymous(stack: Stack) -> Iterator[httpx.Client]:
 def qbittorrent_saved(client: httpx.Client) -> Iterator[None]:
     """qBittorrent saved in the settings (the fake one, behind qui), then cleared again."""
     saved = {
-        "values": {"qbittorrent.url": FAKE_ORIGIN},
-        "secrets": {"qbittorrent.api_key": QUI_KEY},
+        "values": {"torrent.url": FAKE_ORIGIN},
+        "secrets": {"torrent.api_key": QUI_KEY},
     }
     client.put("/api/v1/settings", json=saved).raise_for_status()
     yield
-    cleared = {"values": {"qbittorrent.url": None}, "secrets": {"qbittorrent.api_key": None}}
+    cleared = {"values": {"torrent.url": None}, "secrets": {"torrent.api_key": None}}
     client.put("/api/v1/settings", json=cleared).raise_for_status()
 
 

@@ -42,7 +42,8 @@ def test_the_environment_was_imported_once_and_no_secret_is_given_back(
     assert settings["values"]["jellyfin.url"] == "http://fake-sources:8080"
     assert settings["values"]["search.max_names"] == 6
     assert isinstance(settings["secrets"]["prowlarr.api_key"], int)
-    assert settings["secrets"]["qbittorrent.api_key"] is None
+    assert settings["secrets"]["torrent.api_key"] is None
+    assert settings["values"]["torrent.client"] == "qui"
     assert "test-prowlarr-key" not in body.text
     audit = client.get("/api/v1/settings/audit").json()["entries"]
     imported = {(e["actor"], e["target"]) for e in audit if e["action"] == "imported"}
@@ -55,24 +56,24 @@ def test_a_change_is_kept_and_audited_without_its_value(
     saved = save(
         client,
         {
-            "values": {"qbittorrent.url": "http://qui:7476", "search.max_names": 4},
-            "secrets": {"qbittorrent.api_key": "a-secret-of-the-tests-9e"},
+            "values": {"torrent.url": "http://qui:7476", "search.max_names": 4},
+            "secrets": {"torrent.api_key": "a-secret-of-the-tests-9e"},
         },
     )
 
     assert saved.status_code == 200
     body = saved.json()
-    assert body["values"]["qbittorrent.url"] == "http://qui:7476"
+    assert body["values"]["torrent.url"] == "http://qui:7476"
     assert body["values"]["search.max_names"] == 4
-    assert isinstance(body["secrets"]["qbittorrent.api_key"], int)
+    assert isinstance(body["secrets"]["torrent.api_key"], int)
     assert "a-secret-of-the-tests-9e" not in saved.text
     audit = client.get("/api/v1/settings/audit")
     assert "a-secret-of-the-tests-9e" not in audit.text
     recent = [(e["actor"], e["action"], e["target"]) for e in audit.json()["entries"][:3]]
     assert set(recent) == {
-        ("admin", "changed", "qbittorrent.url"),
+        ("admin", "changed", "torrent.url"),
         ("admin", "changed", "search.max_names"),
-        ("admin", "replaced", "qbittorrent.api_key"),
+        ("admin", "replaced", "torrent.api_key"),
     }
 
 

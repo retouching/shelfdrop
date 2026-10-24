@@ -2,7 +2,9 @@
 
 import pytest
 
-from tests.unit.settings.support import FakeSettingsReader
+from shelfdrop.settings.cipher import SecretBox
+from shelfdrop.settings.types import TorrentSettings
+from tests.unit.settings.support import TEST_SECRET_KEY, FakeSettingsReader
 
 
 @pytest.fixture
@@ -18,7 +20,11 @@ async def test_the_defaults_hold_until_a_value_is_saved() -> None:
     assert await reader.release_answer_seconds() == 600
     assert await reader.work_answer_seconds() == 86400
     assert await reader.prowlarr() == (None, None)
-    assert await reader.qbittorrent() == (None, None)
+    assert await reader.connection("torrent") == (None, None)
+    assert await reader.torrent() == TorrentSettings(
+        client="qui", url=None, username=None, password=None, api_key=None
+    )
+    assert await reader.torrent_folders() == {}
 
 
 @pytest.mark.anyio
@@ -28,15 +34,15 @@ async def test_the_values_saved_are_read() -> None:
             "search.max_names": 3,
             "search.work_cache_hours": 2,
             "prowlarr.url": "http://p:9696",
-            "qbittorrent.url": "http://qui:7476",
+            "torrent.url": "http://qui:7476",
         },
-        {"prowlarr.api_key": "key", "qbittorrent.api_key": "client-key"},
+        {"prowlarr.api_key": "key", "torrent.api_key": "client-key"},
     )
 
     assert await reader.max_names() == 3
     assert await reader.work_answer_seconds() == 7200
     assert await reader.prowlarr() == ("http://p:9696", "key")
-    assert await reader.qbittorrent() == ("http://qui:7476", "client-key")
+    assert await reader.connection("torrent") == ("http://qui:7476", "client-key")
 
 
 @pytest.mark.anyio
@@ -84,3 +90,43 @@ async def test_the_placement_reads_its_libraries_and_its_switches() -> None:
     webhook, events = await reader.discord()
     assert webhook == "https://discord.test/api/webhooks/1/t"
     assert "found" in events
+
+
+@pytest.mark.anyio
+async def test_the_torrent_client_signs_in_with_the_secret_of_its_kind() -> None:
+    values = {"torrent.client": "transmission", "torrent.url": "http://t:9091"}
+    secrets = {"torrent.password": "pass", "torrent.api_key": "key-of-qui"}
+    reader = FakeSettingsReader({**values, "torrent.username": "admin"}, secrets)
+
+    assert await reader.torrent() == TorrentSettings(
+        client="transmission",
+        url="http://t:9091",
+        username="admin",
+        password="pass",
+        api_key="key-of-qui",
+    )
+    # qui signs in with the key of its proxy, the others with their password.
+    assert await reader.connection("torrent") == ("http://t:9091", "pass")
+    reader.values["torrent.client"] = "qui"
+    assert await reader.connection("torrent") == ("http://t:9091", "key-of-qui")
+
+
+@pytest.mark.anyio
+async def test_the_folders_of_the_torrent_client_are_those_set() -> None:
+    reader = FakeSettingsReader(
+        {"torrent.folder.audiobook": "/data/torrents/audio", "torrent.folder.manga": None}
+    )
+
+    assert await reader.torrent_folders() == {"audiobook": "/data/torrents/audio"}
+
+
+def test_a_secret_moved_to_another_name_opens_under_its_former_one() -> None:
+    box = SecretBox(TEST_SECRET_KEY)
+    reader = FakeSettingsReader()
+
+    moved = box.seal("qbittorrent.api_key", "client-key")
+
+    assert reader.opened("torrent.api_key", moved) == "client-key"
+    assert reader.opened("torrent.api_key", box.seal("torrent.api_key", "new")) == "new"
+    # Another name never opens it.
+    assert reader.opened("prowlarr.api_key", moved) is None

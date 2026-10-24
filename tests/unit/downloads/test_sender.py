@@ -9,7 +9,7 @@ import pytest
 from shelfdrop.downloads.types import DownloadOptions, NewDownload
 from shelfdrop.releases.types import Torrent, Volumes
 from shelfdrop.utils.torrent import torrent_id
-from tests.unit.clients.support import FakeQui
+from tests.unit.clients.support import FakeQui, FakeTorrentSettings
 from tests.unit.downloads.support import Desk, new_desk
 from tests.unit.support import torrent_file
 
@@ -56,6 +56,20 @@ def infos(qui: FakeQui) -> int:
 async def send(desk: Desk, download_id: int) -> None:
     desk.sender.start([download_id])
     await desk.sender.idle()
+
+
+@pytest.mark.anyio
+async def test_the_torrent_goes_to_the_folder_of_its_kind_when_the_settings_give_one() -> None:
+    settings = FakeTorrentSettings(folders={"manga": "/data/torrents/manga", "manual": "/m"})
+    desk = new_desk(settings=settings)
+    desk.prowlarr.torrents[LINK] = Torrent(file=torrent_file("Berserk T01.cbz"))
+    manual_link = LINK + "-manual"
+    desk.prowlarr.torrents[manual_link] = Torrent(file=torrent_file("Berserk T02.cbz"))
+
+    await send(desk, order(desk))
+    await send(desk, order(desk, link=manual_link, mode="manual"))
+
+    assert [added.get("savepath") for added in desk.qui.added] == [b"/data/torrents/manga", b"/m"]
 
 
 @pytest.mark.anyio

@@ -22,12 +22,12 @@ from shelfdrop.auth.service import AuthEvents, AuthService, InternalAccounts, Je
 from shelfdrop.auth.throttle import LoginThrottle
 from shelfdrop.clients.discord import DiscordClient
 from shelfdrop.clients.jellyfin import JellyfinClient
-from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.clients.torrents.factory import ConnectionSource, TorrentClients
 from shelfdrop.config import Settings
 from shelfdrop.db.engine import open_engine, open_session
 from shelfdrop.downloads.covers import DownloadCovers, WorkCoverSource
 from shelfdrop.downloads.repository import DownloadRepository, download_repository_factory
-from shelfdrop.downloads.sender import DownloadEvents, DownloadSender, QbittorrentAddress
+from shelfdrop.downloads.sender import DownloadEvents, DownloadSender, TorrentFolders
 from shelfdrop.downloads.service import DownloadService, ReleaseFinder
 from shelfdrop.downloads.types import DownloadOptions
 from shelfdrop.journal.repository import event_repository_factory
@@ -96,7 +96,7 @@ from shelfdrop.works.types import Clock, Kind, SearchOptions
 # Each request to a source gives up after this; the search gives up on the source after
 # SearchOptions.source_timeout_seconds.
 REQUEST_TIMEOUT_SECONDS: Final = 8.0
-# Each request to Jellyfin, qBittorrent gives up after this.
+# Each request to Jellyfin, the torrent client gives up after this.
 SERVICE_TIMEOUT_SECONDS: Final = 10.0
 
 
@@ -142,14 +142,17 @@ async def open_jellyfin(settings: Settings) -> AsyncIterator[JellyfinClient]:
         yield JellyfinClient(http, version("shelfdrop"))
 
 
-async def open_qbittorrent(settings: Settings) -> AsyncIterator[QBittorrentClient]:
-    """The client of qBittorrent (a singleton), on its own HTTP client: its address and its
-    key come from the settings at each call."""
+async def open_torrent_clients(
+    settings: Settings, reader: SettingsReader
+) -> AsyncIterator[TorrentClients]:
+    """The connectors of the torrent clients (a singleton), on their own HTTP client: the
+    client chosen, its address and its credentials come from the settings at each use."""
+    source: ConnectionSource = reader
     async with httpx.AsyncClient(
         headers={"User-Agent": user_agent(settings)},
         timeout=httpx.Timeout(SERVICE_TIMEOUT_SECONDS),
     ) as http:
-        yield QBittorrentClient(http)
+        yield TorrentClients(http, source)
 
 
 async def open_discord(settings: Settings) -> AsyncIterator[DiscordClient]:
@@ -230,7 +233,7 @@ def as_placement_events(journal: Journal) -> PlacementEvents:
 
 def new_placement_service(
     engine: Engine,
-    qbittorrent: QBittorrentClient,
+    torrents: TorrentClients,
     jellyfin: JellyfinClient,
     settings: PlacementSettings,
     covers: CoverSource,
@@ -244,7 +247,7 @@ def new_placement_service(
     return PlacementService(
         placement_repository_factory(engine),
         download_repository_factory(engine),
-        qbittorrent,
+        torrents,
         jellyfin,
         settings,
         AudioTools(),
@@ -491,7 +494,7 @@ def new_search_board(
     return SearchBoard(prowlarr, repository_factory(engine), options, clock, reader)
 
 
-def as_qbittorrent_address(reader: SettingsReader) -> QbittorrentAddress:
+def as_torrent_folders(reader: SettingsReader) -> TorrentFolders:
     return reader
 
 
@@ -501,7 +504,7 @@ def as_release_finder(service: ReleaseService) -> ReleaseFinder:
 
 def new_download_sender(
     prowlarr: ProwlarrClient,
-    qbittorrent: QBittorrentClient,
+    torrents: TorrentClients,
     reader: SettingsReader,
     engine: Engine,
     options: DownloadOptions,
@@ -509,11 +512,11 @@ def new_download_sender(
     journal: Journal,
     covers: DownloadCovers,
 ) -> DownloadSender:
-    """The sends to qBittorrent of every request (a singleton, resumed by the lifespan); its
-    downloads on sessions of their own, since a send outlives its request."""
+    """The sends to the torrent client of every request (a singleton, resumed by the lifespan);
+    its downloads on sessions of their own, since a send outlives its request."""
     return DownloadSender(
         prowlarr,
-        qbittorrent,
+        torrents,
         reader,
         download_repository_factory(engine),
         options,
@@ -571,7 +574,7 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(as_work_settings),
         wireup.injectable(as_jellyfin_address),
         wireup.injectable(open_jellyfin),
-        wireup.injectable(open_qbittorrent),
+        wireup.injectable(open_torrent_clients),
         wireup.injectable(ConnectionProbes),
         wireup.injectable(as_probes),
         wireup.injectable(SettingsJellyfin),
@@ -581,7 +584,7 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(new_work_sources),
         wireup.injectable(open_prowlarr),
         wireup.injectable(new_search_board),
-        wireup.injectable(as_qbittorrent_address),
+        wireup.injectable(as_torrent_folders),
         wireup.injectable(new_download_sender),
         wireup.injectable(open_discord),
         wireup.injectable(new_journal),

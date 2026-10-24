@@ -198,7 +198,7 @@ export function probeMessage(probe: ProbeRead, name: string): TestResult {
       const detail =
         probe.service === "prowlarr"
           ? results.indexers(count)
-          : probe.service === "qbittorrent"
+          : probe.service === "torrent"
             ? results.categories(count)
             : results.libraries(count);
       return { ok: true, message: results.connected([`${name} ${shortVersion(probe.version)}`, detail]) };

@@ -5,6 +5,7 @@ ever asked."""
 import base64
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from email.parser import BytesParser
 from email.policy import HTTP
@@ -12,9 +13,12 @@ from typing import Any, Final
 
 import httpx
 
+from shelfdrop.clients.torrents.factory import TorrentClients
+from shelfdrop.settings.types import TorrentSettings
 from shelfdrop.utils.torrent import magnet_id, torrent_id
 
 URL: Final = "http://jellyfin.test"
+QUI_URL: Final = "http://qui.test:7476"
 API_KEY: Final = "jellyfin-api-key"
 ADMIN_ID: Final = "admin-of-the-api-key"
 TOKEN_FIELD: Final = re.compile(r'Token="([^"]+)"')
@@ -239,6 +243,37 @@ class FakeQui:
             body = {name: {"name": name, "savePath": f"/data/{name}"} for name in self.categories}
             return httpx.Response(200, json=body, request=request)
         return httpx.Response(404, request=request)
+
+
+def qui_settings(url: str | None = QUI_URL, key: str | None = FakeQui.KEY) -> TorrentSettings:
+    """The torrent client `qui` at `url`, with the key of its client proxy."""
+    return TorrentSettings(client="qui", url=url, username=None, password=None, api_key=key)
+
+
+class FakeTorrentSettings:
+    """The settings of the torrent client as the settings give them, at each use: the
+    connection, and the folders of the kinds of downloads."""
+
+    def __init__(
+        self, connection: TorrentSettings | None = None, folders: dict[str, str] | None = None
+    ) -> None:
+        self.connection = connection or qui_settings()
+        self.folders = dict(folders or {})
+
+    async def torrent(self) -> TorrentSettings:
+        return self.connection
+
+    async def torrent_folders(self) -> dict[str, str]:
+        return dict(self.folders)
+
+
+def torrent_clients(
+    handler: Callable[[httpx.Request], httpx.Response],
+    settings: FakeTorrentSettings | None = None,
+) -> TorrentClients:
+    """The real factory of the connectors, on a handler of `httpx.MockTransport` (`FakeQui`)."""
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    return TorrentClients(http, settings or FakeTorrentSettings())
 
 
 def multipart_fields(request: httpx.Request) -> dict[str, bytes]:

@@ -14,7 +14,6 @@ import anyio
 import httpx
 
 from shelfdrop.clients.jellyfin import JellyfinClient
-from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.types import Download, NewDownload
 from shelfdrop.placement.audio import AudioError, AudioTools
@@ -36,8 +35,8 @@ from shelfdrop.placement.types import (
 from shelfdrop.releases.types import Volumes
 from shelfdrop.uploads.store import UploadStore
 from shelfdrop.works.types import Kind
-from tests.unit.clients.support import API_KEY, FakeJellyfin, FakeQui
-from tests.unit.downloads.support import URL, FakeDownloadRepository
+from tests.unit.clients.support import API_KEY, FakeJellyfin, FakeQui, torrent_clients
+from tests.unit.downloads.support import FakeDownloadRepository
 from tests.unit.support import FakeJournal, no_session
 from tests.unit.uploads.support import FakeUploadRepository
 from tests.unit.works.support import FixedClock
@@ -337,9 +336,6 @@ class FakePlacementSettings:
     uploads_at: str = "/nowhere/envois"
     keep_days: int = 7
 
-    async def qbittorrent(self) -> tuple[str | None, str | None]:
-        return URL, FakeQui.KEY
-
     async def jellyfin(self) -> tuple[str | None, str | None]:
         return JELLYFIN_URL, JELLYFIN_KEY
 
@@ -428,7 +424,7 @@ def new_bench(
     service = PlacementService(
         lambda: shelf,
         lambda: downloads,
-        QBittorrentClient(httpx.AsyncClient(transport=httpx.MockTransport(qui))),
+        torrent_clients(qui),
         JellyfinClient(httpx.AsyncClient(transport=httpx.MockTransport(jellyfin)), "0.5.0"),
         settings,
         tools,

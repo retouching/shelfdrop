@@ -24,7 +24,7 @@ export const texts = {
     steps: {
       account: "Compte",
       prowlarr: "Prowlarr",
-      qbittorrent: "qBittorrent",
+      torrent: "qBittorrent",
       jellyfin: "Jellyfin",
       libraries: "Bibliothèques",
       finish: "Fin",
@@ -357,7 +357,7 @@ export const texts = {
     saved: "Paramètres enregistrés.",
     services: {
       prowlarr: { name: "Prowlarr", hint: "Recherche des releases." },
-      qbittorrent: {
+      torrent: {
         name: "qBittorrent (qui)",
         hint: "Téléchargements.",
       },

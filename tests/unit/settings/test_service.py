@@ -168,6 +168,34 @@ async def test_a_test_uses_the_values_typed_or_else_those_saved() -> None:
 
 
 @pytest.mark.anyio
+async def test_a_test_of_the_torrent_client_uses_the_secret_of_the_client_saved() -> None:
+    probes = FakeProbes()
+    service, repository = new_service(probes)
+    await service.save(
+        SettingsChange(
+            values={"torrent.url": "http://qui:7476"},
+            secrets={"torrent.api_key": "key-of-qui", "torrent.password": "pass"},
+        ),
+        "s",
+    )
+    # The key of qui saved before the torrent clients, under its former name.
+    repository.sealed["torrent.api_key"] = (
+        SecretBox(TEST_SECRET_KEY).seal("qbittorrent.api_key", "moved-key"),
+        0,
+        "s",
+    )
+
+    await service.test("torrent", None, None)
+    await service.save(SettingsChange(values={"torrent.client": "deluge"}, secrets={}), "s")
+    await service.test("torrent", None, None)
+
+    assert probes.runs == [
+        ("torrent", "http://qui:7476", "moved-key"),
+        ("torrent", "http://qui:7476", "pass"),
+    ]
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     ("name", "url", "key"),
     [

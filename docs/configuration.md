@@ -31,7 +31,9 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `prowlarr.url`, `qbittorrent.url`, `jellyfin.url` | none | The address of each service; for qBittorrent, the address of qui (`http://qui:7476`), whose client proxy key is `qbittorrent.api_key`. Without the address or the key of Prowlarr, no release is searched (`prowlarr_unavailable`); without those of qui, a download is not received. The downloads go to the categories of qBittorrent `manga`, `ebook`, `audiobook` (by kind) and `shelfdrop-manual` (the manual ones), which its test looks for. |
+| `prowlarr.url`, `torrent.url`, `jellyfin.url` | none | The address of each service; for qBittorrent, the address of qui (`http://qui:7476`), whose client proxy key is `torrent.api_key`. Without the address or the key of Prowlarr, no release is searched (`prowlarr_unavailable`); without those of qui, a download is not received. The downloads go to the categories of qBittorrent `manga`, `ebook`, `audiobook` (by kind) and `shelfdrop-manual` (the manual ones), which its test looks for. |
+| `torrent.client` | `qui` | The torrent client: `qui` (qBittorrent through the client proxy of qui) alone in this version. |
+| `torrent.folder.manga`, `.ebook`, `.audiobook`, `.manual` | none | The folder of the torrent client a download of that kind (or a manual one) goes to, as the client sees it; none: the folder of its category in qBittorrent. |
 | `sources.<source>.enabled` | on | Whether a metadata source is asked (`mangaupdates`, `kitsu`, `myanimelist`, `anilist`, `mangadex`, `bnf`, `openlibrary`, `wikidata`). MyAnimeList is asked with its Client ID alone. |
 | `search.max_names` | 6 | The names of a work searched in Prowlarr, 1 to 10. |
 | `search.release_cache_minutes` | 10 | How long an answer of Prowlarr is reused, 0 to 1440. |
@@ -46,7 +48,7 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `uploads.keep_days` | 7 | The days a file sent stays in Ranger without being placed, and an upload stopped is kept; then they are removed. |
 | `discord.events.<event>` | on | The events of the journal sent to Discord: `sent`, `downloaded`, `placed`, `to_place`, `uploaded`, `retry`, `failed`, `misplaced`, `login`, `found` ([ADR 0015](adr/0015-journal.md)). Without the secret `discord.webhook`, nothing is posted. |
 
-The secrets: `prowlarr.api_key`, `qbittorrent.api_key`, `jellyfin.api_key`, `sources.myanimelist.client_id`, `discord.webhook`. Sealed with AES-GCM under `SHELFDROP_SECRET_KEY`, opened in memory at the time of a call, never logged nor shown.
+The secrets: `prowlarr.api_key`, `torrent.api_key`, `jellyfin.api_key`, `sources.myanimelist.client_id`, `discord.webhook`. Sealed with AES-GCM under `SHELFDROP_SECRET_KEY`, opened in memory at the time of a call, never logged nor shown.
 
 Read by Compose alone (`docker/compose.yaml`):
 

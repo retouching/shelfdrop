@@ -257,17 +257,10 @@ class HandPlacement:
         todo = [d for d in left if d.id not in listed]
         if not todo:
             return 0
-        url, api_key = await self.placement.settings.qbittorrent()
+        client = await self.placement.torrents.current()
         hashes = [d.info_hash for d in todo if d.info_hash]
         try:
-            torrents = {
-                t.hash: t
-                for t in (
-                    await self.placement.qbittorrent.torrents(url, api_key, hashes)
-                    if hashes
-                    else []
-                )
-            }
+            torrents = {t.hash: t for t in await client.torrents(hashes)}
         except ServiceError as exc:
             logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
             return 0

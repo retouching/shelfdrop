@@ -1,5 +1,5 @@
-"""DownloadService: the releases of a search sent to qBittorrent, the downloads as the page shows
-them (with the figures of qBittorrent), and a send tried again."""
+"""DownloadService: the releases of a search sent to the torrent client, the downloads as the page
+shows them (with the figures of the client), and a send tried again."""
 
 import logging
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ import anyio
 import anyio.to_thread
 
 from shelfdrop.clients.exceptions import ServiceError
-from shelfdrop.clients.qbittorrent import QBittorrentClient
-from shelfdrop.clients.types import TorrentInfo
+from shelfdrop.clients.torrents.factory import TorrentClients
+from shelfdrop.clients.torrents.types import TorrentInfo
 from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.exceptions import (
     DownloadNotFoundError,
@@ -19,7 +19,7 @@ from shelfdrop.downloads.exceptions import (
     UnknownReleasesError,
 )
 from shelfdrop.downloads.repository import DownloadRepository
-from shelfdrop.downloads.sender import DownloadEvents, DownloadSender, QbittorrentAddress
+from shelfdrop.downloads.sender import DownloadEvents, DownloadSender
 from shelfdrop.downloads.states import category_of, completion_event, is_complete, progress_of
 from shelfdrop.downloads.types import (
     Download,
@@ -43,15 +43,14 @@ class ReleaseFinder(Protocol):
 
 
 class DownloadService:
-    """Async throughout: the client of qBittorrent and the sender are async singletons; the
+    """Async throughout: the torrent clients and the sender are async singletons; the
     repository runs in the threadpool."""
 
     def __init__(
         self,
         repository: DownloadRepository,
         sender: DownloadSender,
-        qbittorrent: QBittorrentClient,
-        address: QbittorrentAddress,
+        torrents: TorrentClients,
         finder: ReleaseFinder,
         options: DownloadOptions,
         clock: Clock,
@@ -60,8 +59,7 @@ class DownloadService:
     ) -> None:
         self.repository = repository
         self.sender = sender
-        self.qbittorrent = qbittorrent
-        self.address = address
+        self.torrents = torrents
         self.finder = finder
         self.options = options
         self.clock = clock
@@ -69,7 +67,7 @@ class DownloadService:
         self.covers = covers
 
     async def send(self, order: SendOrder, actor: str) -> list[DownloadView]:
-        """The releases of a search sent to qBittorrent, each a download of its own. The
+        """The releases of a search sent to the torrent client, each a download of its own. The
         releases of the search of a work are automatic downloads, those of a manual search
         manual ones. Raises SearchNotFoundError, UnknownReleasesError, and NotAutomaticError
         for a release an automatic download may not take: nothing is sent then."""
@@ -132,17 +130,15 @@ class DownloadService:
         return created
 
     async def read(self) -> list[DownloadView]:
-        """The newest downloads, each as qBittorrent has it now: a download qBittorrent has all
-        of is completed from now on. qBittorrent down: the downloads sent wait."""
+        """The newest downloads, each as the torrent client has it now: a download it has all
+        of is completed from now on. The client down: the downloads sent wait."""
         downloads = await anyio.to_thread.run_sync(self.repository.read_recent, self.options.listed)
         hashes = [d.info_hash for d in downloads if d.stage == "sent" and d.info_hash]
         torrents: dict[str, TorrentInfo] = {}
         if hashes:
-            url, api_key = await self.address.qbittorrent()
+            client = await self.torrents.current()
             try:
-                torrents = {
-                    t.hash: t for t in await self.qbittorrent.torrents(url, api_key, hashes)
-                }
+                torrents = {t.hash: t for t in await client.torrents(hashes)}
             except ServiceError as exc:
                 logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
         complete = [

@@ -115,11 +115,11 @@ def test_the_first_launch_goes_through_the_set_up_and_its_account_signs_in(
         client.put(
             "/api/v1/settings",
             json={
-                "values": {"qbittorrent.url": FAKE_ORIGIN},
-                "secrets": {"qbittorrent.api_key": QUI_KEY},
+                "values": {"torrent.url": FAKE_ORIGIN},
+                "secrets": {"torrent.api_key": QUI_KEY},
             },
         ).raise_for_status()
-        assert probe(client, "qbittorrent")["ok"] is True
+        assert probe(client, "torrent")["ok"] is True
         # Jellyfin is required: the set-up does not end without it.
         early = client.post("/api/v1/setup/finish")
         assert (early.status_code, early.json()["code"]) == (409, "jellyfin_not_connected")
