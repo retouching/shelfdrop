@@ -1,7 +1,7 @@
 <h1 align="center">shelfdrop</h1>
 
 <p align="center">
-  Find manga, books and audiobooks, download them, and shelve them in Jellyfin under the name of their French edition.
+  Find manga, books and audiobooks, download them, and shelve them in Jellyfin under the name you choose.
 </p>
 
 <p align="center">
@@ -10,7 +10,7 @@
   <img alt="Run with Docker" src="https://img.shields.io/badge/run%20with-Docker-2496ED.svg">
 </p>
 
-shelfdrop sits next to Prowlarr, a torrent client and Jellyfin on a media server. Type a title: it finds the work in eight metadata sources, searches its releases in Prowlarr under every name the work is published under, sends the ones you pick to the torrent client, then renames and files the downloaded volumes in your Jellyfin libraries, with their metadata. A web page drives it all; an API and an MCP server let a script or an assistant do the same.
+shelfdrop sits next to Prowlarr, a torrent client and Jellyfin on a media server. Type a title: it finds the work in eight metadata sources, searches its releases in Prowlarr under every name the work is published under, sends the ones you pick to the torrent client, then renames and files the downloaded volumes in your Jellyfin libraries, with their metadata, under the name you pick among those the sources know (in the order of languages you set, French first by default) or one of your own. A web page drives it all; an API and an MCP server let a script or an assistant do the same.
 
 ## Screenshots
 
@@ -59,7 +59,7 @@ How to take them again: [CONTRIBUTING.md](CONTRIBUTING.md#screenshots).
 - **Release search** in Prowlarr under each name of the work, scored by your filters, ranked by your trackers, in the categories you choose for each indexer.
 - **Downloads** sent to qBittorrent (directly or through [qui](https://github.com/autobrr/qui)), Deluge or Transmission, into a folder of your choice for each kind, followed live, sent again when a torrent did not arrive.
 - **Automatic placement**: volumes renamed and put into the right library (manga and comics, books, audiobooks), as hard links (the default), hard links or else copies, or copies always, never over an existing file; MP3 tracks merged into one M4B with its chapters and cover, metadata written and locked in Jellyfin.
-- **Place** (Ranger in French): the files shelfdrop could not place alone, linked by hand to a work, a volume or chapters, or ignored; files uploaded from the browser land there too.
+- **Place**: the files shelfdrop could not place alone, linked by hand to a work, a volume or chapters, or ignored; files uploaded from the browser land there too.
 - **Jellyfin page**: the series of your libraries, their volumes and missing numbers, each file downloadable and editable, and a forced sync of the metadata. A series matched to the wrong work is linked to another; the files you added by hand are adopted, numbered from Jellyfin or their names, and renamed to the names of the shelf if you ask.
 - **Waiting list**: searches kept and run again until a release shows up.
 - **Discord journal** of the sends, downloads and placements, with covers, in French or in English (a setting).
