@@ -1,8 +1,8 @@
 """The answers of Prowlarr the tests replay: its indexers and its releases for a few names.
 
-No real Prowlarr is ever asked by a test (the one of the user is not to be called): these
+No real Prowlarr is ever asked by a test: these
 answers are written in the shape of the API v1 of Prowlarr (its OpenAPI document,
-`ReleaseResource` and `IndexerResource`), with release titles seen on the trackers of the user
+`ReleaseResource` and `IndexerResource`), with release titles seen on real trackers
 (PapriKa+, ebdz, NEO, Kuppit, the packs of Nyaa). `prowlarr.json` holds them; the unit tests
 read them through `ProwlarrReplay`, the integration tests load them into the fake sources.
 """

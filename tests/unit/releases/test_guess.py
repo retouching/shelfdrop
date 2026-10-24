@@ -17,7 +17,7 @@ def pack(first: int, last: int) -> Volumes:
 @pytest.mark.parametrize(
     ("title", "volumes"),
     [
-        # titles seen on the trackers of the user
+        # titles seen on real trackers
         ("Jujutsu.Kaisen.T00.FRENCH.MANGA.CBZ.eBook-PapriKa+", single(0)),
         ("Jujutsu.Kaisen.T18.FRENCH.MANGA.CBZ.eBook-PapriKa+", single(18)),
         ("Jujutsu.kaisen.T23.Gege.AKUTAMI.FRENCH.[CBZ]-ebdz", single(23)),
