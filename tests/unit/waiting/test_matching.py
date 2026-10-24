@@ -1,5 +1,5 @@
-"""shelfdrop.waiting.matching: which releases answer a waiting search (plan section 3, point
-11), and where a search of chapters stands."""
+"""shelfdrop.waiting.matching: which releases answer a waiting search, and where a search of
+chapters stands."""
 
 import dataclasses
 

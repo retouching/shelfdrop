@@ -1,6 +1,5 @@
 """DownloadService: the releases of a search sent with what they are for, the automatic rules,
-the downloads as qBittorrent has them, a send tried again (plan section 3, points 1 to 3 and 10,
-points 12 and 13 for the automatic downloads)."""
+the downloads as qBittorrent has them, a send tried again."""
 
 import dataclasses
 

@@ -1,4 +1,4 @@
-"""The manual search through the real API (plan 2.5): the text as typed, cleaned the same way,
+"""The manual search through the real API: the text as typed, cleaned the same way,
 sorted the same way, nothing set aside for its words."""
 
 import httpx

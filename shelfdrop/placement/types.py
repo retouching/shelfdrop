@@ -5,7 +5,7 @@ from typing import Final, Literal
 
 from shelfdrop.works.types import Kind
 
-# Why a download is not placed alone: Ranger takes it (plan section 3, point 5).
+# Why a download is not placed alone: Ranger takes it.
 type Unplaced = Literal[
     "chapters",
     "no_volume",
@@ -28,7 +28,7 @@ type ItemState = Literal["unlinked", "chapters", "misplaced", "placed", "ignored
 type Misplaced = Literal["root", "naming", "tracks", "chapters"]
 type Rest = Literal["place", "keep"]
 
-# The tag of qBittorrent on what shelfdrop placed: the cron of the user leaves it alone.
+# The tag of qBittorrent on what shelfdrop placed: a tool that places on its own may leave it alone.
 PLACED_TAG: Final = "placé"
 # The folder names of the libraries as the journal and the page name them, without Jellyfin.
 LIBRARY_NAMES: Final[dict[Kind, str]] = {

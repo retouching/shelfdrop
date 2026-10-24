@@ -1,6 +1,6 @@
-"""The scan of the libraries for the files misplaced, through the real image (plan section 3,
-points 4 bis and 5): asked by the page, done by the worker; a file at the root of a library, a
-volume out of its name, a folder of chapters already on the shelf; its time of the day saved."""
+"""The scan of the libraries for the files misplaced, through the real image: asked by the page,
+done by the worker; a file at the root of a library, a volume out of its name, a folder of chapters
+already on the shelf; its time of the day saved."""
 
 import httpx
 import pytest

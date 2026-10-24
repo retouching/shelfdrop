@@ -1,4 +1,4 @@
-"""Types of the uploads: a file sent in chunks from the page Manuel (plan section 3, point 6)."""
+"""Types of the uploads: a file sent in chunks from the page Manuel."""
 
 from dataclasses import dataclass
 from typing import Final, Literal
@@ -29,7 +29,7 @@ class Upload:
 
 @dataclass(frozen=True, kw_only=True)
 class UploadOptions:
-    # A chunk: under the 100 MB a request of Cloudflare takes.
+    # A chunk: under the 100 MB a request through some reverse proxies may hold.
     chunk_bytes: int = 50 * MIB
     # A file: 5 GiB at most.
     max_bytes: int = 5 * 1024 * MIB

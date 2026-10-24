@@ -1,4 +1,4 @@
-"""What the shelf already holds (plan section 3, point 4 bis): the volumes and the chapters of a
+"""What the shelf already holds: the volumes and the chapters of a
 series folder, read from the names of its files, and what a release adds to them. Pure: the
 caller lists the folder."""
 

@@ -9,7 +9,7 @@ from shelfdrop.tokens.types import Scope
 
 class TokenCreate(BaseModel):
     model_config = ConfigDict(
-        json_schema_extra={"examples": [{"name": "Hermes", "scope": "write", "days": None}]}
+        json_schema_extra={"examples": [{"name": "Agent", "scope": "write", "days": None}]}
     )
 
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]

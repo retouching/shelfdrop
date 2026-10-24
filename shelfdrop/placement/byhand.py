@@ -1,4 +1,4 @@
-"""HandPlacement: the files of Ranger (plan section 3, points 4 bis and 5), run by the placement
+"""HandPlacement: the files of Ranger, run by the placement
 worker after each round: the downloads left to Ranger listed with their files, what the page
 asked done (a volume, a file of chapters, a release in chapters linked to its volumes), and the
 scan of the libraries for the files misplaced, every day and when the page asks."""

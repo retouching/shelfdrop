@@ -1,6 +1,5 @@
-"""A torrent qBittorrent accepts and loses, through the real API (plan section 3, points 2 and
-3): looked for 3 times, then not received; Retry sends the same torrent again into the same
-category, one more attempt."""
+"""A torrent qBittorrent accepts and loses, through the real API: looked for 3 times, then not
+received; Retry sends the same torrent again into the same category, one more attempt."""
 
 import httpx
 import pytest

@@ -9,7 +9,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
-# The status of a request whose client went away while its body was read (the nginx convention):
+# The status of a request whose client went away while its body was read (as proxies log it):
 # nobody waits for an answer, so none is sent.
 CLIENT_CLOSED_REQUEST: Final = 499
 

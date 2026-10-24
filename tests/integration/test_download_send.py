@@ -1,4 +1,4 @@
-"""The send of the releases of a work through the real API (plan section 3, points 1 and 2): the
+"""The send of the releases of a work through the real API: the
 torrent fetched through Prowlarr with its key in a header alone, its id, the add into the
 category of its kind, the torrent looked for by its hash; a duplicate; the automatic rules;
 the `.torrent` of a release. Prowlarr and qBittorrent (behind qui) are the fake sources."""

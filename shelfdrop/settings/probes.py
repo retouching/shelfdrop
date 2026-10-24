@@ -1,5 +1,5 @@
 """ConnectionProbes: the test of the connection of each service and of each metadata source,
-with the values typed on the page or those saved (plan section 3 ter). A container singleton.
+with the values typed on the page or those saved. A container singleton.
 
 - Prowlarr: `GET /api/v1/system/status`, then its indexers on.
 - qBittorrent, through qui: its version, then the categories of shelfdrop.

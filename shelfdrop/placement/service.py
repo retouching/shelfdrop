@@ -1,6 +1,6 @@
-"""PlacementService: the automatic downloads complete put on the shelf (plan section 3, points
-4 and 4 bis), their metadata locked in Jellyfin, and the writes the API asks for in the
-libraries. The placement worker alone runs it: it is the one process that writes there."""
+"""PlacementService: the automatic downloads complete put on the shelf, their metadata locked in
+Jellyfin, and the writes the API asks for in the libraries. The placement worker alone runs it: it
+is the one process that writes there."""
 
 import logging
 from collections.abc import Callable, Sequence
@@ -317,8 +317,8 @@ class PlacementService:
             await anyio.to_thread.run_sync(self.events.record, failed)
 
     async def after_placement(self, download: Download, library: JellyfinLibrary | None) -> None:
-        """The tag `placé` in qBittorrent (the cron of the user leaves it), and the new files
-        scanned by Jellyfin; neither failure undoes the placement."""
+        """The tag `placé` in qBittorrent (another tool that places may leave it alone), and the
+        new files scanned by Jellyfin; neither failure undoes the placement."""
         url, api_key = await self.settings.qbittorrent()
         try:
             await self.qbittorrent.add_tags(url, api_key, [download.info_hash or ""], PLACED_TAG)

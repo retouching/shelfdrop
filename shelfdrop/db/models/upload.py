@@ -1,4 +1,4 @@
-"""Upload: a file sent from the page Manuel in chunks (plan section 3, point 6), kept until the
+"""Upload: a file sent from the page Manuel in chunks, kept until the
 placement worker lists it in Ranger."""
 
 from sqlalchemy import Integer, String, Text

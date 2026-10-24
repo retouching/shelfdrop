@@ -67,7 +67,7 @@ from shelfdrop.waiting.service import WaitingRunner
 
 logger = logging.getLogger(__name__)
 
-# The path of the MCP server, outside the prefix of the API (plan section 3 quater).
+# The path of the MCP server, outside the prefix of the API.
 MCP_PATH: Final = "/mcp"
 
 
@@ -162,7 +162,7 @@ def build_app(settings: Settings) -> DocumentedApi:
     app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health"}))
     app.add_middleware(RequestIdMiddleware)
     app.include(health_router)
-    # The session asks for itself; every other route of the API needs one (plan section 5), or
+    # The session asks for itself; every other route of the API needs one, or
     # an access token where one may go (ADR 0020).
     app.include(session_router, prefix=prefix)
     for router in (settings_router, trackers_router, filters_router, tokens_router):

@@ -1,4 +1,4 @@
-"""shelfdrop.releases.guess: the volumes of a release title, the query, the relevance (plan 2.4)."""
+"""shelfdrop.releases.guess: the volumes of a release title, the query, the relevance."""
 
 import pytest
 
@@ -34,7 +34,7 @@ def pack(first: int, last: int) -> Volumes:
         ),
         ("Burn the Witch (Kubo) (2021) [Digital-1598] (PapriKa+)", Volumes(kind="unknown")),
         ("Burn.the.Witch.Kubo.2021.FR.[CBZ]-PapriKa", Volumes(kind="unknown")),
-        # the formats of the groups named in the plan (NOTAG, NRC.ALLIANCE), written by hand
+        # the formats of known release groups (NOTAG, NRC.ALLIANCE), written by hand
         ("One.Piece.T01-T11.FRENCH.CBZ.eBook-NOTAG", pack(1, 11)),
         ("One Piece T01 à T11 FRENCH CBZ-NOTAG", pack(1, 11)),
         ("Berserk.[INTEGRALE].FRENCH.CBZ-NRC.ALLIANCE", Volumes(kind="complete")),

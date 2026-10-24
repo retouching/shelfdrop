@@ -1,5 +1,5 @@
 """The search of the releases of a work through the real API, Prowlarr played by the fake
-sources (plan 2.4): one request per name, the releases kept once, set aside, their volumes,
+sources: one request per name, the releases kept once, set aside, their volumes,
 their order."""
 
 import httpx

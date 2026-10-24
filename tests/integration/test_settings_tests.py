@@ -1,4 +1,4 @@
-"""The tests of the connections through the real API (plan section 3 ter), against the fake
+"""The tests of the connections through the real API, against the fake
 Prowlarr, qBittorrent (behind qui), Jellyfin and metadata sources: with the values typed before
 they are saved, or those saved; and the tests of the background, run at start."""
 

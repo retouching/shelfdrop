@@ -1,4 +1,4 @@
-"""The searches kept waiting (plan section 3, point 11)."""
+"""The searches kept waiting."""
 
 from dataclasses import dataclass
 from typing import Literal

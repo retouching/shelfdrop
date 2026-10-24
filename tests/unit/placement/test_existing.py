@@ -1,5 +1,4 @@
-"""shelfdrop.placement.existing: the shelf compared before any placement (plan section 3,
-point 4 bis)."""
+"""shelfdrop.placement.existing: the shelf compared before any placement."""
 
 from shelfdrop.placement.existing import (
     complete_volumes,

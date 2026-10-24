@@ -1,5 +1,5 @@
 """shelfdrop.downloads.sender: the torrent fetched through Prowlarr, its id, the send to
-qBittorrent looked for by its hash 3 times, the duplicates (plan section 3, point 2)."""
+qBittorrent looked for by its hash 3 times, the duplicates."""
 
 import logging
 import time

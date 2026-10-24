@@ -105,7 +105,7 @@ class Work:
 
 @dataclass(frozen=True, kw_only=True)
 class WorkMerge:
-    """Works joined by hand (plan section 3, point 9): the keys of their members, applied to
+    """Works joined by hand: the keys of their members, applied to
     every search of the family after, and the name on the shelf chosen."""
 
     id: int

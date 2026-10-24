@@ -1,4 +1,4 @@
-"""The files of Ranger a download makes (plan section 3, point 5): a release in chapters is one,
+"""The files of Ranger a download makes: a release in chapters is one,
 to link to its volumes; each book of another release is one, the tracks of one folder of an
 audiobook one. Pure: the caller lists the torrent."""
 

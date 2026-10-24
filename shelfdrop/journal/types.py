@@ -19,7 +19,7 @@ type EventType = Literal[
 type EventState = Literal["pending", "sent", "skipped", "dropped"]
 type Fact = str | int | float | bool | list[int] | list[str] | None
 
-# The color of the embed of each type: the Radix palette of the pages (plan section 3, point 7).
+# The color of the embed of each type: the Radix palette of the pages.
 COLORS: Final[Mapping[EventType, int]] = {
     "sent": 0x6E56CF,
     "downloaded": 0x7CE2FE,

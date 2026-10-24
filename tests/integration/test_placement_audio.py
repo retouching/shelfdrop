@@ -1,7 +1,7 @@
-"""The placement of an audiobook in MP3 tracks through the real image (plan section 3, point 4
-bis): the tracks made by the ffmpeg of the image, merged by the worker into one M4B with one
-chapter a track, its length, its cover attached; the tracks of the shelf removed, those of the
-torrent kept. And a book: `<Author>/<Series>/<NN - Title>/...`."""
+"""The placement of an audiobook in MP3 tracks through the real image: the tracks made by the ffmpeg
+of the image, merged by the worker into one M4B with one chapter a track, its length, its cover
+attached; the tracks of the shelf removed, those of the torrent kept. And a book:
+`<Author>/<Series>/<NN - Title>/...`."""
 
 import json
 

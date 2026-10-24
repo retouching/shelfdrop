@@ -1,4 +1,4 @@
-"""The sessions through the real API (plan section 5): without one, every route of the API
+"""The sessions through the real API: without one, every route of the API
 answers 401 but the sign-in, /health and the pages; a write needs the Origin of the pages; a
 sign-out ends the session."""
 

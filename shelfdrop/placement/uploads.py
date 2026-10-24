@@ -1,4 +1,4 @@
-"""The files sent from the page Manuel (plan section 3, point 6), taken by the worker: moved from
+"""The files sent from the page Manuel, taken by the worker: moved from
 the data directory into the folder of the uploads (`uploads.folder`, on the file system of the
 libraries: a file placed from there is linked, then its old name removed), a ZIP opened there;
 then each book is a file of Ranger, to link to a work. The moves run in the threadpool."""

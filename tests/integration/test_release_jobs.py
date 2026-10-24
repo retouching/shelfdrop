@@ -1,4 +1,4 @@
-"""The searches shared, queued and kept, through the real API (plan 2.6): each test searches
+"""The searches shared, queued and kept, through the real API: each test searches
 texts of its own, with stubs of its own."""
 
 import concurrent.futures

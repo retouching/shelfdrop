@@ -8,7 +8,7 @@ from typing import Final
 from shelfdrop.releases.types import Indexer, Tracker
 
 # The order of the first import (Nyaa, The Old School, ABN, the others, C411 last), and the
-# tracker left out of the automatic downloads at first (decided by the user on 2026-10-21).
+# tracker left out of the automatic downloads at first (decided on 2026-10-21).
 FIRST_ORDER: Final = (
     re.compile(r"nyaa", re.IGNORECASE),
     re.compile(r"old\s*school|\btos\b", re.IGNORECASE),

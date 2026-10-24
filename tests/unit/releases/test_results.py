@@ -1,5 +1,4 @@
-"""shelfdrop.releases.results: the releases of a search, set aside, once each, in order
-(plan 2.4.3 to 2.4.6, section 3 point 12)."""
+"""shelfdrop.releases.results: the releases of a search, set aside, once each, in order."""
 
 from shelfdrop.releases.results import assemble, release_id
 from shelfdrop.releases.types import FilterRule, Filters, FoundRelease

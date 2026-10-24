@@ -1,5 +1,5 @@
 """The metadata Jellyfin keeps of a file placed: its name, its series, its number and its
-authors set from the shelf, and locked (plan section 3, point 4). Pure: no I/O."""
+authors set from the shelf, and locked. Pure: no I/O."""
 
 from collections.abc import Sequence
 from pathlib import PurePosixPath

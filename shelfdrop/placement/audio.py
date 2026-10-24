@@ -1,6 +1,5 @@
 """An audiobook in MP3 tracks (one a chapter) merged into one M4B with its chapters and its
-cover (plan section 3, point 4 bis; the procedure of the script `audiobook_merge.py` of the
-user), by the ffmpeg of the container.
+cover, by the ffmpeg of the container.
 
 The tracks are sorted by their number, one chapter each from its start to its end (their
 lengths read by ffprobe), concatenated in AAC 96 kbit/s, `+faststart`, written into a `.part`

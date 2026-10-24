@@ -11,7 +11,7 @@ class ApiToken(Base):
     __tablename__ = "api_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    # The name given at its creation ("Hermes"): the author of what it does.
+    # The name given at its creation ("Agent"): the author of what it does.
     name: Mapped[str] = mapped_column(String(100))
     # The SHA-256 of the secret, in hex; the secret itself is shown once and never kept.
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)

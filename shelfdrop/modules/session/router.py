@@ -1,5 +1,5 @@
 """The routes of the session: sign in with an account of Jellyfin, read the session, sign out.
-Async: the sign-in waits on Jellyfin (plan section 5)."""
+Async: the sign-in waits on Jellyfin."""
 
 from typing import Annotated
 
@@ -36,7 +36,7 @@ async def sign_in(
             body.username,
             body.password,
             client,
-            # The country Cloudflare gives the address, in the journal alone.
+            # The country a reverse proxy gives the address, in the journal alone.
             request.headers.get("cf-ipcountry", "")[:2],
         )
     except TooManyAttemptsError as exc:

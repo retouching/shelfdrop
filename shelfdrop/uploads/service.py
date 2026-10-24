@@ -1,4 +1,4 @@
-"""UploadService: a file sent from the page Manuel in chunks of 50 MiB (plan section 3, point 6):
+"""UploadService: a file sent from the page Manuel in chunks of 50 MiB:
 started (or resumed, the same file still receiving), its chunks written as they come, then put
 together and checked against the SHA-256 the page read from the file. A file checked waits in
 the data directory for the placement worker, which moves it into Ranger

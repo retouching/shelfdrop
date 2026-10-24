@@ -1,4 +1,4 @@
-"""shelfdrop.placement.naming: the names of the shelf, as the scripts of the user wrote them."""
+"""shelfdrop.placement.naming: the names of the shelf, as written before shelfdrop."""
 
 import pytest
 

@@ -1,4 +1,4 @@
-"""The scan of the libraries for the files misplaced (plan section 3, points 4 bis and 5): a file
+"""The scan of the libraries for the files misplaced: a file
 at the root of a library, a file out of the names of the shelf, a folder of chapters of a manga
 (merged into volumes from Ranger), a folder of MP3 tracks not merged into one M4B. What the
 placement put there itself is left aside. Runs in the threadpool: file system alone."""

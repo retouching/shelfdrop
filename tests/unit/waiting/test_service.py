@@ -1,5 +1,5 @@
 """WaitingService: the searches kept waiting, searched at the interval, found, journaled, and
-leaving the list once placed (plan section 3, point 11)."""
+leaving the list once placed."""
 
 import dataclasses
 import itertools

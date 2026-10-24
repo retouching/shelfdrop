@@ -1,4 +1,4 @@
-"""The routes of the uploads of the page Manuel (plan section 3, point 6): sync, the chunks are
+"""The routes of the uploads of the page Manuel: sync, the chunks are
 written by the threadpool."""
 
 from typing import Annotated

@@ -1,4 +1,4 @@
-"""The journal through the real API (plan section 3, point 7): the events posted on the webhook
+"""The journal through the real API: the events posted on the webhook
 of Discord as embeds, one message for the volumes sent by one request, the color of each type,
 a type switched off, a failure. The webhook is played by the fake sources."""
 

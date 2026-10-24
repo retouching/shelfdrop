@@ -364,7 +364,7 @@ export const texts = {
     },
     tokens: "Jetons d'accès",
     tokenName: "Nom",
-    tokenNamePlaceholder: "Hermes",
+    tokenNamePlaceholder: "Agent",
     tokenScope: "Droits",
     tokenLastUsed: "Dernière utilisation",
     tokenExpires: "Expire",

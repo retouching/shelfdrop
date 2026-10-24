@@ -1,4 +1,4 @@
-"""The settings through the real API (plan section 3 ter): kept in the database, a secret never
+"""The settings through the real API: kept in the database, a secret never
 given back, each change audited without its value, the environment imported once, and each
 change read by the next search, without a restart. Each test puts back what it changed."""
 

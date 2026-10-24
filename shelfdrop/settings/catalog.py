@@ -21,7 +21,7 @@ SOURCES: Final[tuple[SourceName, ...]] = (
     "openlibrary",
     "wikidata",
 )
-# The events of the journal sent to Discord (plan section 3, point 7).
+# The events of the journal sent to Discord.
 EVENTS: Final = (
     "sent",
     "downloaded",
@@ -34,15 +34,15 @@ EVENTS: Final = (
     "login",
     "found",
 )
-# The libraries of each kind, as the container sees them (plan section 4: one mount of
-# /mnt/storage/data on /data, the torrents and the libraries on one file system).
+# The libraries of each kind, as the container sees them (one mount of the media folder on
+# /data, the torrents and the libraries on one file system).
 LIBRARIES: Final[dict[Kind, str]] = {
     "manga": "/data/files/comics",
     "ebook": "/data/files/ebooks",
     "audiobook": "/data/files/audiobooks",
 }
 PATH_MAX_LENGTH: Final = 500
-# Hours between two searches of the waiting list (plan section 3, point 11).
+# Hours between two searches of the waiting list.
 WAITING_HOURS: Final = (1, 3, 6, 12, 24)
 # A time of the day, `04:30`.
 TIME: Final = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
@@ -64,10 +64,10 @@ VALUES: Final[Mapping[str, Entry]] = {
     "waiting.interval_hours": Entry(kind="number", default=6, choices=WAITING_HOURS),
     "placement.covers": Entry(kind="switch", default=True),
     "placement.lock_jellyfin": Entry(kind="switch", default=True),
-    # The time of the day of the scan of the files misplaced (plan section 3, point 5).
+    # The time of the day of the scan of the files misplaced.
     "placement.scan_time": Entry(kind="time", default="04:30"),
     # The folder the files sent from the page wait in, as the placement worker sees it: on the
-    # file system of the libraries (plan section 3, point 6).
+    # file system of the libraries.
     "uploads.folder": Entry(kind="path", default="/data/envois"),
     "uploads.keep_days": Entry(kind="number", default=7, minimum=1, maximum=365),
 }

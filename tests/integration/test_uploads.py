@@ -1,4 +1,4 @@
-"""The files sent from the page Manuel through the real image (plan section 3, point 6): a file
+"""The files sent from the page Manuel through the real image: a file
 of more than one chunk of 50 MiB sent, resumed after a cut, put together and checked by its
 SHA-256, then taken by the worker into Ranger and placed from there; a ZIP opened into its
 books; a corrupt file removed; a file of another type or too big refused."""

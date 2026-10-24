@@ -1,4 +1,4 @@
-"""The waiting searches through the real API (plan section 3, point 11): one search for each
+"""The waiting searches through the real API: one search for each
 volume, never twice; the round of the API searches it under the names of the work, in the
 queue of the other searches; a release that answers makes it found, on the page and on
 Discord; nothing is downloaded; a removal leaves the list. Prowlarr and Discord are played by

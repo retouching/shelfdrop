@@ -1,4 +1,4 @@
-"""The placement of a manga through the real image (plan section 3, points 4 and 4 bis): the
+"""The placement of a manga through the real image: the
 worker completes a download, compares it with the shelf, links the volumes missing as
 `<Series> - TXX.cbz` (hardlinks: the torrent seeds on), writes the cover of the series, tags
 the torrent, has Jellyfin scan, locks the metadata, posts on the journal; a torrent with a book

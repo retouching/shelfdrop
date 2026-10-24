@@ -1,4 +1,4 @@
-"""Ranger through the real image (plan section 3, point 5): a download the worker could not
+"""Ranger through the real image: a download the worker could not
 place is listed with its files; each file linked to a work is placed by the worker as a
 volume, hardlinked (the torrent seeds on); a name taken refuses, and nothing is replaced; a
 file of the shelf searched is corrected, moved; the rest of a download placed in part is listed

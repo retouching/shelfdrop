@@ -1,4 +1,4 @@
-"""The sign-in through the real API (plan section 5): administrators of Jellyfin alone, a
+"""The sign-in through the real API: administrators of Jellyfin alone, a
 refusal that never says what is wrong, credentials never logged, and the attempts counted.
 Last of the part `auth`: its last test uses up the attempts of the minute."""
 

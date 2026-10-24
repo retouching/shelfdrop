@@ -1,7 +1,7 @@
-"""A release in chapters linked to its volumes from Ranger, through the real image (plan
-section 3, point 4 bis): a complete volume merged into one CBZ (its cover, its pages in the
-order of the chapters, its ComicInfo.xml), an incomplete one placed as it is, the rest without a
-volume; the download placed once nothing of it is left."""
+"""A release in chapters linked to its volumes from Ranger, through the real image: a complete
+volume merged into one CBZ (its cover, its pages in the order of the chapters, its ComicInfo.xml),
+an incomplete one placed as it is, the rest without a volume; the download placed once nothing of it
+is left."""
 
 import httpx
 import pytest

@@ -1,4 +1,4 @@
-"""WaitingService: the searches kept waiting (plan section 3, point 11). Each is searched again
+"""WaitingService: the searches kept waiting. Each is searched again
 at the interval of the settings, under every name of its work, in the queue of the other
 searches; a release that answers makes it `found`, on the page and in the journal; nothing is
 downloaded alone. A volume placed, or chapters placed past their end, leave the list; a search

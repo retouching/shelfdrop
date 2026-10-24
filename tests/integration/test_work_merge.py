@@ -1,4 +1,4 @@
-"""Works merged by hand through the real API (plan section 3, point 9): two works of a recorded
+"""Works merged by hand through the real API: two works of a recorded
 search joined under the name chosen, kept for the next searches and read by their id, then
 split; the merge undone is not found again."""
 

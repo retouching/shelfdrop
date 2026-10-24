@@ -1,5 +1,4 @@
-"""shelfdrop.journal.embeds: the events of one batch made into one embed (plan section 3,
-point 7)."""
+"""shelfdrop.journal.embeds: the events of one batch made into one embed."""
 
 import pytest
 

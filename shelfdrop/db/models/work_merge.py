@@ -1,4 +1,4 @@
-"""WorkMerge: works the page joined by hand into one (plan section 3, point 9), applied to every
+"""WorkMerge: works the page joined by hand into one, applied to every
 search after."""
 
 from sqlalchemy import Integer, String, Text

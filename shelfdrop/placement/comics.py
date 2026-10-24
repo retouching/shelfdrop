@@ -1,6 +1,6 @@
 """The archives of comics: the pages of a CBZ in their order, its first page (the cover of a
 series), and the chapters of a volume merged into one CBZ with its cover and its
-`ComicInfo.xml` (plan section 3, point 4 bis)."""
+`ComicInfo.xml`."""
 
 import re
 import zipfile

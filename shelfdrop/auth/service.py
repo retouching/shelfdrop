@@ -86,8 +86,8 @@ class AuthService:
         self, username: str, password: str, client: str, country: str = ""
     ) -> SignedIn:
         """Raises TooManyAttemptsError, LoginRefusedError (whatever is wrong with the
-        account) and JellyfinUnavailableError. `country`: the country Cloudflare gives the
-        address, for the journal. The journal never holds the name typed for a refusal."""
+        account) and JellyfinUnavailableError. `country`: the country the reverse proxy gives
+        the address, for the journal. The journal never holds the name typed for a refusal."""
         now = int(self.clock.now())
         if not self.throttle.allow(client, now):
             logger.warning("Sign-in throttled")

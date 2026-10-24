@@ -1,4 +1,4 @@
-"""The follow-up of a download through the real API (plan section 3, points 3 and 10): the
+"""The follow-up of a download through the real API: the
 state, the percent, the speed and the time left read from qBittorrent at each read, then the
 download complete, which qBittorrent is not asked for again."""
 

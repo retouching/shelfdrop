@@ -1,5 +1,4 @@
-"""shelfdrop.downloads.states: what the page shows of a download (plan section 3, points 3
-and 10)."""
+"""shelfdrop.downloads.states: what the page shows of a download."""
 
 import dataclasses
 

@@ -1,4 +1,4 @@
-"""The access tokens through the real API (plan section 3 quater): created by the session of an
+"""The access tokens through the real API: created by the session of an
 administrator and shown once, kept as a fingerprint, read or read and download, never on the
 settings nor the tokens, counted (60 a minute), revoked at once, audited."""
 

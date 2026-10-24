@@ -1,4 +1,4 @@
-"""RangerService: the page Ranger (plan section 3, point 5): the files to place by hand, the
+"""RangerService: the page Ranger: the files to place by hand, the
 files of the shelf to correct, and what the page asks the placement worker to do with them. The
 API never writes in the libraries: the worker does (`shelfdrop.placement.byhand`)."""
 

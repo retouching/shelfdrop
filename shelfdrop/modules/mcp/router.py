@@ -1,7 +1,7 @@
-"""The MCP server of shelfdrop (ADR 0022): the tools of plan section 3 quater, on the services of
-the page, at `/mcp` (Streamable HTTP, stateless, JSON answers), behind an access token that
-`McpMiddleware` checks. Each tool opens a scope of the container of its own: a call runs in the
-task group of the MCP server, not in the one of its request."""
+"""The MCP server of shelfdrop (ADR 0022): its tools, on the services of the page, at `/mcp`
+(Streamable HTTP, stateless, JSON answers), behind an access token that `McpMiddleware` checks. Each
+tool opens a scope of the container of its own: a call runs in the task group of the MCP server, not
+in the one of its request."""
 
 from typing import Final
 

@@ -1,6 +1,6 @@
-"""ConnectionMonitor: the tests of the services saved, every 5 minutes in the background
-(plan section 3 ter), the last result of each kept in memory for the page. A container
-singleton; the lifespan of the application runs it.
+"""ConnectionMonitor: the tests of the services saved, every 5 minutes in the background, the last
+result of each kept in memory for the page. A container singleton; the lifespan of the application
+runs it.
 
 A service is tested once its address and its key are saved. A failure is logged once, when
 it starts, and its end once.

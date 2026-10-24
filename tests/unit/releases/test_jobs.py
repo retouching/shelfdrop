@@ -1,5 +1,4 @@
-"""shelfdrop.releases.jobs: the shared searches, the queue, the cache and the progress
-(plan 2.6)."""
+"""shelfdrop.releases.jobs: the shared searches, the queue, the cache and the progress."""
 
 import asyncio
 from collections.abc import Callable, Sequence

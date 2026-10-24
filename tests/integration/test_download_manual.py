@@ -1,4 +1,4 @@
-"""A manual download through the real API (plan section 2.5): into the category
+"""A manual download through the real API: into the category
 `shelfdrop-manual`, without a work, an author nor a series, and to place in Ranger once
 complete; a tracker not allowed for the automatic downloads is taken."""
 

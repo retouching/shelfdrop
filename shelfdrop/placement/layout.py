@@ -1,7 +1,5 @@
-"""Where the files of a download go on the shelf, and their hardlinks (plan section 3, points 4
-and 4 bis; the scripts `library_place.py`, `comics_rename.py`, `comics_cover.py` and
-`books_rename.py` of the user): what the shelf already holds is compared first, and left as it
-is. Runs in the threadpool: file system alone."""
+"""Where the files of a download go on the shelf, and their hardlinks: what the shelf already holds
+is compared first, and left as it is. Runs in the threadpool: file system alone."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -108,7 +106,7 @@ def placed_file(order: Order, path: Path, volume: int | None) -> PlacedFile:
 
 def comic_volumes(order: Order, books: Sequence[Path]) -> tuple[list[tuple[str, int]], list[str]]:
     """Each book and its volume: read in its name; a release of one file without a number is
-    its volume (or T01, as `comics_rename.py` did). The books whose volume it cannot read come
+    its volume (or T01). The books whose volume it cannot read come
     second."""
     found: list[tuple[str, int]] = []
     unknown: list[str] = []

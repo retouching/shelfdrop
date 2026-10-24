@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     # The key the secrets of the database are sealed with (ADR 0012): 32 random bytes or more,
     # written as text (`openssl rand -base64 32`). The API does not start without it.
     secret_key: SecretStr | None = Field(default=None, min_length=32, repr=False)
-    # The address of the pages, as the browser reaches them (https://shelfdrop.maigo.party):
+    # The address of the pages, as the browser reaches them (https://shelfdrop.example.com):
     # the title of each message of the journal links there. None: no link.
     public_url: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
     # The five settings below are imported once into the database, at the first start where

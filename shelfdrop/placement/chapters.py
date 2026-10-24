@@ -1,4 +1,4 @@
-"""The files of Ranger placed on the shelf (plan section 3, points 4 bis and 5): one volume of a
+"""The files of Ranger placed on the shelf: one volume of a
 manga, one file of chapters, and a release in chapters linked to its volumes: each complete
 volume merged into one CBZ (its cover, its pages in the order of the chapters, its
 `ComicInfo.xml`), the chapters of an incomplete one placed as they are, the rest without a

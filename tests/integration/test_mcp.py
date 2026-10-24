@@ -1,4 +1,4 @@
-"""The MCP server through the real image (plan section 3 quater): a real MCP client over Streamable
+"""The MCP server through the real image: a real MCP client over Streamable
 HTTP with an access token finds a work, the releases of the fake Prowlarr, sends one to the fake
 qBittorrent under the name of its token, and reads the downloads and Ranger; a token of reading
 cannot send; no token, or one revoked, gets 401."""

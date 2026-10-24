@@ -1,4 +1,4 @@
-"""The names of the shelf (plan section 3, point 4), as the scripts of the user wrote them: a
+"""The names of the shelf, as the scripts before shelfdrop wrote them: a
 volume of manga `<Series> - TXX.<ext>` in the folder of its series, a book
 `<Author>/<Series>/<NN - Title>/<Series> - TNN - <Title>.<ext>`, a chapter placed alone
 `<Series> - T23 - Ch. 206` or `<Series> - Ch. 230`. Pure: no I/O."""
@@ -23,7 +23,7 @@ TITLE_END: Final = re.compile(
     r"AAC|FLAC|WEB|AUDIOBOOK|LIVRE\s?AUDIO|eBook|NOTAG|(?:19|20)\d\d)(?![A-Za-z])",
     re.IGNORECASE,
 )
-# A volume number in a file name, as `comics_rename.py` read it: "T12", "Tome 12", "Vol.12",
+# A volume number in a file name: "T12", "Tome 12", "Vol.12",
 # "v12", "... 12.cbz"; the range of a pack, "(01-23)", is no volume.
 FILE_VOLUME: Final = (
     re.compile(r"(?:^|[ ._\-\[(])T(\d{1,3})(?=$|[ ._\-\])])", re.IGNORECASE),
@@ -89,7 +89,7 @@ def book_name(series: str, volume: int, title: str, extension: str, track: int |
 
 
 def file_volume(stem: str) -> int | None:
-    """The volume a file name gives, as `comics_rename.py` read it; None without one."""
+    """The volume a file name gives; None without one."""
     text = re.sub(r"\(\d{1,3}-\d{1,3}\)", "", stem)
     text = re.sub(r"\[[^\]]*\]|\((?:19|20)\d\d\)", "", text).strip()
     for pattern in FILE_VOLUME:

@@ -1,5 +1,5 @@
 """ReleaseService: the searches of releases through the replayed Prowlarr, the trackers and the
-filters (plan 2.4, 2.5, section 3 points 12 and 13)."""
+filters."""
 
 import anyio
 import httpx
