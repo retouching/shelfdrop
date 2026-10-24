@@ -183,7 +183,7 @@ function CreateTokenDialog({
               type="button"
               onClick={create}
               disabled={busy || name.trim() === ""}
-              className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-50"
+              className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-50"
             >
               {texts.settings.create}
             </button>
@@ -194,7 +194,7 @@ function CreateTokenDialog({
             onClick={() => {
               ref.current?.close();
             }}
-            className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong"
+            className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong"
           >
             {texts.settings.close}
           </button>
@@ -241,7 +241,7 @@ export function AccessTab(): ReactElement {
             onClick={() => {
               setCreating(true);
             }}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong"
+            className="rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong"
           >
             {texts.settings.newToken}
           </button>

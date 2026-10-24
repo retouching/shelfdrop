@@ -96,27 +96,27 @@ function ServiceCard({ id, test }: { readonly id: ServiceId; readonly test: Conn
   );
 }
 
-export function ServicesTab(): ReactElement {
-  const tests = {
+export type ServiceTests = Readonly<Record<ServiceId, ConnectionTest>>;
+
+/** Les tests des trois services, tenus par la page : son bouton « Tout tester » les lance. */
+export function useServiceTests(): ServiceTests {
+  return {
     prowlarr: useServiceTest("prowlarr"),
     qbittorrent: useServiceTest("qbittorrent"),
     jellyfin: useServiceTest("jellyfin"),
   };
+}
+
+/** Tous les services testés à la fois. */
+export function testAll(tests: ServiceTests): void {
+  for (const id of serviceIds) {
+    void tests[id].run();
+  }
+}
+
+export function ServicesTab({ tests }: { readonly tests: ServiceTests }): ReactElement {
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            for (const id of serviceIds) {
-              void tests[id].run();
-            }
-          }}
-          className="rounded-lg border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-slate-100"
-        >
-          {texts.settings.testAll}
-        </button>
-      </div>
       {serviceIds.map((id) => (
         <ServiceCard key={id} id={id} test={tests[id]} />
       ))}

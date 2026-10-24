@@ -6,16 +6,25 @@ import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import { AccessTab } from "./AccessTab";
 import { FiltersTab } from "./FiltersTab";
-import { DiscordTab, PlacementTab, SearchTab, ServicesTab, SourcesTab } from "./tabs";
+import {
+  DiscordTab,
+  PlacementTab,
+  SearchTab,
+  ServicesTab,
+  SourcesTab,
+  testAll,
+  useServiceTests,
+  type ServiceTests,
+} from "./tabs";
 
 type Tab = keyof typeof texts.settings.tabs;
 
 const tabs: readonly Tab[] = ["services", "sources", "search", "filters", "placement", "discord", "access"];
 
-function TabContent({ tab }: { readonly tab: Tab }): ReactElement | null {
+function TabContent({ tab, tests }: { readonly tab: Tab; readonly tests: ServiceTests }): ReactElement | null {
   switch (tab) {
     case "services":
-      return <ServicesTab />;
+      return <ServicesTab tests={tests} />;
     case "sources":
       return <SourcesTab />;
     case "search":
@@ -40,6 +49,8 @@ export function SettingsPage(): ReactElement {
   }, []);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // « Tout tester » est à côté de « Enregistrer », aligné avec lui : la page tient les tests de Services.
+  const tests = useServiceTests();
 
   async function save(): Promise<void> {
     setSaving(true);
@@ -92,13 +103,24 @@ export function SettingsPage(): ReactElement {
                 {texts.settings.saved}
               </p>
             ) : null}
+            {tab === "services" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  testAll(tests);
+                }}
+                className="rounded-lg border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-slate-100"
+              >
+                {texts.settings.testAll}
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={saving}
               onClick={() => {
                 void save();
               }}
-              className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80"
+              className="flex items-center gap-2 rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80"
             >
               {saving ? <Spinner /> : null}
               {saving ? texts.settings.saving : texts.settings.save}
@@ -107,7 +129,7 @@ export function SettingsPage(): ReactElement {
         )}
       </div>
       <div role="tabpanel" id="settings-panel" aria-labelledby={`tab-${tab}`}>
-        <TabContent key={tab} tab={tab} />
+        <TabContent key={tab} tab={tab} tests={tests} />
       </div>
     </div>
   );
