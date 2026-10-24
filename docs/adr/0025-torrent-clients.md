@@ -1,0 +1,35 @@
+# 0025. The torrent clients: one contract, a connector per client
+Status: Accepted
+Date: 2026-10-24
+
+## Context
+Decided on 2026-10-24: shelfdrop sent its downloads to qBittorrent alone, through the client proxy of qui. An installation that runs qBittorrent without qui, Deluge or Transmission could not use it. The sends, their follow-up, the placement and the test of the connection read the states of qBittorrent (`stalledDL`, `stoppedUP`, its tag `placé`) where they should read what a download is doing. The four clients are served, chosen on the page Paramètres › Services; an installation set up before keeps its qui, with no change of behaviour. A client that cannot keep the categories of shelfdrop is refused at the test of its connection, never sent to: Deluge without its plugin Label, Transmission before 3.00.
+
+## Decision
+- **One contract.** `shelfdrop.clients.torrents.client.TorrentClient` is what every caller knows of a torrent client: `version`, `check(categories)`, `add` (a `.torrent` file or a magnet link, into a category, and a folder when one is given), `torrents(hashes)`, `mark_placed(hashes)`. A connection is `TorrentConnection` (the client, the address, the username, the password, the key). A missing address or credential raises `ServiceNotConfiguredError`, a client that does not answer or refuses `ServiceError`; no caller sees the API of a client.
+- **Generic statuses.** A torrent is a `TorrentInfo`, the same for every client: its hash in lowercase hex, its name, its status (`waiting`, `downloading`, `stalled`, `complete`, `error`), its progress from 0 to 1, its speed, its time left (`None` when the client cannot tell), its category (or label), its `content_path` as the client sees it, and whether it carries the mark `placé`. Each connector maps the states of its client there; `shelfdrop.downloads.states` reads the generic status alone.
+- **A connector per client**, one module of `shelfdrop/clients/torrents/` each, registered in `CONNECTORS` of `factory.py` under the name of the setting `torrent.client`:
+  - `qui`: the WebUI API v2 of qBittorrent through the client proxy of qui (`<address>/proxy/<key>`), the key in `torrent.api_key` (`QuiClient`);
+  - `qbittorrent`: the same API on qBittorrent itself, signed in with the account of its WebUI (`POST /api/v2/auth/login`), its session cookie kept and opened again on a `403` (`QbittorrentClient`, F60 to F63); both share `WebUiClient`, where the states of qBittorrent are mapped;
+  - `deluge`: the JSON-RPC API of the Web UI of Deluge 2, signed in with its password, connected to its first daemon when it is not (`DelugeClient`, F65 to F69);
+  - `transmission`: the RPC of Transmission in its classic protocol, which 3.00 and 4.x speak, its session id read from the `409`, HTTP basic credentials when it has some (`TransmissionClient`, F70 to F74).
+- **The settings** ([the list](../configuration.md#settings-of-the-page)): `torrent.client` (`qui` by default), `torrent.url`, `torrent.username`, the secrets `torrent.password` and `torrent.api_key`, and `torrent.folder.manga`, `.ebook`, `.audiobook`, `.manual`. `shelfdrop.settings.catalog.torrent_secret` names the secret of a client: the key of qui, the password of the others. The test of the connection (`ConnectionProbes.run_torrent`) asks the credentials of the client: the key of qui; the username and the password of qBittorrent; the password of Deluge; both or none for Transmission.
+- **The migration.** The revision `36a54aec2e2c` moves `qbittorrent.url` and the secret `qbittorrent.api_key` to `torrent.url` and `torrent.api_key`, and sets `torrent.client` to `qui` for an installation that had either. The key keeps its sealing: it opens under its former name (`catalog.FORMER_NAMES`, `SecretBox.open_any`) until it is saved again.
+- **The choice at each use.** `TorrentClients.current()` (a container singleton) reads the settings and builds the connector of the client saved at each send, each read of the downloads and each round of the placement: a change of client or of address applies without a restart. A client the catalog knows with no connector gets `UnavailableClient`, and its test the state `no_connector`.
+- **The categories.** shelfdrop downloads into `manga`, `ebook`, `audiobook` (by kind) and `shelfdrop-manual` (the manual downloads): the categories of qBittorrent, the labels of Deluge and of Transmission. Deluge keeps them in its plugin Label: without the plugin, its test is `unsupported` (`reason` `label-plugin`) and `add` raises `LabelPluginMissingError` before anything is added; a label it lacks is created at the send. Transmission has its labels from 3.00 (RPC version 16): an older one is `unsupported` (`transmission-version`, `TransmissionTooOldError`); it keeps no list of labels, so none is missing.
+- **The mark `placé`.** What shelfdrop placed carries the tag `placé` in qBittorrent and the label `placé` in Transmission, for another tool that places. Deluge has no tags: `mark_placed` does nothing there, and the placement works the same.
+- **The folders.** A download goes into the folder of its kind (`torrent.folder.<kind>`, `torrent.folder.manual` for a manual one) when one is set, otherwise where the client puts it (qBittorrent: the folder of its category). The page offers them for Deluge and Transmission, which have no folder by category.
+- **The paths.** The client gives the `content_path` of a torrent as it sees it, and the placement worker opens that path as it is ([ADR 0016](0016-placement.md)): the client must see the downloads at the same path as the worker, on the same file system as the libraries (a hardlink does not cross one). There is no mapping of paths.
+
+## Rejected alternatives
+- Deluge without its plugin Label, the downloads of shelfdrop told apart by their folder alone: in the client they would look like any other torrent, and the categories `manga`, `ebook`, `audiobook`, `shelfdrop-manual` are the contract every client keeps.
+- Transmission before 3.00 the same way: it has no labels at all (2.94, F71).
+- A mapping of the paths of the client to those of the worker: no installation needs it today; it comes when one does.
+- The client chosen at the start of the process: a change would need a restart, against [ADR 0012](0012-settings-and-secrets.md).
+
+## Consequences
+- A new client is one module and one line of `CONNECTORS`, its name in `catalog.CLIENTS`; the callers do not change.
+- On Deluge, nothing marks what shelfdrop placed: another tool that places reads its own state.
+- A Deluge whose plugin Label is turned off later refuses each send (`not_received`) until it is on again; the downloads sent before are still followed.
+- The client and the placement worker mount the same folder at the same path, as with qBittorrent before.
+- A secret of qui left over from the former names opens until it is saved again; a database moved back under the revision gets its old keys again, and a key saved since does not open there.

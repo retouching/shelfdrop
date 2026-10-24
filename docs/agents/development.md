@@ -87,7 +87,7 @@ Caches: `source_answers` (the candidates a source gave for a family and a normal
 | `pages` | `test_pages.py` | `shelfdrop/modules/web/`, `web/`, `docker/api.Dockerfile` |
 | `releases` | `test_release_search.py`, `test_release_manual.py`, `test_release_jobs.py`, `test_release_trackers.py`, `test_release_filters.py` | `shelfdrop/releases/`, `shelfdrop/modules/searches/`, `shelfdrop/modules/trackers/`, `shelfdrop/modules/filters/`, `tests/unit/releases/fixtures/` |
 | `works` | `test_work_search.py`, `test_work_sources.py`, `test_work_names.py`, `test_work_merge.py` | `shelfdrop/works/`, `shelfdrop/modules/works/`, `tests/unit/works/fixtures/` |
-| `torrents` | `test_torrent_qbittorrent.py` | `shelfdrop/clients/torrents/`, the torrent clients of `docker/compose.test.yaml` and their files under `docker/` |
+| `torrents` | `test_torrent_qbittorrent.py`, `test_torrent_deluge.py`, `test_torrent_transmission.py` | `shelfdrop/clients/torrents/`, the torrent clients of `docker/compose.test.yaml` (`qbittorrent`, `deluge`, `transmission`) and their files under `docker/` |
 | `settings` | `test_settings.py`, `test_settings_tests.py` | `shelfdrop/settings/`, `shelfdrop/modules/settings/`, `shelfdrop/clients/`, the settings read by `shelfdrop/works/` and `shelfdrop/releases/` |
 | `auth` | `test_session.py`, `test_setup.py`, `test_sign_in.py` | `shelfdrop/auth/`, `shelfdrop/accounts/`, `shelfdrop/clients/jellyfin.py`, `shelfdrop/modules/session/`, `shelfdrop/modules/account/`, `shelfdrop/modules/setup/`, `shelfdrop/http/dependencies.py`, `shelfdrop/http/middleware/origin.py`, `shelfdrop/http/middleware/setup.py` |
 | `downloads` | `test_download_send.py`, `test_download_follow.py`, `test_download_retry.py`, `test_download_manual.py` | `shelfdrop/downloads/`, `shelfdrop/modules/downloads/`, `shelfdrop/modules/releases/`, `shelfdrop/clients/torrents/`, `shelfdrop/utils/torrent.py`, `ProwlarrClient.torrent` |
@@ -96,9 +96,7 @@ Caches: `source_answers` (the candidates a source gave for a family and a normal
 | `uploads` | `test_uploads.py`: a file of two chunks sent, resumed, checked, taken into Ranger and placed; a ZIP opened into its books; a corrupt file, a file refused | `shelfdrop/uploads/`, `shelfdrop/modules/uploads/`, `shelfdrop/placement/uploads.py`, `HandPlacement.take_uploads`, `tidy_uploads`, the settings `uploads.*` |
 | `library` | `test_library.py` | `shelfdrop/library/`, `shelfdrop/modules/library/`, `PlacementService.run_tasks`, `shelfdrop/placement/metadata.py`, `JellyfinClient.download`, `file_size` |
 | `waiting` | `test_waiting.py` | `shelfdrop/waiting/`, `shelfdrop/modules/waiting/`, `BoardSearcher`, the lifespan |
-| `torrents` | `test_torrent_transmission.py` | `shelfdrop/clients/torrents/`, the services of the torrent clients of `docker/compose.test.yaml` |
 | `access` | `test_tokens.py`, `test_openapi.py`, `test_mcp.py` | `shelfdrop/http/openapi.py`, `shelfdrop/modules/docs/`, `docs/openapi.json`, `docs/openapi.public.json`, `web/swagger/`, `web/src/docs.ts`, `shelfdrop/modules/mcp/`, `shelfdrop/http/middleware/mcp.py`, `shelfdrop/tokens/`, `shelfdrop/modules/tokens/`, `shelfdrop/http/dependencies.py`, `shelfdrop/http/middleware/origin.py`, the groups of routers of `shelfdrop/main.py` |
-| `torrents` | `test_torrent_deluge.py` | `shelfdrop/clients/torrents/` (a connector and its client: `deluge.py`), the service `deluge` of `docker/compose.test.yaml` |
 | `journal` | `test_journal.py`: the volumes of one request in one embed, its color and its fields, a type off, a failure, the cover of the work of a send (and the route of the page), none without a work | `shelfdrop/journal/`, `shelfdrop/clients/discord.py`, the events of `shelfdrop/downloads/` and `shelfdrop/auth/` |
 
 #### Blocks

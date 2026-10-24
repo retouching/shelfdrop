@@ -34,9 +34,9 @@ Once the client lists the seven tools of `shelfdrop`, a call of `list_downloads`
 |---|---|---|
 | `search_works` | read | Finds a work in the metadata sources: its names in each language, the ones to search, its authors, its volumes and its name on the shelf (`kind` `manga`, `ebook` or `audiobook`). |
 | `search_releases` | read | Searches Prowlarr and waits for the releases, ranked and scored as on the page: under the names of a work (`mode` `work`, 6 at most), or one text as typed (`mode` `manual`). |
-| `grab_releases` | write | Sends releases of a search to qBittorrent, each with its volumes; for a search of a work, with the work, the author and the series that give its place on the shelf. Sent under the name of the token. |
+| `grab_releases` | write | Sends releases of a search to the torrent client, each with its volumes; for a search of a work, with the work, the author and the series that give its place on the shelf. Sent under the name of the token. |
 | `list_downloads` | read | The downloads, the newest first: state, percent, speed, time left, and where each was shelved. |
-| `retry_download` | write | Sends again a download qBittorrent did not receive, the same torrent with the same settings. |
+| `retry_download` | write | Sends again a download the torrent client did not receive, the same torrent with the same settings. |
 | `list_files_to_place` | read | The files of Ranger: manual downloads, files sent, downloads the placement left, files misplaced. |
 | `place_file` | write | Links a file of Ranger to a work and shelves it (a volume, chapters, the volumes of a release in chapters), or ignores it. |
 

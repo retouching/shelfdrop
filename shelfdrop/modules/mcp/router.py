@@ -37,12 +37,12 @@ from shelfdrop.works.service import WorkService
 from shelfdrop.works.types import Kind
 
 INSTRUCTIONS: Final = (
-    "shelfdrop finds manga, books and audiobooks, downloads them through qBittorrent and shelves "
-    "them in Jellyfin. Find the work first (search_works), then its releases under its names "
-    "(search_releases, mode work), and send the ones chosen (grab_releases) with the author, the "
-    "series and the volumes; follow them with list_downloads. A text that finds no work goes "
-    "to a manual search (mode manual): its downloads wait in Ranger (list_files_to_place, "
-    "place_file). Propose the releases to the user before sending any."
+    "shelfdrop finds manga, books and audiobooks, downloads them through a torrent client and "
+    "shelves them in Jellyfin. Find the work first (search_works), then its releases under its "
+    "names (search_releases, mode work), and send the ones chosen (grab_releases) with the "
+    "author, the series and the volumes; follow them with list_downloads. A text that finds no "
+    "work goes to a manual search (mode manual): its downloads wait in Ranger "
+    "(list_files_to_place, place_file). Propose the releases to the user before sending any."
 )
 READ: Final = ToolAnnotations(read_only_hint=True, open_world_hint=True)
 WRITE: Final = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True)
@@ -122,9 +122,9 @@ def new_mcp_server(app: FastAPI, version: str) -> MCPServer:
         author: str = "",
         series: str = "",
     ) -> DownloadsRead:
-        """Send releases of a search (search_releases) to qBittorrent, each with its volumes;
-        a search of a work also needs its work, author and series of the shelf. Sent under the
-        name of the token. Only after the user agreed."""
+        """Send releases of a search (search_releases) to the torrent client, each with its
+        volumes; a search of a work also needs its work, author and series of the shelf. Sent
+        under the name of the token. Only after the user agreed."""
         token = require_write(ctx)
         order = SendOrder(
             search_id=search_id,
@@ -156,14 +156,14 @@ def new_mcp_server(app: FastAPI, version: str) -> MCPServer:
     @server.tool(annotations=READ)
     async def list_downloads() -> DownloadsRead:
         """The downloads sent, the newest first, with the state, the percent, the speed and the
-        time left qBittorrent gives, and where each was shelved."""
+        time left the torrent client gives, and where each was shelved."""
         async with scope_of(app) as scope:
             service = await scope.get(DownloadService)
             return DownloadsRead(downloads=[download_read(v) for v in await service.read()])
 
     @server.tool(annotations=WRITE)
     async def retry_download(ctx: Context, download_id: int) -> DownloadRead:
-        """Send again a download qBittorrent did not receive (state failed, reason
+        """Send again a download the torrent client did not receive (state failed, reason
         not_received), the same torrent with the same settings."""
         require_write(ctx)
         async with scope_of(app) as scope:

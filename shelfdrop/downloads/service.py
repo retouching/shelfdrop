@@ -140,7 +140,9 @@ class DownloadService:
             try:
                 torrents = {t.hash: t for t in await client.torrents(hashes)}
             except ServiceError as exc:
-                logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
+                logger.info(
+                    "The torrent client did not answer", extra={"error": type(exc).__name__}
+                )
         complete = [
             d
             for d in downloads

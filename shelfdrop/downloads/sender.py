@@ -219,7 +219,9 @@ class DownloadSender:
                     directory=directory,
                 )
             except ServiceError as exc:
-                logger.info("qBittorrent refused a torrent", extra={"error": type(exc).__name__})
+                logger.info(
+                    "The torrent client refused a torrent", extra={"error": type(exc).__name__}
+                )
                 raise SendFailedError("not_received") from exc
             now = int(self.clock.now())
             await self.write(lambda r: r.mark_added(download.id, now))
@@ -230,7 +232,9 @@ class DownloadSender:
                 if await client.torrents([digest]):
                     return
             except ServiceError as exc:
-                logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
+                logger.info(
+                    "The torrent client did not answer", extra={"error": type(exc).__name__}
+                )
         raise SendFailedError("not_received")
 
     async def torrent_of(self, download: Download) -> tuple[Torrent, str]:

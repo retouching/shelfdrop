@@ -153,20 +153,20 @@ The torrent of a release of a search kept, asked to Prowlarr: `200` with the `.t
 Server-Sent Events: a `progress` event (the object of `POST`) now and at each change, then an `end` event. `404 search_not_found`.
 
 ## POST /api/v1/downloads
-Sends releases of a search kept to qBittorrent ([ADR 0014](adr/0014-downloads.md)):
+Sends releases of a search kept to the torrent client ([ADR 0014](adr/0014-downloads.md), [ADR 0025](adr/0025-torrent-clients.md)):
 
 ```json
 {"search_id": "Xb3...", "work_id": "mangaupdates:75336092483", "author": "Tatsuki Fujimoto", "series": "Chainsaw Man",
  "releases": [{"id": "3f1c...", "volumes": {"kind": "range", "first": 1, "last": 11}}]}
 ```
 
-- The search decides the mode: the search of a work gives automatic downloads, into the category of qBittorrent of its kind (`manga`, `ebook`, `audiobook`), with `work_id`, `author` and `series` (200 characters at most each); a manual search gives manual ones, into `shelfdrop-manual`, without them.
+- The search decides the mode: the search of a work gives automatic downloads, into the category of the torrent client of its kind (`manga`, `ebook`, `audiobook`; a label on Deluge and Transmission), with `work_id`, `author` and `series` (200 characters at most each); a manual search gives manual ones, into `shelfdrop-manual`, without them.
 - `volumes`: as the page gives them (`single`, `range`, `complete`, `unknown`; `first`, `last` 0 to 9999). A release given twice is sent once; 100 releases at most.
 
 `200 {"downloads": [...]}`, the downloads created, each `waiting`: the send goes on after the answer. Errors: `404 search_not_found` (a search ended more than 10 minutes ago), `422 release_not_in_search` (`data.ids`: releases the search does not hold, or without a download link), `422 release_not_automatic` (`data.ids`: releases of the search of a work set aside or from a tracker whose `auto` is off), `422 validation_failed`. Nothing is sent on an error.
 
 ## GET /api/v1/downloads
-The 200 newest downloads, the newest first, each as qBittorrent has it now:
+The 200 newest downloads, the newest first, each as the torrent client has it now:
 
 ```json
 {"downloads": [{"id": 4, "title": "Chainsaw.Man.T01-T11.FRENCH.CBZ.eBook-PapriKa+", "indexer": "Nyaa.si", "size": 1073741824,
@@ -177,12 +177,12 @@ The 200 newest downloads, the newest first, each as qBittorrent has it now:
   "attempts": 1, "created_at": 1792598400, "created_by": "admin"}]}
 ```
 
-- `progress.state`: `waiting` (being sent, or waiting in qBittorrent: queued, fetching its metadata, stopped, or not listed), `downloading` (with `percent` 0 to 100, `speed` in bytes a second, `eta` in seconds, 0 when unknown), `placing` (an automatic download complete, being placed; `percent` while its MP3 tracks are merged), `placed` (`destination`: the library and the series, « BD & Mangas › Berserk »), `to_place` (placed by hand, `unplaced` says why: `manual`, a manual download; `chapters`, `no_volume`, `unknown_author`, `no_files`, `missing_files`, `link_refused`, `merge_failed`: what the placement could not do alone), `failed` (`reason`: `not_received`, or `duplicate`, a torrent qBittorrent already had).
+- `progress.state`: `waiting` (being sent, or waiting in the torrent client: queued, checked, fetching its metadata, stopped, stopped on an error, or not listed), `downloading` (with `percent` 0 to 100, `speed` in bytes a second, `eta` in seconds, 0 when unknown), `placing` (an automatic download complete, being placed; `percent` while its MP3 tracks are merged), `placed` (`destination`: the library and the series, « BD & Mangas › Berserk »), `to_place` (placed by hand, `unplaced` says why: `manual`, a manual download; `chapters`, `no_volume`, `unknown_author`, `no_files`, `missing_files`, `link_refused`, `merge_failed`: what the placement could not do alone), `failed` (`reason`: `not_received`, or `duplicate`, a torrent the client already had).
 - `work_name`: the name of the work, or the text of a manual search. `created_by`: the account that sent it.
-- qBittorrent down: the downloads sent show as `waiting`.
+- The torrent client down: the downloads sent show as `waiting`.
 
 ## POST /api/v1/downloads/{id}/retry
-Sends a torrent qBittorrent did not receive again: the same torrent, into the same category, one more attempt. `200`, the download, `waiting`. Errors: `404 download_not_found`, `409 download_not_retryable` (a duplicate, or a download not failed).
+Sends a torrent the torrent client did not receive again: the same torrent, into the same category, one more attempt. `200`, the download, `waiting`. Errors: `404 download_not_found`, `409 download_not_retryable` (a duplicate, or a download not failed).
 
 ## GET /api/v1/downloads/{id}/cover
 The cover of the work of an automatic download, for the page: read by the API at the sources of the work (a work a search returned in the last 7 days), kept an hour in its memory. `200`, the picture (`image/jpeg`, `image/png` or `image/webp`) with `Cache-Control: private, max-age=3600`. Errors: `404 download_not_found`, `404 download_cover_not_found` (a manual download, a work whose search is older than 7 days, or one its sources give no picture of).
