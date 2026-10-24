@@ -9,6 +9,7 @@ import { PlacePage } from "./components/PlacePage";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { ResultsCard } from "./components/ResultsCard";
 import { SearchForm } from "./components/SearchForm";
+import { UploadList } from "./components/UploadList";
 import { UploadZone } from "./components/UploadZone";
 import { SelectionBar } from "./components/SelectionBar";
 import { Sidebar } from "./components/Sidebar";
@@ -338,7 +339,7 @@ export function App(): ReactElement | null {
       origin: "upload",
       kind: guessKind(file.name),
       sizeBytes: file.size,
-      state: { kind: "uploading", percent: 0 },
+      state: { kind: "uploading", percent: 0, sent: 0, phase: "sending" },
     }));
     setUploads((current) => [...added, ...current]);
     let sent = 0;
@@ -348,9 +349,15 @@ export function App(): ReactElement | null {
         continue;
       }
       try {
-        await uploadFile(file, (percent) => {
-          setUploadState(entry.id, { kind: "uploading", percent });
+        await uploadFile(file, (progress) => {
+          setUploadState(entry.id, {
+            kind: "uploading",
+            percent: Math.min(99, Math.floor((progress.sent / progress.total) * 100)),
+            sent: progress.sent,
+            phase: progress.checking ? "checking" : "sending",
+          });
         });
+        setUploadState(entry.id, { kind: "uploading", percent: 100, sent: file.size, phase: "done" });
         sent += 1;
         setNotice(texts.place.sentToPlace(sent));
       } catch (error) {
@@ -396,6 +403,19 @@ export function App(): ReactElement | null {
               <UploadZone
                 onFiles={(list) => {
                   void upload(list);
+                }}
+              />
+            ) : null}
+            {manual && uploads.length > 0 ? (
+              <UploadList
+                files={uploads}
+                onPlace={() => {
+                  navigate({ page: "place" });
+                }}
+                onClear={() => {
+                  setUploads((current) =>
+                    current.filter((file) => file.state.kind === "uploading" && file.state.phase !== "done"),
+                  );
                 }}
               />
             ) : null}

@@ -83,7 +83,14 @@ export type Download = {
 export type FileOrigin = "upload" | "library" | "download";
 
 export type FileState =
-  | { readonly kind: "uploading"; readonly percent: number }
+  | {
+      readonly kind: "uploading";
+      readonly percent: number;
+      /** Les octets partis. */
+      readonly sent: number;
+      /** `checking` : tout est parti, le serveur vérifie le fichier ; `done` : envoyé. */
+      readonly phase: "sending" | "checking" | "done";
+    }
   | { readonly kind: "uploadFailed"; readonly reason: "interrupted" | "corrupt" | "type" | "size" }
   | { readonly kind: "unlinked" }
   | { readonly kind: "chapters" }

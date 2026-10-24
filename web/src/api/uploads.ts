@@ -37,18 +37,38 @@ function wait(ms: number): Promise<void> {
   });
 }
 
-async function sendChunk(id: number, index: number, data: ArrayBuffer): Promise<void> {
+/** Un morceau envoyé : le statut de la réponse, 0 si la connexion a coupé. `onSent` reçoit les
+ * octets du morceau déjà partis (XMLHttpRequest : fetch ne dit pas où en est un envoi). */
+function putChunk(url: string, data: ArrayBuffer, onSent: (bytes: number) => void): Promise<number> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (event) => {
+      onSent(event.loaded);
+    };
+    xhr.onload = () => {
+      resolve(xhr.status);
+    };
+    xhr.onerror = () => {
+      resolve(0);
+    };
+    xhr.onabort = () => {
+      resolve(0);
+    };
+    xhr.send(data);
+  });
+}
+
+async function sendChunk(id: number, index: number, data: ArrayBuffer, onSent: (bytes: number) => void): Promise<void> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      const response = await fetch(`/api/v1/uploads/${String(id)}/chunks/${String(index)}`, {
-        method: "PUT",
-        headers: { Accept: "application/json", "Content-Type": "application/octet-stream" },
-        body: data,
-      });
-      if (response.ok) {
+      const status = await putChunk(`/api/v1/uploads/${String(id)}/chunks/${String(index)}`, data, onSent);
+      if (status >= 200 && status < 300) {
         return;
       }
-      if (response.status < 500 && response.status !== 429) {
+      if (status !== 0 && status < 500 && status !== 429) {
         throw new UploadError("interrupted");
       }
     } catch (error) {
@@ -77,9 +97,13 @@ function failureOf(error: unknown): UploadError {
   return new UploadError("interrupted");
 }
 
+/** Où en est un envoi : les octets partis (ou déjà reçus d'un envoi repris), et la vérification
+ * du fichier entier par le serveur une fois tout parti. */
+export type UploadProgress = { readonly sent: number; readonly total: number; readonly checking: boolean };
+
 /** Le fichier envoyé par morceaux (ceux déjà reçus sont sautés), puis vérifié par le serveur.
- * `onProgress` reçoit le pourcentage envoyé. Lève UploadError. */
-export async function uploadFile(file: File, onProgress: (percent: number) => void): Promise<void> {
+ * `onProgress` suit les octets partis. Lève UploadError. */
+export async function uploadFile(file: File, onProgress: (progress: UploadProgress) => void): Promise<void> {
   if (file.size === 0 || file.size > MAX_BYTES) {
     throw new UploadError("size");
   }
@@ -92,12 +116,14 @@ export async function uploadFile(file: File, onProgress: (percent: number) => vo
       const data = await file.slice(start, Math.min(file.size, start + upload.chunk_size)).arrayBuffer();
       hash.update(new Uint8Array(data));
       if (!received.has(index)) {
-        await sendChunk(upload.id, index, data);
+        await sendChunk(upload.id, index, data, (bytes) => {
+          onProgress({ sent: start + bytes, total: file.size, checking: false });
+        });
       }
-      onProgress(Math.min(99, Math.round(((index + 1) / upload.chunks) * 100)));
+      onProgress({ sent: start + data.byteLength, total: file.size, checking: false });
     }
+    onProgress({ sent: file.size, total: file.size, checking: true });
     await request<UploadRead>("POST", `/v1/uploads/${String(upload.id)}/finish`, { sha256: hash.hex() });
-    onProgress(100);
   } catch (error) {
     throw failureOf(error);
   }

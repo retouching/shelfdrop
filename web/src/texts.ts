@@ -482,6 +482,13 @@ export const texts = {
     state: "État",
     origins: { upload: "Envoyé", library: "Bibliothèque", download: "Téléchargement" },
     uploading: (percent: number): string => `Envoi ${String(percent)} %`,
+    checking: "Vérification…",
+    uploaded: "Envoyé",
+    uploadsTitle: "Envois",
+    uploadSent: (sent: string, total: string, percent: number): string => `${sent} / ${total} · ${String(percent)} %`,
+    uploadedHint: "Envoyé : à associer dans Ranger.",
+    toPlace: "Ouvrir Ranger",
+    clearUploads: "Effacer les envois terminés",
     uploadFailed: {
       interrupted: "Envoi interrompu.",
       corrupt: "Envoi corrompu : fichier supprimé.",

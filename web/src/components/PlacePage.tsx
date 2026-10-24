@@ -33,7 +33,11 @@ function errorText(error: string): string {
 function stateText(state: FileState, kind: Kind | null): string {
   switch (state.kind) {
     case "uploading":
-      return texts.place.uploading(state.percent);
+      return state.phase === "checking"
+        ? texts.place.checking
+        : state.phase === "done"
+          ? texts.place.uploaded
+          : texts.place.uploading(state.percent);
     case "uploadFailed":
       return texts.place.uploadFailed[state.reason];
     case "unlinked":
