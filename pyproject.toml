@@ -3,6 +3,8 @@ name = "shelfdrop"
 version = "0.12.5"
 description = "Find, download and shelve manga, books and audiobooks into Jellyfin."
 requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "alembic>=1.20",
     "anyio>=4.15",
