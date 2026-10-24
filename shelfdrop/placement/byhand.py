@@ -262,7 +262,7 @@ class HandPlacement:
         try:
             torrents = {t.hash: t for t in await client.torrents(hashes)}
         except ServiceError as exc:
-            logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
+            logger.info("The torrent client did not answer", extra={"error": type(exc).__name__})
             return 0
         roots = await self.placement.settings.libraries()
         for download in todo:

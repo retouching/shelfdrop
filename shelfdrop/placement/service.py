@@ -143,7 +143,7 @@ class PlacementService:
         try:
             torrents = {t.hash: t for t in await client.torrents(hashes)}
         except ServiceError as exc:
-            logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
+            logger.info("The torrent client did not answer", extra={"error": type(exc).__name__})
             return
         complete = [
             d for d in sent if d.info_hash in torrents and is_complete(torrents[d.info_hash])
@@ -199,7 +199,7 @@ class PlacementService:
         try:
             torrents = await client.torrents([download.info_hash or ""])
         except ServiceError as exc:
-            logger.info("qBittorrent did not answer", extra={"error": type(exc).__name__})
+            logger.info("The torrent client did not answer", extra={"error": type(exc).__name__})
             raise NotPlacedError("missing_files") from exc
         if not torrents or not torrents[0].content_path:
             raise NotPlacedError("missing_files")
