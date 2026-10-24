@@ -11,6 +11,7 @@ import anyio.to_thread
 from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.clients.types import TorrentInfo
+from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.exceptions import (
     DownloadNotFoundError,
     NotAutomaticError,
@@ -29,6 +30,7 @@ from shelfdrop.downloads.types import (
     SendOrder,
 )
 from shelfdrop.releases.types import Release, ReleaseSearch, Volumes
+from shelfdrop.utils.pictures import picture_of
 from shelfdrop.works.types import Clock
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,7 @@ class DownloadService:
         options: DownloadOptions,
         clock: Clock,
         events: DownloadEvents,
+        covers: DownloadCovers,
     ) -> None:
         self.repository = repository
         self.sender = sender
@@ -63,6 +66,7 @@ class DownloadService:
         self.options = options
         self.clock = clock
         self.events = events
+        self.covers = covers
 
     async def send(self, order: SendOrder, actor: str) -> list[DownloadView]:
         """The releases of a search sent to qBittorrent, each a download of its own. The
@@ -147,7 +151,7 @@ class DownloadService:
             if d.stage == "sent" and d.info_hash in torrents and is_complete(torrents[d.info_hash])
         ]
         if complete:
-            await anyio.to_thread.run_sync(self.complete, complete)
+            await self.complete(complete)
         return [
             DownloadView(
                 download=d,
@@ -156,13 +160,32 @@ class DownloadService:
             for d in downloads
         ]
 
-    def complete(self, downloads: list[Download]) -> None:
+    async def complete(self, downloads: list[Download]) -> None:
+        """Each end once in the journal, with the cover of its work for an automatic one."""
         now = int(self.clock.now())
-        done = set(self.repository.mark_completed([d.id for d in downloads], now))
-        self.repository.commit()
+        done = set(await anyio.to_thread.run_sync(self.mark_completed, downloads, now))
         for download in downloads:
             if download.id in done:
-                self.events.record(completion_event(download, now))
+                event = await self.covers.dress(download, completion_event(download, now))
+                await anyio.to_thread.run_sync(self.events.record, event)
+
+    def mark_completed(self, downloads: list[Download], now: int) -> list[int]:
+        done = self.repository.mark_completed([d.id for d in downloads], now)
+        self.repository.commit()
+        return done
+
+    async def cover(self, download_id: int) -> tuple[bytes, str] | None:
+        """The cover of the work of a download and its type, None without one (a manual
+        download, a work whose search is older than 7 days, a source that gives none). Raises
+        DownloadNotFoundError."""
+        download = await anyio.to_thread.run_sync(self.repository.read, download_id)
+        if download is None:
+            raise DownloadNotFoundError
+        data = await self.covers.cover(download)
+        found = None if data is None else picture_of(data)
+        if data is None or found is None:
+            return None
+        return data, found[1]
 
     async def retry(self, download_id: int) -> DownloadView:
         """The same torrent sent again, into the same category: one more attempt. Raises

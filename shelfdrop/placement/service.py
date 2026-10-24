@@ -15,6 +15,7 @@ from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.clients.types import JellyfinLibrary
+from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.repository import DownloadRepository, DownloadRepositoryFactory
 from shelfdrop.downloads.sender import volume_numbers
 from shelfdrop.downloads.states import completion_event, is_complete
@@ -110,6 +111,7 @@ class PlacementService:
         events: PlacementEvents,
         clock: Clock,
         options: PlacementOptions,
+        download_covers: DownloadCovers,
     ) -> None:
         self.repositories = repositories
         self.downloads = downloads
@@ -121,6 +123,7 @@ class PlacementService:
         self.events = events
         self.clock = clock
         self.options = options
+        self.download_covers = download_covers
         self.percents: dict[int, int] = {}
 
     async def round(self) -> None:
@@ -134,7 +137,7 @@ class PlacementService:
 
     async def complete(self) -> None:
         """The downloads qBittorrent has all of are complete (whether the page reads them or
-        not); each end once in the journal."""
+        not); each end once in the journal, with the cover of its work."""
         sent = await self.on_downloads(lambda r: r.read_sent(), commit=False)
         hashes = [d.info_hash for d in sent if d.info_hash]
         if not hashes:
@@ -156,7 +159,8 @@ class PlacementService:
         )
         for download in complete:
             if download.id in done:
-                await anyio.to_thread.run_sync(self.events.record, completion_event(download, now))
+                event = await self.download_covers.dress(download, completion_event(download, now))
+                await anyio.to_thread.run_sync(self.events.record, event)
 
     async def place(self, download: Download) -> None:
         """A download complete put on the shelf, or left to Ranger with its reason."""

@@ -29,3 +29,7 @@ def download_not_found() -> ApiError:
 
 def download_not_retryable() -> ApiError:
     return conflict(ErrorCode.DOWNLOAD_NOT_RETRYABLE, "Only a torrent not received is sent again")
+
+
+def download_cover_not_found() -> ApiError:
+    return not_found(ErrorCode.DOWNLOAD_COVER_NOT_FOUND, "No cover for this download")

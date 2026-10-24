@@ -2,13 +2,16 @@
 of Discord as embeds, one message for the volumes sent by one request, the color of each type,
 a type switched off, a failure. The webhook is played by the fake sources."""
 
+import base64
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
 
 from shelfdrop.utils.torrent import torrent_id
 from tests.integration.support import (
+    ORIGINAL_ORIGIN,
     FakeSources,
     prowlarr_download_stub,
     prowlarr_release,
@@ -22,11 +25,37 @@ from tests.unit.support import torrent_file
 
 pytestmark = [pytest.mark.journal]
 
+# A JPEG as the sources give a cover: its first bytes are all the API checks.
+COVER = b"\xff\xd8\xff\xe0shelfdrop-journal-cover"
+
+
+def cover_stub(url: str) -> dict[str, Any]:
+    """The source of a work gives `COVER` at `url` (reached through the fake sources)."""
+    parts = urlsplit(url)
+    return {
+        "priority": 1,
+        "request": {
+            "method": "GET",
+            "urlPath": parts.path,
+            "headers": {ORIGINAL_ORIGIN: {"equalTo": f"{parts.scheme}://{parts.netloc}"}},
+        },
+        "response": {
+            "status": 200,
+            "headers": {"Content-Type": "image/jpeg"},
+            "base64Body": base64.b64encode(COVER).decode(),
+        },
+    }
+
 
 def send_volumes(
-    client: httpx.Client, fake_sources: FakeSources, name: str, volumes: list[int]
+    client: httpx.Client,
+    fake_sources: FakeSources,
+    name: str,
+    volumes: list[int],
+    work_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    """The volumes `volumes` of the work `name`, one release each, sent by one request."""
+    """The volumes `volumes` of the work `name` (a work of the search `work_id`), one release
+    each, sent by one request."""
     releases = []
     for n in volumes:
         data = torrent_file(f"{name} T{n:02d}")
@@ -50,7 +79,7 @@ def send_volumes(
         "/api/v1/downloads",
         json={
             "search_id": search["progress"]["id"],
-            "work_id": None,
+            "work_id": work_id,
             "author": "Tatsuki Fujimoto",
             "series": name,
             "releases": [
@@ -141,3 +170,51 @@ def test_a_type_switched_off_is_not_posted_and_a_failure_is(
         client.put(
             "/api/v1/settings", json={"values": {"discord.events.sent": True}}
         ).raise_for_status()
+
+
+@pytest.mark.usefixtures("qbittorrent_saved", "webhook_saved")
+def test_a_send_of_a_work_shows_its_cover_in_the_journal_and_on_the_page(
+    client: httpx.Client, fake_sources: FakeSources
+) -> None:
+    found = client.get("/api/v1/works", params={"q": "Berserk", "kind": "manga"})
+    assert found.status_code == 200, found.text
+    work = next(w for w in found.json()["works"] if w["cover_url"])
+    fake_sources.load([cover_stub(work["cover_url"])])
+    source = urlsplit(work["cover_url"])
+    origin = f"{source.scheme}://{source.netloc}"
+    before = fake_sources.count(origin, source.path)
+
+    downloads = send_volumes(
+        client, fake_sources, "Shelfdrop Journal Cover", [1, 2], work_id=work["id"]
+    )
+    for download in downloads:
+        wait_for_download(client, download["id"], lambda d: d["progress"]["state"] != "waiting")
+    [message] = wait_for_messages(fake_sources, "Shelfdrop Journal Cover")
+
+    # One message for the two volumes, the cover of the work as its thumbnail.
+    [embed] = message["embeds"]
+    assert embed["title"] == "Envoyé : Shelfdrop Journal Cover"
+    assert embed["thumbnail"] == {"url": "attachment://cover.jpg"}
+    # The page reads it from the API, never from the source.
+    cover = client.get(f"/api/v1/downloads/{downloads[0]['id']}/cover")
+    assert cover.status_code == 200
+    assert cover.headers["content-type"] == "image/jpeg"
+    assert cover.content == COVER
+    # Read once at the source for the message and the page.
+    assert fake_sources.count(origin, source.path) - before == 1
+
+
+@pytest.mark.usefixtures("qbittorrent_saved", "webhook_saved")
+def test_a_send_without_a_work_has_no_cover(
+    client: httpx.Client, fake_sources: FakeSources
+) -> None:
+    [download] = send_volumes(client, fake_sources, "Shelfdrop Journal Bare", [1])
+    wait_for_download(client, download["id"], lambda d: d["progress"]["state"] != "waiting")
+
+    [message] = wait_for_messages(fake_sources, "Shelfdrop Journal Bare")
+
+    [embed] = message["embeds"]
+    assert "thumbnail" not in embed
+    missing = client.get(f"/api/v1/downloads/{download['id']}/cover")
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "download_cover_not_found"

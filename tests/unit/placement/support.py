@@ -15,6 +15,7 @@ import httpx
 
 from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.types import Download, NewDownload
 from shelfdrop.placement.audio import AudioError, AudioTools
 from shelfdrop.placement.byhand import HandPlacement
@@ -397,6 +398,7 @@ def new_bench(
     journal = FakeJournal()
     clock = FixedClock()
     tools = tools or FakeTools()
+    covers = covers or FakeCovers()
     service = PlacementService(
         lambda: shelf,
         lambda: downloads,
@@ -404,10 +406,11 @@ def new_bench(
         JellyfinClient(httpx.AsyncClient(transport=httpx.MockTransport(jellyfin)), "0.5.0"),
         settings,
         tools,
-        covers or FakeCovers(),
+        covers,
         journal,
         clock,
         PlacementOptions(every_seconds=0),
+        DownloadCovers(covers, clock, 30),
     )
     uploads = FakeUploadRepository()
     store = UploadStore(tmp_path / "data" / "uploads")

@@ -1,6 +1,7 @@
 """shelfdrop.downloads.sender: the torrent fetched through Prowlarr, its id, the send to
 qBittorrent looked for by its hash 3 times, the duplicates (plan section 3, point 2)."""
 
+import logging
 import time
 
 import pytest
@@ -13,6 +14,7 @@ from tests.unit.downloads.support import Desk, new_desk
 from tests.unit.support import torrent_file
 
 LINK = "http://prowlarr.test/1/download?link=berserk"
+COVER = b"\xff\xd8\xff cover"
 
 
 @pytest.fixture
@@ -241,3 +243,77 @@ async def test_the_journal_gets_a_send_a_failure_and_a_retry_but_no_duplicate() 
     assert retry.facts["result"] == "sent"
     # The downloads of one request share the group of their message.
     assert first.group == "sent:sylvain:0:Berserk"
+
+
+@pytest.mark.anyio
+async def test_a_send_of_an_automatic_download_shows_the_cover_of_its_work() -> None:
+    desk = new_desk()
+    desk.covers.covers["mangaupdates:1"] = COVER
+    desk.prowlarr.torrents[LINK] = Torrent(file=torrent_file("Berserk T01.cbz"))
+    second = "http://prowlarr.test/1/download?link=t02"
+    desk.prowlarr.torrents[second] = Torrent(file=torrent_file("Berserk T02.cbz"))
+    first = order(desk)
+    other = order(desk, link=second)
+
+    desk.sender.start([first, other])
+    await desk.sender.idle()
+
+    # Both in one message: the cover is read once and kept with one event of the group.
+    assert [e.type for e in desk.journal.events] == ["sent", "sent"]
+    assert [e.cover for e in desk.journal.events].count(COVER) == 1
+    assert desk.covers.asked == ["mangaupdates:1"]
+
+
+@pytest.mark.anyio
+async def test_a_group_takes_the_cover_again_for_its_next_message() -> None:
+    desk = new_desk()
+    desk.covers.covers["mangaupdates:1"] = COVER
+    desk.prowlarr.torrents[LINK] = Torrent(file=torrent_file("Berserk T01.cbz"))
+    second = "http://prowlarr.test/1/download?link=t02"
+    desk.prowlarr.torrents[second] = Torrent(file=torrent_file("Berserk T02.cbz"))
+    first = order(desk)
+    other = order(desk, link=second)
+
+    await send(desk, first)
+    # Half the batch window later, the next event of the group may be in a message of its own.
+    desk.clock.at += 15
+    await send(desk, other)
+
+    assert [e.cover for e in desk.journal.events] == [COVER, COVER]
+    # The cover was kept: the sources are asked once.
+    assert desk.covers.asked == ["mangaupdates:1"]
+
+
+@pytest.mark.anyio
+async def test_a_manual_send_has_no_cover() -> None:
+    desk = new_desk()
+    desk.covers.covers["mangaupdates:1"] = COVER
+    desk.prowlarr.torrents[LINK] = Torrent(file=torrent_file("Berserk T01.cbz"))
+
+    await send(desk, order(desk, mode="manual"))
+
+    [sent] = desk.journal.events
+    assert sent.type == "sent"
+    assert sent.cover is None
+    assert desk.covers.asked == []
+
+
+@pytest.mark.anyio
+async def test_a_cover_that_fails_never_holds_up_the_send(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    desk = new_desk()
+    desk.covers.broken = True
+    desk.prowlarr.torrents[LINK] = Torrent(file=torrent_file("Berserk T01.cbz"))
+    download_id = order(desk)
+
+    with caplog.at_level(logging.INFO, logger="shelfdrop.downloads.covers"):
+        await send(desk, download_id)
+
+    assert desk.repository.rows[download_id].stage == "sent"
+    [sent] = desk.journal.events
+    assert sent.cover is None
+    [record] = [r for r in caplog.records if r.name == "shelfdrop.downloads.covers"]
+    assert record.getMessage() == "Cover of a download not read"
+    assert record.__dict__["error"] == "OSError"
+    assert "cache unreadable" not in caplog.text

@@ -64,7 +64,7 @@ async def test_a_download_complete_is_placed_tagged_scanned_and_journaled(tmp_pa
 
 @pytest.mark.anyio
 async def test_a_download_sent_is_completed_by_the_worker_too_once(tmp_path: Path) -> None:
-    bench = new_bench(tmp_path)
+    bench = new_bench(tmp_path, covers=FakeCovers({"mangaupdates:1": JPEG + b"work"}))
     download = completed(bench, berserk(bench, tmp_path))
     bench.downloads.change(download.id, stage="sent")
 
@@ -73,6 +73,8 @@ async def test_a_download_sent_is_completed_by_the_worker_too_once(tmp_path: Pat
 
     assert bench.downloads.rows[download.id].stage == "placed"
     assert [e.type for e in bench.journal.events] == ["downloaded", "placed"]
+    # The end of an automatic download shows the cover of its work.
+    assert bench.journal.events[0].cover == JPEG + b"work"
 
 
 @pytest.mark.anyio

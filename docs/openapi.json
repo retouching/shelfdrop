@@ -1672,6 +1672,76 @@
         ]
       }
     },
+    "/api/v1/downloads/{download_id}/cover": {
+      "get": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Read Download Cover",
+        "description": "The cover of the work of an automatic download, for the page: read by the API at the\nsources of the work, kept a while in memory.",
+        "operationId": "read_download_cover_api_v1_downloads__download_id__cover_get",
+        "parameters": [
+          {
+            "name": "download_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Download Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": []
+          }
+        ]
+      }
+    },
     "/api/v1/library/series": {
       "get": {
         "tags": [
@@ -6092,6 +6162,7 @@
               "search_not_found",
               "release_not_found",
               "download_not_found",
+              "download_cover_not_found",
               "method_not_allowed",
               "http_error",
               "validation_failed",

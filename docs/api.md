@@ -178,6 +178,9 @@ The 200 newest downloads, the newest first, each as qBittorrent has it now:
 ## POST /api/v1/downloads/{id}/retry
 Sends a torrent qBittorrent did not receive again: the same torrent, into the same category, one more attempt. `200`, the download, `waiting`. Errors: `404 download_not_found`, `409 download_not_retryable` (a duplicate, or a download not failed).
 
+## GET /api/v1/downloads/{id}/cover
+The cover of the work of an automatic download, for the page: read by the API at the sources of the work (a work a search returned in the last 7 days), kept an hour in its memory. `200`, the picture (`image/jpeg`, `image/png` or `image/webp`) with `Cache-Control: private, max-age=3600`. Errors: `404 download_not_found`, `404 download_cover_not_found` (a manual download, a work whose search is older than 7 days, or one its sources give no picture of).
+
 ## GET /api/v1/trackers, POST /api/v1/trackers/refresh, PUT /api/v1/trackers
 The indexers of Prowlarr, in their order: `{"trackers": [{"indexer_id": 1, "name": "Nyaa.si", "language": "en-US", "prowlarr_enabled": true, "used": true, "auto": true}]}`. `refresh` reads `GET /api/v1/indexer` of Prowlarr again (`503 prowlarr_unavailable`). `PUT` takes `{"trackers": [{"indexer_id", "used", "auto"}]}` in the new order; a tracker left out keeps its choices and comes after; a tracker not asked is never automatic.
 

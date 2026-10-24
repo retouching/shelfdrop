@@ -43,6 +43,9 @@ class ErrorCode(StrEnum):
     RELEASE_NOT_FOUND = "release_not_found"
     # 404: no download with this id; data = null.
     DOWNLOAD_NOT_FOUND = "download_not_found"
+    # 404: the download has no cover: a manual one, a work whose search is older than 7 days,
+    # or one its sources give no picture of; data = null.
+    DOWNLOAD_COVER_NOT_FOUND = "download_cover_not_found"
     # 405: the path exists, the method does not; the Allow header lists the methods.
     METHOD_NOT_ALLOWED = "method_not_allowed"
     # Any other HTTP error raised by the framework itself, with its own status.

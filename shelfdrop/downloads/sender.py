@@ -18,6 +18,7 @@ import anyio.to_thread
 
 from shelfdrop.clients.exceptions import ServiceError
 from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.repository import DownloadRepository, DownloadRepositoryFactory
 from shelfdrop.downloads.types import Download, DownloadOptions, Failure
 from shelfdrop.journal.types import NewEvent
@@ -42,7 +43,8 @@ class QbittorrentAddress(Protocol):
 
 
 class DownloadEvents(Protocol):
-    """The journal: a torrent sent, not received, sent again."""
+    """The journal: a torrent sent (with the cover of its work, for an automatic one), not
+    received, sent again."""
 
     def record(self, event: NewEvent) -> None: ...
 
@@ -122,6 +124,7 @@ class DownloadSender:
         options: DownloadOptions,
         clock: Clock,
         events: DownloadEvents,
+        covers: DownloadCovers,
     ) -> None:
         self.source = source
         self.qbittorrent = qbittorrent
@@ -130,6 +133,7 @@ class DownloadSender:
         self.options = options
         self.clock = clock
         self.events = events
+        self.covers = covers
         self.slots = asyncio.Semaphore(options.parallel)
         self.sending: set[int] = set()
         self.tasks: set[asyncio.Task[None]] = set()
@@ -180,6 +184,7 @@ class DownloadSender:
                 logger.info("Download sent", extra={"download": download_id})
             event = outcome_event(download, failure)
             if event is not None:
+                event = await self.covers.dress(download, event)
                 await anyio.to_thread.run_sync(self.events.record, event)
         finally:
             self.sending.discard(download_id)

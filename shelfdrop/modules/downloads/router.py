@@ -1,9 +1,10 @@
 """The routes of the downloads: send releases to qBittorrent, read the downloads with the figures
-of qBittorrent, send one again. Async: their service holds the async clients of qBittorrent."""
+of qBittorrent, send one again, the cover of the work of one. Async: their service holds the
+async clients of qBittorrent."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
@@ -18,6 +19,7 @@ from shelfdrop.downloads.service import DownloadService
 from shelfdrop.downloads.types import Choice, DownloadView, SendOrder
 from shelfdrop.http.dependencies import require_access
 from shelfdrop.modules.downloads.errors import (
+    download_cover_not_found,
     download_not_found,
     download_not_retryable,
     release_not_automatic,
@@ -103,3 +105,19 @@ async def retry_download(service: Injected[DownloadService], download_id: int) -
         raise download_not_found() from exc
     except NotRetryableError as exc:
         raise download_not_retryable() from exc
+
+
+@router.get("/{download_id}/cover")
+async def read_download_cover(service: Injected[DownloadService], download_id: int) -> Response:
+    """The cover of the work of an automatic download, for the page: read by the API at the
+    sources of the work, kept a while in memory."""
+    try:
+        found = await service.cover(download_id)
+    except DownloadNotFoundError as exc:
+        raise download_not_found() from exc
+    if found is None:
+        raise download_cover_not_found()
+    data, content_type = found
+    return Response(
+        content=data, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"}
+    )

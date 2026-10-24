@@ -8,6 +8,7 @@ from typing import Final, override
 import httpx
 
 from shelfdrop.clients.qbittorrent import QBittorrentClient
+from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.repository import DownloadRepository
 from shelfdrop.downloads.sender import DownloadSender
 from shelfdrop.downloads.service import DownloadService
@@ -170,6 +171,21 @@ class FakeProwlarr:
         return found
 
 
+class FakeWorkCovers:
+    """The covers of the works the search kept, by id; `broken`, each read fails."""
+
+    def __init__(self) -> None:
+        self.covers: dict[str, bytes] = {}
+        self.asked: list[str] = []
+        self.broken = False
+
+    async def cover(self, work_id: str) -> bytes | None:
+        self.asked.append(work_id)
+        if self.broken:
+            raise OSError("cache unreadable")
+        return self.covers.get(work_id)
+
+
 class FakeAddress:
     """The address of qui and the key of its client proxy, as the settings give them."""
 
@@ -255,6 +271,7 @@ class Desk:
     finder: FakeFinder
     clock: FixedClock
     journal: FakeJournal
+    covers: FakeWorkCovers
 
 
 def new_desk(
@@ -271,10 +288,12 @@ def new_desk(
     qbittorrent = QBittorrentClient(httpx.AsyncClient(transport=httpx.MockTransport(qui)))
     address = address or FakeAddress()
     journal = FakeJournal()
+    covers = FakeWorkCovers()
+    download_covers = DownloadCovers(covers, clock, 30)
     sender = DownloadSender(
-        prowlarr, qbittorrent, address, lambda: repository, options, clock, journal
+        prowlarr, qbittorrent, address, lambda: repository, options, clock, journal, download_covers
     )
     service = DownloadService(
-        repository, sender, qbittorrent, address, finder, options, clock, journal
+        repository, sender, qbittorrent, address, finder, options, clock, journal, download_covers
     )
-    return Desk(service, sender, repository, prowlarr, qui, finder, clock, journal)
+    return Desk(service, sender, repository, prowlarr, qui, finder, clock, journal, covers)

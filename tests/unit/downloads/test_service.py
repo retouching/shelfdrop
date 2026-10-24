@@ -21,6 +21,7 @@ from tests.unit.downloads.support import Desk, new_desk, release, search_of
 from tests.unit.support import torrent_file
 
 T01_T11 = Volumes(kind="range", first=1, last=11)
+COVER = b"\x89PNG cover"
 
 
 @pytest.fixture
@@ -138,6 +139,7 @@ async def test_a_release_or_a_search_unknown_sends_nothing() -> None:
 async def test_the_downloads_show_the_figures_of_qbittorrent_and_complete_once() -> None:
     qui = FakeQui(added_as={"state": "downloading", "progress": 0.42, "dlspeed": 4096, "eta": 120})
     desk = new_desk(qui=qui)
+    desk.covers.covers["mangaupdates:1"] = COVER
     auto = release("Berserk.T01.FRENCH.CBZ")
     manual = release("Monster.T01.FRENCH.CBZ")
     desk.finder.searches["s1"] = search_of("s1", [auto])
@@ -170,6 +172,14 @@ async def test_the_downloads_show_the_figures_of_qbittorrent_and_complete_once()
         ("to_place", "manual"),
         ("downloaded", None),
     ]
+    # The cover of the work goes with the events of the automatic download alone, read once.
+    assert [(e.type, e.cover) for e in desk.journal.events] == [
+        ("sent", COVER),
+        ("sent", None),
+        ("to_place", None),
+        ("downloaded", COVER),
+    ]
+    assert desk.covers.asked == ["mangaupdates:1"]
     # Completed: qBittorrent is not asked again.
     asked = len(qui.requests)
     qui.torrents.clear()
@@ -228,3 +238,23 @@ async def test_a_torrent_not_received_is_sent_again_and_a_duplicate_never_is() -
     await desk.sender.idle()
     with pytest.raises(NotRetryableError):
         await desk.service.retry(duplicate)
+
+
+@pytest.mark.anyio
+async def test_the_cover_of_a_download_is_the_one_of_its_work_and_its_type() -> None:
+    desk = new_desk()
+    desk.covers.covers["mangaupdates:1"] = COVER
+    auto = release("Berserk.T01.FRENCH.CBZ")
+    manual = release("Monster.T01.FRENCH.CBZ")
+    desk.finder.searches["s1"] = search_of("s1", [auto])
+    desk.finder.searches["m1"] = search_of("m1", [manual], mode="manual", title="monster")
+    [sent] = await desk.service.send(order_of("s1", auto), "sylvain")
+    [by_hand] = await desk.service.send(order_of("m1", manual), "sylvain")
+    await desk.sender.idle()
+
+    assert await desk.service.cover(sent.download.id) == (COVER, "image/png")
+    # A manual download has no work: no cover, and the sources are not asked.
+    assert await desk.service.cover(by_hand.download.id) is None
+    with pytest.raises(DownloadNotFoundError):
+        await desk.service.cover(999)
+    assert desk.covers.asked == ["mangaupdates:1"]

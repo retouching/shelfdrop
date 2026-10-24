@@ -22,6 +22,7 @@ from shelfdrop.clients.jellyfin import JellyfinClient
 from shelfdrop.clients.qbittorrent import QBittorrentClient
 from shelfdrop.config import Settings
 from shelfdrop.db.engine import open_engine, open_session
+from shelfdrop.downloads.covers import DownloadCovers, WorkCoverSource
 from shelfdrop.downloads.repository import DownloadRepository, download_repository_factory
 from shelfdrop.downloads.sender import DownloadEvents, DownloadSender, QbittorrentAddress
 from shelfdrop.downloads.service import DownloadService, ReleaseFinder
@@ -200,6 +201,18 @@ def as_cover_source(covers: WorkCovers) -> CoverSource:
     return covers
 
 
+def as_work_cover_source(covers: WorkCovers) -> WorkCoverSource:
+    return covers
+
+
+def new_download_covers(
+    source: WorkCoverSource, clock: Clock, settings: Settings
+) -> DownloadCovers:
+    """The covers of the works of the automatic downloads, for the journal and the page (a
+    singleton of each process), taken again by a group after half the batch window."""
+    return DownloadCovers(source, clock, settings.journal_batch_seconds)
+
+
 def as_placement_settings(reader: SettingsReader) -> PlacementSettings:
     return reader
 
@@ -217,6 +230,7 @@ def new_placement_service(
     events: PlacementEvents,
     clock: Clock,
     options: PlacementOptions,
+    download_covers: DownloadCovers,
 ) -> PlacementService:
     """The placement (a singleton of the worker alone): its repositories on sessions of their
     own."""
@@ -231,6 +245,7 @@ def new_placement_service(
         events,
         clock,
         options,
+        download_covers,
     )
 
 
@@ -450,11 +465,19 @@ def new_download_sender(
     options: DownloadOptions,
     clock: Clock,
     journal: Journal,
+    covers: DownloadCovers,
 ) -> DownloadSender:
     """The sends to qBittorrent of every request (a singleton, resumed by the lifespan); its
     downloads on sessions of their own, since a send outlives its request."""
     return DownloadSender(
-        prowlarr, qbittorrent, reader, download_repository_factory(engine), options, clock, journal
+        prowlarr,
+        qbittorrent,
+        reader,
+        download_repository_factory(engine),
+        options,
+        clock,
+        journal,
+        covers,
     )
 
 
@@ -523,6 +546,8 @@ def injectables(settings: Settings) -> list[object]:
         wireup.injectable(as_download_events),
         wireup.injectable(new_work_covers),
         wireup.injectable(as_cover_source),
+        wireup.injectable(as_work_cover_source),
+        wireup.injectable(new_download_covers),
         wireup.injectable(as_placement_settings),
         wireup.injectable(as_placement_events),
         wireup.injectable(new_placement_service),
