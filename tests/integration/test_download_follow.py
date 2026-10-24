@@ -9,6 +9,7 @@ from shelfdrop.utils.torrent import torrent_id
 from tests.integration.support import (
     QUI_PROXY,
     FakeSources,
+    Stack,
     prowlarr_download_stub,
     prowlarr_release,
     prowlarr_search_stub,
@@ -23,7 +24,7 @@ pytestmark = [pytest.mark.downloads, pytest.mark.downloads_follow]
 
 @pytest.mark.usefixtures("torrent_saved")
 def test_a_download_shows_the_figures_of_qbittorrent_then_completes(
-    client: httpx.Client, fake_sources: FakeSources
+    client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
     data = torrent_file("Shelfdrop Follow Test T03")
     digest = torrent_id(data)
@@ -86,9 +87,12 @@ def test_a_download_shows_the_figures_of_qbittorrent_then_completes(
         "to_place",
         "missing_files",
     )
-    # Ended: the next reads do not ask qBittorrent for it.
+    # Ended: the next reads of the API do not ask qBittorrent for it. The placement worker still
+    # looks for the files of a download to place by hand: its requests are left out.
     fake_sources.reset_journal()
     again = client.get("/api/v1/downloads").json()["downloads"]
     assert next(d for d in again if d["id"] == created["id"])["progress"]["state"] == "to_place"
+    api = stack.addresses("api")
+    assert api
     asked = fake_sources.requests("GET", f"{QUI_PROXY}/torrents/info")
-    assert all(digest not in r["url"] for r in asked)
+    assert all(digest not in r["url"] for r in asked if r["clientIp"] in api)

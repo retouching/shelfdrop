@@ -121,6 +121,24 @@ class Stack:
                 break
         return records
 
+    def addresses(self, service: str) -> set[str]:
+        """The IP addresses of the container of `service` on its networks: who sent a request
+        the fake journals (`clientIp`)."""
+        container = compose(self.project, "ps", "-q", service).stdout.strip()
+        result = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                "--format",
+                "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}",
+                container,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return set(result.stdout.split())
+
     def exec_api(self, *command: str) -> subprocess.CompletedProcess[str]:
         """Run `command` in the container of the API."""
         return compose(self.project, "exec", "-T", "api", *command)
