@@ -134,7 +134,8 @@ def fields_of(events: Sequence[Event]) -> tuple[str, str, list[dict[str, Any]]]:
             body = lines([text(f.get("release")) for f in facts])
             return texts.FAILURES.get(what, what), body, fields
         case "login":
-            fields = [field(texts.ADDRESS, text(first.facts.get("address")))]
+            # Never the address itself on Discord: its country alone.
+            fields = []
             country = text(first.facts.get("country"))
             if country:
                 fields.append(field(texts.COUNTRY, country))

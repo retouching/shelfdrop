@@ -34,7 +34,6 @@ RESULTS: Final = {"sent": "Reçu par qBittorrent", "not_received": "Non reçu"}
 ERROR: Final = "Erreur"
 DONE: Final = "Ce que shelfdrop a fait"
 ACCOUNT: Final = "Compte"
-ADDRESS: Final = "Adresse IP"
 COUNTRY: Final = "Pays"
 REFUSED: Final = "Connexions refusées depuis la même adresse"
 RELEASES: Final = "Releases"

@@ -86,16 +86,14 @@ def test_a_placement_shows_its_destination_its_volumes_and_the_cover_joined() ->
     assert "url" not in embed
 
 
-def test_a_refused_sign_in_names_the_address_and_its_country_alone() -> None:
+def test_a_refused_sign_in_names_the_country_alone_never_the_address() -> None:
     refused = event("login", refused=True, address="203.0.113.9", country="DE")
 
     embed = embed_of([refused], None, None)
 
     assert embed["title"] == "Connexion : Connexions refusées depuis la même adresse"
-    assert [(f["name"], f["value"]) for f in embed["fields"]] == [
-        ("Adresse IP", "203.0.113.9"),
-        ("Pays", "DE"),
-    ]
+    assert [(f["name"], f["value"]) for f in embed["fields"]] == [("Pays", "DE")]
+    assert "203.0.113.9" not in str(embed)
 
 
 def test_a_failure_says_what_shelfdrop_did() -> None:
