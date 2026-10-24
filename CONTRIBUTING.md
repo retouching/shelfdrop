@@ -45,7 +45,7 @@ docker run --rm --network host --user "$(id -u):$(id -g)" -e HOME=/tmp --env-fil
   sh -c 'npm install --prefix /tmp/shots --no-save --silent playwright@1.56.0 && NODE_PATH=/tmp/shots/node_modules node scripts/screenshots.cjs'
 ```
 
-It writes ten pages at 1920x1080 and two at 390x844 (twice the density) in WebP. It only reads: it signs in, opens the pages, searches a title (`SHELFDROP_SHOTS_QUERY`, Berserk by default) and opens a series (`SHELFDROP_SHOTS_SERIES`, Kaguya-sama by default); any other write of the pages is aborted in the browser. The addresses of the services are replaced by neutral ones before their shot; read every image before committing it, the rest of the data is that of the target.
+It writes ten pages at 1920x1080 and two at 390x844 (twice the density) in WebP. It only reads: it signs in, opens the pages, searches a title (`SHELFDROP_SHOTS_QUERY`, RuriDragon by default), shows the releases of the work of an author (`SHELFDROP_SHOTS_AUTHOR`, Shind, for Masaoki Shindō), searches a title with several works for their shot (`SHELFDROP_SHOTS_WORKS_QUERY`, Call of the Night) and another on the phone (`SHELFDROP_SHOTS_PHONE_QUERY`, Monster) and opens a series (`SHELFDROP_SHOTS_SERIES`, Kaguya-sama by default); any other write of the pages is aborted in the browser. The addresses of the services are replaced by neutral ones before their shot; read every image before committing it, the rest of the data is that of the target.
 
 ## Code and commits
 

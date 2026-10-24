@@ -4,7 +4,7 @@
 //
 // The target and its account come from the environment alone, and are never printed nor
 // written: SHELFDROP_SHOTS_URL, SHELFDROP_SHOTS_USERNAME, SHELFDROP_SHOTS_PASSWORD;
-// SHELFDROP_SHOTS_QUERY is the title searched (Berserk by default), SHELFDROP_SHOTS_SERIES the
+// SHELFDROP_SHOTS_QUERY is the title searched (RuriDragon by default), SHELFDROP_SHOTS_SERIES the
 // start of the name of the series whose dialog is shot (Kaguya-sama by default). The addresses
 // of the services are replaced by neutral ones in the page before their shot.
 //
@@ -37,7 +37,12 @@ function setting(name, fallback) {
 }
 
 const base = setting("SHELFDROP_SHOTS_URL").replace(/\/+$/, "");
-const query = setting("SHELFDROP_SHOTS_QUERY", "Berserk");
+const query = setting("SHELFDROP_SHOTS_QUERY", "RuriDragon");
+// A word of the card of the work whose releases are shot (its author), and the search of the phone.
+const author = setting("SHELFDROP_SHOTS_AUTHOR", "Shind");
+// The search of the shot of the works found (a title with several works), and that of the phone.
+const worksQuery = setting("SHELFDROP_SHOTS_WORKS_QUERY", "Call of the Night");
+const phoneQuery = setting("SHELFDROP_SHOTS_PHONE_QUERY", "Monster");
 const series = setting("SHELFDROP_SHOTS_SERIES", "Kaguya-sama");
 // The neutral address shown for each service, by the start of the title of its card.
 const ADDRESSES = { Prowlarr: "http://prowlarr:9696", qBittorrent: "http://qui:7476", Jellyfin: "http://jellyfin:8096" };
@@ -110,10 +115,10 @@ async function signIn(page) {
   await settle(page);
 }
 
-async function searchWorks(page) {
+async function searchWorks(page, text = query) {
   await page.goto(`${base}/`);
   const field = page.locator("#query");
-  await field.fill(query);
+  await field.fill(text);
   await field.press("Enter");
   await page.locator('button[aria-label^="Choisir "]').first().waitFor({ timeout: 90_000 });
   await settle(page);
@@ -129,9 +134,11 @@ async function desktop(browser) {
   await shoot(page, "sign-in");
   await signIn(page);
 
-  await searchWorks(page);
+  await searchWorks(page, worksQuery);
   await shoot(page, "search-works");
-  await page.locator('button[aria-label^="Choisir "]').first().click();
+  await page.waitForTimeout(2000);
+  await searchWorks(page);
+  await page.locator("li").filter({ hasText: author }).locator('button[aria-label^="Choisir "]').first().click();
   await page.locator("#results-title").waitFor({ timeout: 120_000 });
   await settle(page, 2);
   // The names of the work above, the releases below.
@@ -197,7 +204,7 @@ async function mobile(browser, session) {
   const context = await newContext(browser, MOBILE, session);
   const page = await context.newPage();
 
-  await searchWorks(page);
+  await searchWorks(page, phoneQuery);
   await page.locator('button[aria-label="Menu"]').click();
   await page.waitForTimeout(800);
   await shoot(page, "mobile-search-menu");
