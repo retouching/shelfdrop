@@ -188,7 +188,7 @@ export function WorkPicker({
                       {candidate.title.slice(0, 2).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{candidate.title}</span>
+                      <span className="block font-medium wrap-anywhere">{candidate.title}</span>
                       <span className="block truncate text-sm text-slate-500">
                         {candidate.author} · {candidate.year} ·{" "}
                         {candidate.titles

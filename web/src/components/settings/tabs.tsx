@@ -280,7 +280,10 @@ function TrackerCategories({
               <legend className="mb-1 text-xs font-semibold text-ink">{texts.kinds[kind]}</legend>
               <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
                 {options.map((category) => (
-                  <label key={category.id} className="flex cursor-pointer items-center gap-2 text-xs">
+                  <label
+                    key={category.id}
+                    className="flex min-h-10 cursor-pointer items-center gap-2 text-xs md:min-h-0"
+                  >
                     <input
                       type="checkbox"
                       checked={chosen.includes(category.id)}

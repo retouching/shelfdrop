@@ -35,9 +35,13 @@ export function SearchForm({ kind, initialQuery, busy, onSearch, onKind, onClear
   }
 
   return (
-    <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-surface p-5">
+    <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-surface p-4 md:p-5">
       <div className="flex flex-wrap items-center gap-3">
-        <div role="radiogroup" aria-label={texts.search.kindLabel} className="inline-flex rounded-lg bg-slate-100 p-1">
+        <div
+          role="radiogroup"
+          aria-label={texts.search.kindLabel}
+          className="flex w-full rounded-lg bg-slate-100 p-1 sm:inline-flex sm:w-auto"
+        >
           {kinds.map((option) => (
             <button
               key={option}
@@ -54,15 +58,15 @@ export function SearchForm({ kind, initialQuery, busy, onSearch, onKind, onClear
               }}
               className={
                 option === kind
-                  ? "rounded-md bg-surface px-4 py-1.5 text-sm font-medium text-ink shadow-sm"
-                  : "rounded-md px-4 py-1.5 text-sm text-slate-500 hover:text-ink"
+                  ? "flex-1 rounded-md bg-surface px-4 py-1.5 text-sm font-medium text-ink shadow-sm sm:flex-none"
+                  : "flex-1 rounded-md px-4 py-1.5 text-sm text-slate-500 hover:text-ink sm:flex-none"
               }
             >
               {texts.kinds[option]}
             </button>
           ))}
         </div>
-        <div className="relative min-w-64 flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:min-w-64 sm:basis-0">
           <label className="sr-only" htmlFor="query">
             {texts.search.label}
           </label>
@@ -83,7 +87,7 @@ export function SearchForm({ kind, initialQuery, busy, onSearch, onKind, onClear
         <button
           type="submit"
           disabled={busy}
-          className="flex items-center gap-2 rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-80 sm:flex-none"
         >
           {busy ? <Spinner /> : null}
           {busy ? texts.loading.searching : texts.search.submit}
@@ -96,7 +100,7 @@ export function SearchForm({ kind, initialQuery, busy, onSearch, onKind, onClear
               setError(null);
               onClear();
             }}
-            className="rounded-lg border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-slate-100"
+            className="flex-1 rounded-lg border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-slate-100 sm:flex-none"
           >
             {texts.search.clear}
           </button>

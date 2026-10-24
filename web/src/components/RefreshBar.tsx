@@ -47,7 +47,7 @@ export function RefreshBar({ updatedAt, refreshing, onRefresh, live, children }:
       </button>
       {live === undefined ? null : (
         <>
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-0">
             <input
               type="checkbox"
               role="switch"

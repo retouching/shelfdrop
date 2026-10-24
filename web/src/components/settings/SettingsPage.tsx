@@ -51,6 +51,11 @@ export function SettingsPage({ tab, onTab }: Props): ReactElement {
     // Une erreur de lecture laisse les champs vides.
     loadSettings().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    // Sur un petit écran, les onglets défilent : celui de l'adresse reste visible.
+    document.getElementById(`tab-${tab}`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [tab]);
   const [saving, setSaving] = useState(false);
   // « Enregistré » ne reste que sur l'onglet où le bouton a servi, tant qu'on n'en change pas.
   const [savedOn, setSavedOn] = useState<SettingsTab | null>(null);
@@ -78,7 +83,7 @@ export function SettingsPage({ tab, onTab }: Props): ReactElement {
         <div
           role="tablist"
           aria-label={texts.settings.tabsLabel}
-          className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1"
+          className="flex w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 md:w-auto md:flex-wrap md:overflow-visible"
         >
           {settingsTabs.map((option) => (
             <button
@@ -94,8 +99,8 @@ export function SettingsPage({ tab, onTab }: Props): ReactElement {
               }}
               className={
                 option === tab
-                  ? "rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow-sm"
-                  : "rounded-md px-3 py-1.5 text-sm text-slate-500 hover:text-ink"
+                  ? "shrink-0 rounded-md bg-surface px-3 py-1.5 text-sm font-medium whitespace-nowrap text-ink shadow-sm"
+                  : "shrink-0 rounded-md px-3 py-1.5 text-sm whitespace-nowrap text-slate-500 hover:text-ink"
               }
             >
               {texts.settings.tabs[option]}
@@ -103,7 +108,7 @@ export function SettingsPage({ tab, onTab }: Props): ReactElement {
           ))}
         </div>
         {tab === "access" || tab === "logs" ? null : (
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center justify-end gap-3 md:w-auto">
             {saved ? (
               <p role="status" className="text-sm text-emerald-700">
                 {texts.settings.saved}

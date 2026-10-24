@@ -124,6 +124,36 @@ body {
   background: var(--color-page);
 }
 
+/*
+ * Petits écrans (sous md, 48rem) : des cibles d'au moins 44 px pour le doigt, et des champs en
+ * 16 px, sous lesquels iOS agrandit la page à la saisie. Hors couche : ces minimums passent avant
+ * les classes des composants, et ne touchent pas les grands écrans.
+ */
+@media (width < 48rem) {
+  button:not([role="switch"], .sr-only),
+  select,
+  summary,
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], .sr-only) {
+    min-height: 2.75rem;
+  }
+
+  button:not([role="switch"], .sr-only) {
+    min-width: 2.75rem;
+  }
+
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  input[type="checkbox"]:not([role="switch"], .sr-only),
+  input[type="radio"]:not(.sr-only) {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
 dialog::backdrop {
   background: rgb(33 31 38 / 0.45);
 }

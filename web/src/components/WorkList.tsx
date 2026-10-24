@@ -71,7 +71,7 @@ export function WorkList({ query, works, selectedId, loading, onChoose, onMerge,
                   <Cover work={work} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-start justify-between gap-2">
-                      <span className="font-semibold text-ink">{work.title}</span>
+                      <span className="min-w-0 font-semibold wrap-anywhere text-ink">{work.title}</span>
                       {active ? (
                         loading ? (
                           <Spinner className="size-5 shrink-0 text-accent-text" />
@@ -86,7 +86,10 @@ export function WorkList({ query, works, selectedId, loading, onChoose, onMerge,
                     </span>
                     <span className="mt-2 flex flex-wrap gap-1">
                       {work.titles.slice(1, 4).map((alt) => (
-                        <span key={alt.title} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+                        <span
+                          key={alt.title}
+                          className="max-w-full rounded bg-slate-100 px-1.5 py-0.5 text-xs wrap-anywhere text-slate-600"
+                        >
                           {alt.title}
                         </span>
                       ))}
