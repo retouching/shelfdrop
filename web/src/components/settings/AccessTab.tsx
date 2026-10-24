@@ -6,6 +6,7 @@ import { ApiError } from "../../api/http";
 import { createToken, readTokens, revokeToken, type AccessToken, type Scope } from "../../api/tokens";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
+import { dialogBody, dialogFrame } from "../dialog";
 import { stacked } from "../stacked";
 import { AccountCard } from "./AccountCard";
 import { Card, Field, input } from "./parts";
@@ -102,105 +103,102 @@ function CreateTokenDialog({
   }
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="token-title"
-      className="m-auto w-full max-w-lg rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
-    >
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 id="token-title" className="text-lg font-semibold">
-          {secret === null ? texts.settings.createTitle : texts.settings.createdTitle}
-        </h2>
-      </div>
-      {secret === null ? (
-        <div className="space-y-4 px-6 py-5">
-          <Field label={texts.settings.tokenName}>
-            <input
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-              }}
-              placeholder={texts.settings.tokenNamePlaceholder}
-              maxLength={100}
-              className={input}
-            />
-          </Field>
-          <Field label={texts.settings.tokenScope}>
-            <select
-              value={scope}
-              onChange={(event) => {
-                setScope(event.target.value === "write" ? "write" : "read");
-              }}
-              className={input}
-            >
-              <option value="read">{texts.settings.scopes.read}</option>
-              <option value="write">{texts.settings.scopes.write}</option>
-            </select>
-          </Field>
-          <Field label={texts.settings.expiry}>
-            <select
-              value={expiry}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (value === "d30" || value === "d90" || value === "d365" || value === "never") {
-                  setExpiry(value);
-                }
-              }}
-              className={input}
-            >
-              {(["d30", "d90", "d365", "never"] as const).map((option) => (
-                <option key={option} value={option}>
-                  {texts.settings.expiries[option]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {failed ? <p className="text-sm text-rose-700">{texts.settings.tokensFailed}</p> : null}
+    <dialog ref={ref} onClose={onClose} aria-labelledby="token-title" className={dialogFrame.lg}>
+      <div className={dialogBody.regular}>
+        <div className="border-b border-slate-200 px-4 py-4 md:px-6">
+          <h2 id="token-title" className="text-lg font-semibold">
+            {secret === null ? texts.settings.createTitle : texts.settings.createdTitle}
+          </h2>
         </div>
-      ) : (
-        <div className="space-y-3 px-6 py-5">
-          <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">{texts.settings.createdHint}</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 truncate rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs text-ink">
-              {secret}
-            </code>
-            <CopyButton value={secret} />
-          </div>
-        </div>
-      )}
-      <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
         {secret === null ? (
-          <>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 md:px-6">
+            <Field label={texts.settings.tokenName}>
+              <input
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                }}
+                placeholder={texts.settings.tokenNamePlaceholder}
+                maxLength={100}
+                className={input}
+              />
+            </Field>
+            <Field label={texts.settings.tokenScope}>
+              <select
+                value={scope}
+                onChange={(event) => {
+                  setScope(event.target.value === "write" ? "write" : "read");
+                }}
+                className={input}
+              >
+                <option value="read">{texts.settings.scopes.read}</option>
+                <option value="write">{texts.settings.scopes.write}</option>
+              </select>
+            </Field>
+            <Field label={texts.settings.expiry}>
+              <select
+                value={expiry}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "d30" || value === "d90" || value === "d365" || value === "never") {
+                    setExpiry(value);
+                  }
+                }}
+                className={input}
+              >
+                {(["d30", "d90", "d365", "never"] as const).map((option) => (
+                  <option key={option} value={option}>
+                    {texts.settings.expiries[option]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {failed ? <p className="text-sm text-rose-700">{texts.settings.tokensFailed}</p> : null}
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-5 md:px-6">
+            <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">{texts.settings.createdHint}</p>
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs wrap-anywhere text-ink md:truncate">
+                {secret}
+              </code>
+              <CopyButton value={secret} />
+            </div>
+          </div>
+        )}
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
+          {secret === null ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  ref.current?.close();
+                }}
+                className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+              >
+                {texts.settings.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={create}
+                disabled={busy || name.trim() === ""}
+                className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-50"
+              >
+                {texts.settings.create}
+              </button>
+            </>
+          ) : (
             <button
               type="button"
               onClick={() => {
                 ref.current?.close();
               }}
-              className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+              className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong"
             >
-              {texts.settings.cancel}
+              {texts.settings.close}
             </button>
-            <button
-              type="button"
-              onClick={create}
-              disabled={busy || name.trim() === ""}
-              className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-50"
-            >
-              {texts.settings.create}
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              ref.current?.close();
-            }}
-            className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong"
-          >
-            {texts.settings.close}
-          </button>
-        )}
+          )}
+        </div>
       </div>
     </dialog>
   );

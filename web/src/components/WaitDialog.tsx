@@ -5,6 +5,7 @@ import { texts } from "../texts";
 import type { Kind, Work } from "../types";
 import { Spinner } from "./Skeletons";
 import { field, WorkPicker, type Pick } from "./WorkPicker";
+import { dialogBody, dialogFrame } from "./dialog";
 
 type Target = "any" | "volumes" | "chapters";
 
@@ -161,14 +162,9 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
   }
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="wait-title"
-      className="m-auto max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
-    >
-      <div className="flex max-h-[calc(90vh-2px)] flex-col">
-        <div className="border-b border-slate-200 px-6 py-4">
+    <dialog ref={ref} onClose={onClose} aria-labelledby="wait-title" className={dialogFrame["2xl"]}>
+      <div className={dialogBody.regular}>
+        <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="wait-title" className="text-lg font-semibold">
             {texts.waitDialog.title}
           </h2>
@@ -178,7 +174,7 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
             </p>
           )}
         </div>
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 md:px-6">
           {work === null ? (
             <WorkPicker kind={kind} initialQuery="" value={pick} onChange={setPick} withName={false} />
           ) : null}
@@ -354,7 +350,7 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
             </>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
           {failed ? (
             <p role="alert" className="mr-auto text-sm text-rose-700">
               {texts.waitDialog.failed}

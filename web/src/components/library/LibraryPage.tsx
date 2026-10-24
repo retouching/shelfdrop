@@ -20,6 +20,7 @@ import { Cover } from "./Cover";
 import { scanModes, type ScanMode } from "./scan";
 import { SeriesEditor } from "./SeriesEditor";
 import { SyncButton } from "./SyncButton";
+import { dialogBody, dialogFrame } from "../dialog";
 
 type Filter = "all" | "noImage" | "noSummary";
 const filters: readonly Filter[] = ["all", "noImage", "noSummary"];
@@ -450,14 +451,9 @@ function FillDialog({
   }
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="fill-title"
-      className="m-auto max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
-    >
-      <div className="flex max-h-[calc(90vh-2px)] flex-col">
-        <div className="border-b border-slate-200 px-6 py-4">
+    <dialog ref={ref} onClose={onClose} aria-labelledby="fill-title" className={dialogFrame["3xl"]}>
+      <div className={dialogBody.regular}>
+        <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="fill-title" className="text-lg font-semibold">
             {texts.library.fillTitle}
           </h2>
@@ -468,7 +464,7 @@ function FillDialog({
             </p>
           ) : null}
         </div>
-        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto px-6">
+        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto px-4 md:px-6">
           {series.map((entry) => {
             const proposal = proposals.get(entry.id);
             return (
@@ -515,7 +511,7 @@ function FillDialog({
             );
           })}
         </ul>
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
           {failed ? (
             <p role="alert" className="mr-auto text-sm text-rose-700">
               {texts.library.failed}

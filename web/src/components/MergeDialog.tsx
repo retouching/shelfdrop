@@ -5,6 +5,7 @@ import { texts } from "../texts";
 import type { AltTitle, Kind, Work } from "../types";
 import { Spinner } from "./Skeletons";
 import { field, WorkPicker } from "./WorkPicker";
+import { dialogBody, dialogFrame } from "./dialog";
 
 type Props = {
   readonly kind: Kind;
@@ -62,14 +63,9 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
   }
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="merge-title"
-      className="m-auto max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
-    >
-      <div className="flex max-h-[calc(90vh-2px)] flex-col">
-        <div className="border-b border-slate-200 px-6 py-4">
+    <dialog ref={ref} onClose={onClose} aria-labelledby="merge-title" className={dialogFrame["2xl"]}>
+      <div className={dialogBody.regular}>
+        <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="merge-title" className="text-lg font-semibold">
             {texts.works.mergeTitle}
           </h2>
@@ -78,7 +74,7 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
             {work.mergedFrom === undefined ? work.source : texts.works.mergedFrom(work.mergedFrom.length)}
           </p>
         </div>
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 md:px-6">
           <WorkPicker
             kind={kind}
             initialQuery={work.title}
@@ -130,7 +126,7 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
             </>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
           {failed ? (
             <p role="alert" className="mr-auto text-sm text-rose-700">
               {texts.works.mergeFailed}

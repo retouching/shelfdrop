@@ -3,6 +3,7 @@ import { useRef, useState, type ReactElement } from "react";
 import { runSync, type SyncState } from "../../api/library";
 import { texts } from "../../texts";
 import { Spinner } from "../Skeletons";
+import { dialogBody, dialogFrame } from "../dialog";
 
 type Props = {
   /** La série à synchroniser ; null pour toutes les bibliothèques. */
@@ -46,32 +47,32 @@ export function SyncButton({ seriesId, question, onDone }: Props): ReactElement 
         {running ? <Spinner className="size-3.5" /> : null}
         {running ? texts.sync.running : texts.sync.action}
       </button>
-      <dialog
-        ref={ref}
-        aria-label={texts.sync.action}
-        className="m-auto w-full max-w-md rounded-2xl border border-slate-200 bg-surface p-6 text-ink shadow-2xl"
-      >
-        <p className="text-sm font-medium">{question}</p>
-        <p className="mt-2 text-sm text-slate-500">{texts.sync.confirmHint}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              ref.current?.close();
-            }}
-            className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
-          >
-            {texts.dialog.cancel}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void run();
-            }}
-            className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong"
-          >
-            {texts.sync.confirm}
-          </button>
+      <dialog ref={ref} aria-label={texts.sync.action} className={dialogFrame.md}>
+        <div className={`${dialogBody.regular} p-4 md:p-6`}>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <p className="text-sm font-medium">{question}</p>
+            <p className="mt-2 text-sm text-slate-500">{texts.sync.confirmHint}</p>
+          </div>
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                ref.current?.close();
+              }}
+              className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              {texts.dialog.cancel}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void run();
+              }}
+              className="rounded-lg border border-transparent bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong"
+            >
+              {texts.sync.confirm}
+            </button>
+          </div>
         </div>
       </dialog>
     </>

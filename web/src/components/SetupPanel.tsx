@@ -201,7 +201,8 @@ function Configure({
           {error}
         </p>
       )}
-      <div className="flex justify-between gap-3">
+      {/* Sur un petit écran, les boutons restent en bas de l'écran pendant que les étapes défilent. */}
+      <div className="sticky bottom-0 -mx-4 flex justify-between gap-3 border-t border-slate-200 bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:mx-0 md:border-0 md:p-0">
         <button
           type="button"
           disabled={index <= 1}
@@ -230,8 +231,8 @@ function Configure({
 
 export function SetupPanel({ account, onSignedIn, onFinished }: Props): ReactElement {
   return (
-    <main className="flex min-h-screen items-start justify-center bg-band px-4 py-12">
-      <div className="w-full max-w-2xl space-y-6 rounded-2xl border border-slate-200 bg-surface p-8 shadow-sm">
+    <main className="flex min-h-dvh items-start justify-center bg-surface md:bg-band md:px-4 md:py-12">
+      <div className="w-full space-y-6 bg-surface px-4 pt-8 pb-8 md:max-w-2xl md:rounded-2xl md:border md:border-slate-200 md:p-8 md:shadow-sm">
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-accent text-white">
             <ShelfIcon className="size-5" />

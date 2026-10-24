@@ -36,10 +36,10 @@ export function LoginPage({ onSignedIn }: Props): ReactElement {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-band px-4">
+    <main className="flex min-h-dvh bg-surface md:items-center md:justify-center md:bg-band md:px-4">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm space-y-5 rounded-2xl border border-slate-200 bg-surface p-8 shadow-sm"
+        className="w-full space-y-5 bg-surface px-4 py-8 md:max-w-sm md:rounded-2xl md:border md:border-slate-200 md:p-8 md:shadow-sm"
       >
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-accent text-white">

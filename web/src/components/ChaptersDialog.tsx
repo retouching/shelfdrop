@@ -5,6 +5,7 @@ import { texts } from "../texts";
 import type { ShelfFile } from "../types";
 import { Spinner } from "./Skeletons";
 import { field, guessQuery, WorkPicker, type Pick } from "./WorkPicker";
+import { dialogBody, dialogFrame } from "./dialog";
 
 type Props = {
   readonly file: ShelfFile;
@@ -157,14 +158,9 @@ export function ChaptersDialog({ file, chapters, existing, loose, onClose, onPla
   }
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="chapters-title"
-      className="m-auto max-h-[94vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
-    >
-      <div className="flex max-h-[calc(94vh-2px)] flex-col">
-        <div className="border-b border-slate-200 px-6 py-4">
+    <dialog ref={ref} onClose={onClose} aria-labelledby="chapters-title" className={dialogFrame["6xlTall"]}>
+      <div className={dialogBody.taller}>
+        <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="chapters-title" className="text-lg font-semibold">
             {texts.chapters.title}
           </h2>
@@ -173,7 +169,7 @@ export function ChaptersDialog({ file, chapters, existing, loose, onClose, onPla
           </p>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto px-6 py-5 lg:grid-cols-[1fr_22rem]">
+        <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto px-4 py-5 md:px-6 lg:grid-cols-[1fr_22rem]">
           <div className="space-y-5">
             <WorkPicker
               kind="manga"
@@ -375,7 +371,7 @@ export function ChaptersDialog({ file, chapters, existing, loose, onClose, onPla
           </aside>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
           {refused ? (
             <span role="alert" className="text-sm text-rose-700">
               {texts.place.errors.refused}

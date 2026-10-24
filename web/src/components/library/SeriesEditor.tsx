@@ -19,6 +19,7 @@ import { Cover } from "./Cover";
 import { scanModes, type ScanMode } from "./scan";
 import { SyncButton } from "./SyncButton";
 import { VolumesSection } from "./VolumesSection";
+import { dialogBody, dialogFrame } from "../dialog";
 
 type Props = {
   readonly series: Series;
@@ -242,11 +243,11 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
         }
       }}
       aria-labelledby="editor-title"
-      className="m-auto max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
+      className={dialogFrame["5xlTall"]}
     >
-      <div className="flex max-h-[calc(92vh-2px)] flex-col">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
-          <div>
+      <div className={dialogBody.tall}>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-4 md:flex-nowrap md:px-6">
+          <div className="min-w-0">
             <h2 id="editor-title" className="text-lg font-semibold">
               {texts.editor.title}
             </h2>
@@ -310,7 +311,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
           </span>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-8 overflow-y-auto px-6 py-5 md:grid-cols-[18rem_1fr]">
+        <div className="grid min-h-0 flex-1 gap-8 overflow-y-auto px-4 py-5 md:grid-cols-[18rem_1fr] md:px-6">
           <section aria-labelledby="editor-image" className="space-y-4">
             <h3 id="editor-image" className="text-sm font-semibold">
               {texts.editor.image}
@@ -477,7 +478,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
           <VolumesSection series={series} version={volumesRead} onNotice={setNotice} onChanged={onChanged} />
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
           {error === null ? (
             <span role="status" className="text-sm text-slate-500">
               {changed === 0 ? notice : texts.editor.changed(changed)}

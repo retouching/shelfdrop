@@ -5,6 +5,7 @@ import { texts } from "../texts";
 import type { Download, Kind, Release } from "../types";
 import { Spinner } from "./Skeletons";
 import { compareForDisplay, coverageLabel, parseVolumesInput, volumesInput } from "../utils/volumes";
+import { dialogBody, dialogFrame } from "./dialog";
 
 type Props = {
   readonly kind: Kind;
@@ -71,20 +72,15 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
   }
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="dialog-title"
-      className="m-auto max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-surface p-0 text-ink shadow-2xl"
-    >
-      <form onSubmit={submit} className="flex max-h-[calc(90vh-2px)] flex-col">
-        <div className="border-b border-slate-200 px-6 py-4">
+    <dialog ref={ref} onClose={onClose} aria-labelledby="dialog-title" className={dialogFrame["2xl"]}>
+      <form onSubmit={submit} className={dialogBody.regular}>
+        <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="dialog-title" className="text-lg font-semibold">
             {texts.dialog.title}
           </h2>
           <p className="mt-0.5 text-sm text-slate-500">{texts.dialog.summary(releases.length, coverage)}</p>
         </div>
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 md:px-6">
           {manual ? (
             <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">{texts.dialog.manualNote}</p>
           ) : null}
@@ -141,7 +137,7 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
           {failed ? (
             <p role="alert" className="mr-auto text-sm text-rose-700">
               {texts.dialog.failed}
