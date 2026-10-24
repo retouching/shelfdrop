@@ -44,7 +44,7 @@ from shelfdrop.http.openapi import DocumentedApi
 from shelfdrop.journal.service import JournalSender
 from shelfdrop.library.sync import LibrarySync
 from shelfdrop.logging.setup import configure_logging
-from shelfdrop.modules.docs.router import router as docs_router
+from shelfdrop.modules.docs.router import docs_router
 from shelfdrop.modules.downloads.router import router as downloads_router
 from shelfdrop.modules.filters.router import router as filters_router
 from shelfdrop.modules.health.router import router as health_router
@@ -80,7 +80,7 @@ def create_app() -> FastAPI:
     return build_app(settings)
 
 
-def build_app(settings: Settings) -> FastAPI:
+def build_app(settings: Settings) -> DocumentedApi:
     """The application for these settings: routers, middlewares, error handlers and the
     container. It configures no logging: create_app() does."""
     prefix = settings.api_prefix
@@ -124,7 +124,8 @@ def build_app(settings: Settings) -> FastAPI:
         lifespan=lifespan,
         title="shelfdrop",
         version=version("shelfdrop"),
-        # The document and its page are routes of the API, for the session alone (ADR 0021).
+        # The public document and its page are routes of the API, for a session or a token
+        # (ADR 0021).
         openapi_url=None,
         docs_url=None,
         swagger_ui_oauth2_redirect_url=None,
@@ -153,16 +154,20 @@ def build_app(settings: Settings) -> FastAPI:
     )
     app.add_middleware(OriginMiddleware, api_paths=(f"{prefix}/",))
     app.add_middleware(UnhandledErrorsMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware, api_paths=(f"{prefix}/", "/health", MCP_PATH))
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        api_paths=(f"{prefix}/", "/health", MCP_PATH),
+        docs_path=f"{prefix}/docs",
+    )
     app.add_middleware(AccessLogMiddleware, quiet_paths=frozenset({"/health"}))
     app.add_middleware(RequestIdMiddleware)
     app.include(health_router)
     # The session asks for itself; every other route of the API needs one (plan section 5), or
     # an access token where one may go (ADR 0020).
     app.include(session_router, prefix=prefix)
-    for router in (settings_router, trackers_router, filters_router, tokens_router, docs_router):
+    for router in (settings_router, trackers_router, filters_router, tokens_router):
         app.include(router, prefix=prefix, guard=require_session)
-    for router in (searches_router, releases_router):
+    for router in (searches_router, releases_router, docs_router(settings.static_dir)):
         app.include(router, prefix=prefix, guard=require_reader)
     for router in (
         works_router,

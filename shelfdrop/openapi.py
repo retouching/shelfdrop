@@ -1,6 +1,7 @@
-"""docs/openapi.json, the OpenAPI document of the API (ADR 0021). `uv run python -m
-shelfdrop.openapi`, from the repository root, writes it again; it needs no .env, no database and
-no Docker, and starts nothing."""
+"""docs/openapi.json, the OpenAPI document of every route of the API, and docs/openapi.public.json,
+the one served to the access tokens (ADR 0021). `uv run python -m shelfdrop.openapi`, from the
+repository root, writes them again; it needs no .env, no database and no Docker, and starts
+nothing."""
 
 import json
 import secrets
@@ -14,6 +15,7 @@ from shelfdrop.config import Settings
 from shelfdrop.main import build_app
 
 OPENAPI_FILE: Final = Path("docs/openapi.json")
+PUBLIC_OPENAPI_FILE: Final = Path("docs/openapi.public.json")
 
 
 def invented_settings() -> Settings:
@@ -28,18 +30,23 @@ def invented_settings() -> Settings:
     )
 
 
-def document() -> str:
-    """The text of the file: indented JSON, keys in the order of the schema, one final newline."""
-    schema = build_app(invented_settings()).openapi()
-    return json.dumps(schema, indent=2, ensure_ascii=False) + "\n"
+def documents() -> dict[Path, str]:
+    """The text of each file: indented JSON, keys in the order of the schema, one final
+    newline."""
+    app = build_app(invented_settings())
+    return {
+        OPENAPI_FILE: json.dumps(app.openapi(), indent=2, ensure_ascii=False) + "\n",
+        PUBLIC_OPENAPI_FILE: json.dumps(app.public_openapi(), indent=2, ensure_ascii=False) + "\n",
+    }
 
 
 def main() -> int:
     if not OPENAPI_FILE.parent.is_dir():
         sys.stderr.write("error: docs/ not found: run from the repository root\n")
         return 1
-    OPENAPI_FILE.write_text(document(), encoding="utf-8", newline="\n")
-    sys.stdout.write(f"wrote {OPENAPI_FILE.as_posix()}\n")
+    for path, text in documents().items():
+        path.write_text(text, encoding="utf-8", newline="\n")
+        sys.stdout.write(f"wrote {path.as_posix()}\n")
     return 0
 
 

@@ -1,11 +1,11 @@
-"""The OpenAPI document of the API (ADR 0021): the schema FastAPI builds from the routes, with who
-may call each operation (the session, an access token and its scope), the error body of every
-refusal, and a page that shows it. `python -m shelfdrop.openapi` writes it to docs/openapi.json.
+"""The OpenAPI documents of the API (ADR 0021): the schema FastAPI builds from the routes, with who
+may call each operation (the session, an access token and its scope) and the error body of every
+refusal; and the public one, the operations an access token reaches alone, which `/api/docs`
+shows. `python -m shelfdrop.openapi` writes both to docs/.
 """
 
-import html
-import json
-from collections.abc import Callable
+import copy
+from collections.abc import Callable, Iterator
 from typing import Any, Final, Literal, override
 
 from fastapi import APIRouter, Depends, FastAPI
@@ -45,7 +45,7 @@ DESCRIPTION: Final = (
     "`Authorization: Bearer <token>`. Each operation names the access it needs in "
     "`x-access`: `public`, `session` (the cookie alone), `read` (the cookie or any token), "
     "`write` (the cookie or a token `write`). Every error body is "
-    '`{"code", "detail", "data"}`; the codes are listed in the schema `ErrorResponse`.'
+    '`{"code", "detail", "data"}`; the codes are listed in the schema `ErrorCode`.'
 )
 REFUSALS: Final[dict[Access, dict[str, str]]] = {
     "public": {},
@@ -71,6 +71,26 @@ SECURITY: Final[dict[Access, list[dict[str, list[str]]]]] = {
     "read": [{"session": []}, {"token": []}],
     "write": [{"session": []}, {"token": []}],
 }
+SCHEMA_PREFIX: Final = "#/components/schemas/"
+PUBLIC_ACCESSES: Final[frozenset[Access]] = frozenset({"read", "write"})
+PUBLIC_DESCRIPTION: Final = (
+    "The API of shelfdrop for a program: the work search, the releases of Prowlarr, the "
+    "downloads, Ranger, the waiting searches. Every request sends an access token created on "
+    "the page Paramètres, API et MCP: `Authorization: Bearer sd_...`. Each operation names the "
+    "scope it needs in `x-access`: `read` (any token) or `write` (a token `write`). Every error "
+    'body is `{"code", "detail", "data"}`; the codes are listed in the schema `ErrorCode`.'
+)
+PUBLIC_REFUSALS: Final[dict[Access, dict[str, str]]] = {
+    "read": {
+        "401": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+        "429": "More than 60 requests in a minute with this token (`too_many_requests`).",
+    },
+    "write": {
+        "401": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+        "403": "A token of reading (`token_forbidden`).",
+        "429": "More than 60 requests in a minute with this token (`too_many_requests`).",
+    },
+}
 
 
 def access_of(route: APIRoute, method: str, guard: Callable[..., Any] | None) -> Access:
@@ -95,9 +115,10 @@ def describe(schema: dict[str, Any], accesses: dict[tuple[str, str], Access]) ->
     schemas = components.setdefault("schemas", {})
     schemas.pop("HTTPValidationError", None)
     schemas.pop("ValidationError", None)
-    schemas["ErrorResponse"] = ErrorResponse.model_json_schema(
-        ref_template="#/components/schemas/{model}"
-    )
+    error = ErrorResponse.model_json_schema(ref_template=SCHEMA_PREFIX + "{model}")
+    # Its enums go beside it, where its references point.
+    schemas.update(error.pop("$defs", {}))
+    schemas["ErrorResponse"] = error
     components["securitySchemes"] = SECURITY_SCHEMES
     for path, operations in schema["paths"].items():
         for method, operation in operations.items():
@@ -119,15 +140,63 @@ def describe(schema: dict[str, Any], accesses: dict[tuple[str, str], Access]) ->
     return schema
 
 
+def references(value: object) -> Iterator[str]:
+    """The names of the schemas `value` points to, at any depth."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "$ref" and isinstance(item, str) and item.startswith(SCHEMA_PREFIX):
+                yield item.removeprefix(SCHEMA_PREFIX)
+            else:
+                yield from references(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from references(item)
+
+
+def public_document(schema: dict[str, Any]) -> dict[str, Any]:
+    """The document of the operations an access token reaches (`read`, `write`): nothing of the
+    session nor of the public routes, the schemas they use alone, the token as the only security
+    scheme. `schema` is the document of `describe`, left as it is."""
+    public = copy.deepcopy(schema)
+    public["info"]["description"] = PUBLIC_DESCRIPTION
+    paths: dict[str, Any] = {}
+    for path, operations in public["paths"].items():
+        kept = {m: o for m, o in operations.items() if o["x-access"] in PUBLIC_ACCESSES}
+        for operation in kept.values():
+            operation["security"] = [{"token": []}]
+            access = operation["x-access"]
+            for status, text in PUBLIC_REFUSALS[access].items():
+                response = operation["responses"][status]
+                if response["description"] == REFUSALS[access][status]:
+                    response["description"] = text
+        if kept:
+            paths[path] = kept
+    public["paths"] = paths
+    schemas = public["components"]["schemas"]
+    used: set[str] = set()
+    pending = list(references(paths))
+    while pending:
+        name = pending.pop()
+        if name not in used:
+            used.add(name)
+            pending.extend(references(schemas[name]))
+    public["components"] = {
+        "schemas": {name: body for name, body in schemas.items() if name in used},
+        "securitySchemes": {"token": SECURITY_SCHEMES["token"]},
+    }
+    return public
+
+
 class DocumentedApi(FastAPI):
-    """The application, whose `openapi()` is the document of ADR 0021: served at
-    `/api/v1/openapi.json` and `/api/docs` to the session of an administrator, written to
-    docs/openapi.json. Its routers come through `include`, which keeps who may call each
-    operation."""
+    """The application, whose `openapi()` is the document of ADR 0021, written to
+    docs/openapi.json, and `public_openapi()` its part for the access tokens, served at
+    `/api/v1/openapi.json` and shown by `/api/docs`. Its routers come through `include`, which
+    keeps who may call each operation."""
 
     def __init__(self, **options: Any) -> None:
         super().__init__(**options)
         self.accesses: dict[tuple[str, str], Access] = {}
+        self.public_schema: dict[str, Any] | None = None
 
     def include(
         self, router: APIRouter, *, prefix: str = "", guard: Callable[..., Any] | None = None
@@ -148,48 +217,7 @@ class DocumentedApi(FastAPI):
             self.openapi_schema = describe(super().openapi(), self.accesses)
         return self.openapi_schema
 
-
-def json_block(value: object) -> str:
-    return f"<pre>{html.escape(json.dumps(value, indent=2, ensure_ascii=False))}</pre>"
-
-
-def docs_page(schema: dict[str, Any]) -> str:
-    """The page of the document: every operation, its access, its body and its answers, then
-    the schemas; plain HTML, no script nor style (the policy of the API loads nothing)."""
-    info = schema["info"]
-    parts = [
-        "<!doctype html>",
-        '<html lang="en"><head><meta charset="utf-8">',
-        f"<title>{html.escape(info['title'])} API {html.escape(info['version'])}</title>",
-        '<meta name="robots" content="noindex"></head><body>',
-        f"<h1>{html.escape(info['title'])} API {html.escape(info['version'])}</h1>",
-        f"<p>{html.escape(info['description'])}</p>",
-        '<p><a href="v1/openapi.json">OpenAPI document (JSON)</a></p>',
-        "<h2>Authentication</h2>",
-    ]
-    for name, scheme in schema["components"]["securitySchemes"].items():
-        parts.append(f"<p><b>{html.escape(name)}</b>: {html.escape(scheme['description'])}</p>")
-    parts.append("<h2>Operations</h2>")
-    for path, operations in schema["paths"].items():
-        for method, operation in operations.items():
-            title = f"{method.upper()} {path}"
-            parts.append(
-                f'<h3 id="{html.escape(operation["operationId"])}">{html.escape(title)}</h3>'
-            )
-            parts.append(f"<p>Access: <b>{html.escape(operation['x-access'])}</b></p>")
-            if "description" in operation:
-                parts.append(f"<p>{html.escape(operation['description'])}</p>")
-            if "parameters" in operation:
-                parts.append("<details><summary>Parameters</summary>")
-                parts.append(json_block(operation["parameters"]) + "</details>")
-            if "requestBody" in operation:
-                parts.append("<details><summary>Request body</summary>")
-                parts.append(json_block(operation["requestBody"]) + "</details>")
-            parts.append("<details><summary>Responses</summary>")
-            parts.append(json_block(operation["responses"]) + "</details>")
-    parts.append("<h2>Schemas</h2>")
-    for name, body in schema["components"]["schemas"].items():
-        parts.append(f'<details id="{html.escape(name)}"><summary>{html.escape(name)}</summary>')
-        parts.append(json_block(body) + "</details>")
-    parts.append("</body></html>")
-    return "\n".join(parts) + "\n"
+    def public_openapi(self) -> dict[str, Any]:
+        if self.public_schema is None:
+            self.public_schema = public_document(self.openapi())
+        return self.public_schema

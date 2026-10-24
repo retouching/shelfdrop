@@ -18,7 +18,7 @@ The session alone. `GET`: the tokens not revoked, the newest first, never a secr
 `GET`: `200 {"username": "Sylvain"}`, the account of the session. `DELETE`: `204`, the session ends here and in Jellyfin, and the cookie is cleared.
 
 ## OpenAPI
-The document of every route, with the access each needs (`x-access`: `public`, `session`, `read`, `write`), its bodies and examples, and the error body ([ADR 0021](adr/0021-openapi.md)): [docs/openapi.json](openapi.json) in the repository, `GET /api/v1/openapi.json` and the page `GET /api/docs` for the session of an administrator (a token gets `403 token_forbidden`).
+The public document: the routes an access token reaches, with the scope each needs (`x-access`: `read`, `write`), its bodies and examples, and the error body ([ADR 0021](adr/0021-openapi.md)): [docs/openapi.public.json](openapi.public.json) in the repository, `GET /api/v1/openapi.json` and the page `GET /api/docs` (Swagger UI: an operation is tried there with a token, by Authorize) for a session or any token (`401 not_signed_in` without one). The routes of the session (the sign-in, the settings, the trackers, the filters, the tokens) are not in it; [docs/openapi.json](openapi.json), in the repository alone, documents every route, with `public` and `session` too.
 
 ## MCP server
 `POST /mcp`: the MCP server ([ADR 0022](adr/0022-mcp-server.md)), Streamable HTTP, stateless, JSON answers, with `Authorization: Bearer <token>` (without one, or one refused: `401 not_signed_in` and `WWW-Authenticate: Bearer`; past 60 requests a minute: `429 too_many_requests`). Its tools answer the schemas of the routes they mirror:
@@ -38,7 +38,7 @@ A refusal is a tool error whose text starts with the code of the API (`token_for
 ## Responses
 Every response carries `X-Request-ID`: the value the request sent, when it is 1 to 128 characters among `A-Z a-z 0-9 . _ -`, otherwise a new one. The same id is in every log record of the request.
 
-The answers of the API (`/api/...` and `/health`) carry `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. The pages carry the same headers but `Cache-Control`, and a policy that lets them load their scripts, styles and fonts from the same origin and their images from any HTTPS origin (the covers).
+The answers of the API (`/api/...` and `/health`) carry `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. The pages carry the same headers but `Cache-Control`, and a policy that lets them load their scripts, styles and fonts from the same origin and their images from any HTTPS origin (the covers). The page `/api/docs` keeps `Cache-Control: no-store`, with a policy of its own: its scripts, its styles and its requests to the same origin, its images there or in `data:`, nothing inline.
 
 ## Errors
 Every error body is:

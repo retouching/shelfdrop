@@ -26,7 +26,7 @@ Without Docker: `uv sync`, `uv run shelfdrop db upgrade`, `uv run uvicorn --fact
 ## Documentation
 - [Installation](docs/installation.md): the image, the database, the reverse proxy, the upgrades.
 - [Configuration](docs/configuration.md): every `SHELFDROP_*` variable.
-- [API](docs/api.md): the routes, their answers and the error codes, the access tokens, the MCP server; [OpenAPI](docs/openapi.json).
+- [API](docs/api.md): the routes, their answers and the error codes, the access tokens, the MCP server; [OpenAPI](docs/openapi.public.json).
 - [Hermes](docs/hermes.md): the MCP server from the side of Hermes, its configuration.
 - [How it works](docs/how-it-works.md): a request, a work search, the cache.
 - [Development](docs/development.md): the module map, the layers, the tests.

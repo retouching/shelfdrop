@@ -1,0 +1,4 @@
+# The install script of @scarf/scarf (a dependency of swagger-ui-dist) only reports the install
+# to its authors: it never runs.
+allowBuilds:
+  "@scarf/scarf": false

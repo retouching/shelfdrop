@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F33.
+Next fact ID: F39.
 
 ## Metadata sources
 
@@ -208,6 +208,13 @@ Next fact ID: F33.
   - Evidence: `fastapi/routing.py` 0.157.0 (`_IncludedRouter`), and `app.routes` of `build_app()` listing `_IncludedRouter` objects on 2026-10-22.
   - Pinned by: `tests/unit/http/test_openapi.py::test_each_operation_names_who_may_call_it`
   - Re-verify: on version change.
+
+### swagger-ui-dist 5.34.0 (web/pnpm-lock.yaml)
+
+- **F38** `swagger-ui-es-bundle.js` (Swagger UI with its React, one CommonJS module) creates no `<style>` element, calls neither `setAttribute("style", ...)` nor `insertRule`, and reaches `Function("return this")` only when `globalThis` is missing; `swagger-ui.css` loads no font nor `@import`, its images are `data:` URIs. `/api/docs` runs it under `script-src 'self'; style-src 'self'; img-src 'self' data:` without `unsafe-inline` nor `unsafe-eval` (ADR 0021). Its `validatorUrl` defaults to `https://validator.swagger.io/validator`, set to `null` by `web/src/docs.ts`. `index.js` of the package requires `path` (Node), so `web/src/docs.ts` imports the bundle itself.
+  - Evidence: the files of the package and the build of `web/` read on 2026-10-24 (searches for `createElement("style")`, `cssText`, `insertRule`, `new Function`, `eval(`, `@import`, `url(`). Not yet observed in a browser: the console of `/api/docs` under its policy is to be read once.
+  - Pinned by: `tests/integration/test_openapi.py::test_the_page_is_swagger_ui_from_the_same_origin` (the policy and the page, not the behaviour of the bundle in a browser)
+  - Re-verify: on version change, and in a browser.
 
 ### docker compose 2.26 and later
 

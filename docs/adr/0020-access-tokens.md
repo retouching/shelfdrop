@@ -10,7 +10,7 @@ Decided by the user on 2026-10-21 (plan section 3 quater): a program (Hermes, fi
 - **The header**: `Authorization: Bearer <secret>`. A request that carries it is judged by its token alone, the cookie never read (`shelfdrop/http/dependencies.py`). A token refused, whatever is wrong with it (unknown, expired, revoked, another scheme), gets the `401 not_signed_in` of a request without a session; the 61st request of a minute gets `429 too_many_requests` (`TokenThrottle`, in memory: one process).
 - **What a token reaches** (`build_app()`):
   - the settings, the trackers, the filters, the tokens and the session: never (`require_session`, `403 token_forbidden`), even with a cookie next to the token;
-  - the searches of releases and the torrent of a release (`require_reader`): every token, a search reads;
+  - the searches of releases, the torrent of a release, and the public OpenAPI document and its page (`require_reader`, [ADR 0021](0021-openapi.md)): every token, a search reads;
   - the works, the downloads, the page Jellyfin, the waiting searches, Ranger and the uploads (`require_access`): every token for a `GET`, a `write` token for a write, else `403 token_forbidden`.
 - **The origin**: a write with an `Authorization` header needs no `Origin` (`OriginMiddleware`): no page of another site can set that header without CORS, which the API never grants, and the cookie is then not read; a write with the cookie alone still needs the `Origin` of its host (ADR 0013).
 - **The author**: what a token does is done under its name (`Account(user_id="token:<id>", username=<name>)`): the downloads it sends, the journal.

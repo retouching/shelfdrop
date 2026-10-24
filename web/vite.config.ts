@@ -10,5 +10,14 @@ export default defineConfig({
     // Aucun module de préchargement inline : la CSP n'autorise que 'self'.
     modulePreload: { polyfill: false },
     assetsInlineLimit: 0,
+    // Swagger UI tient en un seul module de 1,7 Mo, chargé par /api/docs seule.
+    chunkSizeWarningLimit: 2000,
+    // Deux pages : le front-end, et Swagger UI pour /api/docs (servie par l'API, ADR 0021).
+    rolldownOptions: {
+      input: {
+        main: "index.html",
+        swagger: "swagger/index.html",
+      },
+    },
   },
 });

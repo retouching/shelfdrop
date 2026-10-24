@@ -1,0 +1,4564 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "shelfdrop",
+    "version": "0.10.1",
+    "description": "The API of shelfdrop for a program: the work search, the releases of Prowlarr, the downloads, Ranger, the waiting searches. Every request sends an access token created on the page Paramètres, API et MCP: `Authorization: Bearer sd_...`. Each operation names the scope it needs in `x-access`: `read` (any token) or `write` (a token `write`). Every error body is `{\"code\", \"detail\", \"data\"}`; the codes are listed in the schema `ErrorCode`."
+  },
+  "paths": {
+    "/api/v1/searches": {
+      "post": {
+        "tags": [
+          "searches"
+        ],
+        "summary": "Start Search",
+        "operationId": "start_search_api_v1_searches_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchProgressRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/searches/{search_id}": {
+      "get": {
+        "tags": [
+          "searches"
+        ],
+        "summary": "Read Search",
+        "operationId": "read_search_api_v1_searches__search_id__get",
+        "parameters": [
+          {
+            "name": "search_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Search Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseSearchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/searches/{search_id}/events": {
+      "get": {
+        "tags": [
+          "searches"
+        ],
+        "summary": "Follow Search",
+        "description": "The progress at each change, as `progress` events, then an `end` event.",
+        "operationId": "follow_search_api_v1_searches__search_id__events_get",
+        "parameters": [
+          {
+            "name": "search_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Search Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/releases/{release_id}/torrent": {
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Read Torrent",
+        "description": "The `.torrent` file of a release of a search kept, or a redirect to its magnet link.",
+        "operationId": "read_torrent_api_v1_releases__release_id__torrent_get",
+        "parameters": [
+          {
+            "name": "release_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Release Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/works": {
+      "get": {
+        "tags": [
+          "works"
+        ],
+        "summary": "Search Works",
+        "operationId": "search_works_api_v1_works_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "manga",
+                "ebook",
+                "audiobook"
+              ],
+              "type": "string",
+              "default": "manga",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkSearchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/works/merges": {
+      "post": {
+        "tags": [
+          "works"
+        ],
+        "summary": "Merge Works",
+        "operationId": "merge_works_api_v1_works_merges_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkMergeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkMergeRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/works/merges/{merge_id}": {
+      "delete": {
+        "tags": [
+          "works"
+        ],
+        "summary": "Split Works",
+        "operationId": "split_works_api_v1_works_merges__merge_id__delete",
+        "parameters": [
+          {
+            "name": "merge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Merge Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/works/{work_id}": {
+      "get": {
+        "tags": [
+          "works"
+        ],
+        "summary": "Read Work",
+        "operationId": "read_work_api_v1_works__work_id__get",
+        "parameters": [
+          {
+            "name": "work_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Work Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/downloads": {
+      "get": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Read Downloads",
+        "operationId": "read_downloads_api_v1_downloads_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadsRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Send Downloads",
+        "operationId": "send_downloads_api_v1_downloads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DownloadsCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/downloads/{download_id}/retry": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Retry Download",
+        "operationId": "retry_download_api_v1_downloads__download_id__retry_post",
+        "parameters": [
+          {
+            "name": "download_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Download Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/series": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read Series",
+        "operationId": "read_series_api_v1_library_series_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/series/{series_id}/proposals": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read Proposals",
+        "operationId": "read_proposals_api_v1_library_series__series_id__proposals_get",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/series/{series_id}": {
+      "put": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Change Series",
+        "operationId": "change_series_api_v1_library_series__series_id__put",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeriesChangeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/items/{item_id}/image": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read Image",
+        "description": "The image Jellyfin holds for a series or a volume, for the page (the session of the\npage is asked; Jellyfin is not reachable from the browser).",
+        "operationId": "read_image_api_v1_library_items__item_id__image_get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 50,
+              "default": 400,
+              "title": "Width"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/summaries": {
+      "post": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Fill Summaries",
+        "operationId": "fill_summaries_api_v1_library_summaries_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummariesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilledRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/scan": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read Scan",
+        "operationId": "read_scan_api_v1_library_scan_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Scan",
+        "operationId": "scan_api_v1_library_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/waiting": {
+      "get": {
+        "tags": [
+          "waiting"
+        ],
+        "summary": "Read Waiting",
+        "operationId": "read_waiting_api_v1_waiting_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitingsRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "waiting"
+        ],
+        "summary": "Add Waiting",
+        "operationId": "add_waiting_api_v1_waiting_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitingAdded"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/waiting/{waiting_id}/search": {
+      "post": {
+        "tags": [
+          "waiting"
+        ],
+        "summary": "Search Now",
+        "operationId": "search_now_api_v1_waiting__waiting_id__search_post",
+        "parameters": [
+          {
+            "name": "waiting_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Waiting Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitingRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/waiting/{waiting_id}": {
+      "delete": {
+        "tags": [
+          "waiting"
+        ],
+        "summary": "Remove Waiting",
+        "operationId": "remove_waiting_api_v1_waiting__waiting_id__delete",
+        "parameters": [
+          {
+            "name": "waiting_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Waiting Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/waiting/owned": {
+      "get": {
+        "tags": [
+          "waiting"
+        ],
+        "summary": "Read Owned",
+        "operationId": "read_owned_api_v1_waiting_owned_get",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "manga",
+                "ebook",
+                "audiobook"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "title",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "title": "Title"
+            }
+          },
+          {
+            "name": "work_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Work Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnedRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/place/items": {
+      "get": {
+        "tags": [
+          "place"
+        ],
+        "summary": "Read Items",
+        "operationId": "read_items_api_v1_place_items_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/place/items/{item_id}/link": {
+      "post": {
+        "tags": [
+          "place"
+        ],
+        "summary": "Link Item",
+        "operationId": "link_item_api_v1_place_items__item_id__link_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/VolumeBody"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChapterBody"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChaptersBody"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "volume": "#/components/schemas/VolumeBody",
+                    "chapter": "#/components/schemas/ChapterBody",
+                    "chapters": "#/components/schemas/ChaptersBody"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/place/shelf/{file_id}/link": {
+      "post": {
+        "tags": [
+          "place"
+        ],
+        "summary": "Relink File",
+        "operationId": "relink_file_api_v1_place_shelf__file_id__link_post",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/place/scan": {
+      "post": {
+        "tags": [
+          "place"
+        ],
+        "summary": "Scan",
+        "operationId": "scan_api_v1_place_scan_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Start Upload",
+        "operationId": "start_upload_api_v1_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/uploads/{upload_id}/chunks/{index}": {
+      "put": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Receive Chunk",
+        "operationId": "receive_chunk_api_v1_uploads__upload_id__chunks__index__put",
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Upload Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "contentMediaType": "application/octet-stream",
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/uploads/{upload_id}/finish": {
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Finish Upload",
+        "operationId": "finish_upload_api_v1_uploads__upload_id__finish_post",
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Upload Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadFinish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Chapter": {
+        "type": "number",
+        "maximum": 99999.0,
+        "minimum": 0.0
+      },
+      "ChapterBody": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "chapter",
+            "title": "Type"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/shelfdrop__modules__place__schemas__ShortText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "author": {
+            "$ref": "#/components/schemas/shelfdrop__modules__place__schemas__ShortText",
+            "default": ""
+          },
+          "first": {
+            "$ref": "#/components/schemas/Chapter"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Chapter"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Volume"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "series",
+          "first"
+        ],
+        "title": "ChapterBody",
+        "description": "One file of chapters of a manga, `first` to `last`, in a volume or in none."
+      },
+      "ChaptersBody": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "chapters",
+            "title": "Type"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/shelfdrop__modules__place__schemas__ShortText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "author": {
+            "$ref": "#/components/schemas/shelfdrop__modules__place__schemas__ShortText",
+            "default": ""
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Summary",
+            "default": ""
+          },
+          "volumes": {
+            "items": {
+              "$ref": "#/components/schemas/VolumeRangeBody"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Volumes"
+          },
+          "rest": {
+            "$ref": "#/components/schemas/Rest",
+            "default": "keep"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "series",
+          "volumes"
+        ],
+        "title": "ChaptersBody",
+        "description": "A release in chapters linked to its volumes; the rest placed without a volume, or kept."
+      },
+      "DownloadMode": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "manual"
+        ]
+      },
+      "DownloadRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "indexer": {
+            "type": "string",
+            "title": "Indexer"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "info_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Hash"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/DownloadMode"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Id"
+          },
+          "work_name": {
+            "type": "string",
+            "title": "Work Name"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "series": {
+            "type": "string",
+            "title": "Series"
+          },
+          "volumes": {
+            "$ref": "#/components/schemas/VolumesBody"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ProgressRead"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "indexer",
+          "size",
+          "info_hash",
+          "mode",
+          "kind",
+          "category",
+          "work_id",
+          "work_name",
+          "author",
+          "series",
+          "volumes",
+          "progress",
+          "attempts",
+          "created_at",
+          "created_by"
+        ],
+        "title": "DownloadRead"
+      },
+      "DownloadsCreate": {
+        "properties": {
+          "search_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Search Id"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/shelfdrop__modules__downloads__schemas__ShortText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/shelfdrop__modules__downloads__schemas__ShortText",
+            "default": ""
+          },
+          "series": {
+            "$ref": "#/components/schemas/shelfdrop__modules__downloads__schemas__ShortText",
+            "default": ""
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseChoice"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Releases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "search_id",
+          "releases"
+        ],
+        "title": "DownloadsCreate",
+        "examples": [
+          {
+            "author": "Tatsuki Fujimoto",
+            "releases": [
+              {
+                "id": "0123456789abcdef",
+                "volumes": {
+                  "first": 1,
+                  "kind": "range",
+                  "last": 11
+                }
+              }
+            ],
+            "search_id": "3f2a9c1e0b7d4a58",
+            "series": "Chainsaw Man",
+            "work_id": "mangaupdates:57785063400"
+          }
+        ]
+      },
+      "DownloadsRead": {
+        "properties": {
+          "downloads": {
+            "items": {
+              "$ref": "#/components/schemas/DownloadRead"
+            },
+            "type": "array",
+            "title": "Downloads"
+          }
+        },
+        "type": "object",
+        "required": [
+          "downloads"
+        ],
+        "title": "DownloadsRead"
+      },
+      "Failure": {
+        "type": "string",
+        "enum": [
+          "not_received",
+          "duplicate"
+        ]
+      },
+      "FilledRead": {
+        "properties": {
+          "series": {
+            "type": "integer",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "series"
+        ],
+        "title": "FilledRead"
+      },
+      "Form": {
+        "type": "string",
+        "enum": [
+          "manga",
+          "novel",
+          "anthology",
+          "doujinshi",
+          "oneshot",
+          "other"
+        ]
+      },
+      "ImageBody": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "item",
+              "url",
+              "data"
+            ],
+            "title": "Kind"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "pattern": "^https?://"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 7340032
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "ImageBody"
+      },
+      "ItemOrigin": {
+        "type": "string",
+        "enum": [
+          "download",
+          "library",
+          "upload"
+        ]
+      },
+      "ItemRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ItemOrigin"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Kind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItemState"
+              },
+              {
+                "type": "string",
+                "const": "placing"
+              }
+            ],
+            "title": "State"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
+          "chapters": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Chapters"
+          },
+          "existing": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Existing"
+          },
+          "loose": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Loose"
+          },
+          "series": {
+            "type": "string",
+            "title": "Series"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "origin",
+          "kind",
+          "name",
+          "path",
+          "size",
+          "state",
+          "reason",
+          "error",
+          "destination",
+          "chapters",
+          "existing",
+          "loose",
+          "series",
+          "author",
+          "work_id"
+        ],
+        "title": "ItemRead"
+      },
+      "ItemState": {
+        "type": "string",
+        "enum": [
+          "unlinked",
+          "chapters",
+          "misplaced",
+          "placed"
+        ]
+      },
+      "ItemsRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "open"
+        ],
+        "title": "ItemsRead"
+      },
+      "Kind": {
+        "type": "string",
+        "enum": [
+          "manga",
+          "ebook",
+          "audiobook"
+        ]
+      },
+      "LibraryRead": {
+        "properties": {
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesRead"
+            },
+            "type": "array",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "series"
+        ],
+        "title": "LibraryRead"
+      },
+      "Name": {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+      },
+      "NameProgressRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "state": {
+            "$ref": "#/components/schemas/NameState"
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "state",
+          "found"
+        ],
+        "title": "NameProgressRead"
+      },
+      "NameRead": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "checked": {
+            "type": "boolean",
+            "title": "Checked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "language",
+          "checked"
+        ],
+        "title": "NameRead"
+      },
+      "NameState": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed"
+        ]
+      },
+      "OwnedRead": {
+        "properties": {
+          "volumes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Volumes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "volumes"
+        ],
+        "title": "OwnedRead"
+      },
+      "ProgressRead": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/Shown"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "eta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Failure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
+          "unplaced": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unplaced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "percent",
+          "speed",
+          "eta",
+          "reason",
+          "destination",
+          "unplaced"
+        ],
+        "title": "ProgressRead"
+      },
+      "ProposalsRead": {
+        "properties": {
+          "volumes": {
+            "items": {
+              "$ref": "#/components/schemas/VolumeImageRead"
+            },
+            "type": "array",
+            "title": "Volumes"
+          },
+          "covers": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCoverRead"
+            },
+            "type": "array",
+            "title": "Covers"
+          },
+          "summaries": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSummaryRead"
+            },
+            "type": "array",
+            "title": "Summaries"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "volumes",
+          "covers",
+          "summaries",
+          "work_id"
+        ],
+        "title": "ProposalsRead"
+      },
+      "Rejection": {
+        "type": "string",
+        "enum": [
+          "relevance",
+          "score"
+        ]
+      },
+      "ReleaseChoice": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Id"
+          },
+          "volumes": {
+            "$ref": "#/components/schemas/VolumesBody"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "volumes"
+        ],
+        "title": "ReleaseChoice"
+      },
+      "ReleaseRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "matched_name": {
+            "type": "string",
+            "title": "Matched Name"
+          },
+          "indexer_id": {
+            "type": "integer",
+            "title": "Indexer Id"
+          },
+          "indexer": {
+            "type": "string",
+            "title": "Indexer"
+          },
+          "indexer_rank": {
+            "type": "integer",
+            "title": "Indexer Rank"
+          },
+          "info_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Url"
+          },
+          "info_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Hash"
+          },
+          "seeders": {
+            "type": "integer",
+            "title": "Seeders"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "volumes": {
+            "$ref": "#/components/schemas/VolumesRead"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "score_rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleMatchRead"
+            },
+            "type": "array",
+            "title": "Score Rules"
+          },
+          "rejected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Rejection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "automatic": {
+            "type": "boolean",
+            "title": "Automatic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "matched_name",
+          "indexer_id",
+          "indexer",
+          "indexer_rank",
+          "info_url",
+          "info_hash",
+          "seeders",
+          "size",
+          "volumes",
+          "score",
+          "score_rules",
+          "rejected",
+          "automatic"
+        ],
+        "title": "ReleaseRead"
+      },
+      "ReleaseSearchRead": {
+        "properties": {
+          "progress": {
+            "$ref": "#/components/schemas/SearchProgressRead"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseRead"
+            },
+            "type": "array",
+            "title": "Releases"
+          },
+          "minimum": {
+            "type": "integer",
+            "title": "Minimum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "progress",
+          "releases",
+          "minimum"
+        ],
+        "title": "ReleaseSearchRead"
+      },
+      "Rest": {
+        "type": "string",
+        "enum": [
+          "place",
+          "keep"
+        ]
+      },
+      "RuleMatchRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "score"
+        ],
+        "title": "RuleMatchRead"
+      },
+      "ScanBody": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ScanMode"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Kind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "ScanBody"
+      },
+      "ScanMode": {
+        "type": "string",
+        "enum": [
+          "new",
+          "missing",
+          "all"
+        ]
+      },
+      "ScanRead": {
+        "properties": {
+          "progress": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Kind"
+            },
+            "type": "object",
+            "title": "Progress"
+          }
+        },
+        "type": "object",
+        "required": [
+          "progress"
+        ],
+        "title": "ScanRead"
+      },
+      "SearchCreate": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/SearchMode"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "names": {
+            "items": {
+              "$ref": "#/components/schemas/Name"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Names"
+          },
+          "refresh": {
+            "type": "boolean",
+            "title": "Refresh",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "kind",
+          "title",
+          "names"
+        ],
+        "title": "SearchCreate",
+        "examples": [
+          {
+            "kind": "manga",
+            "mode": "work",
+            "names": [
+              "Chainsaw Man",
+              "Chensō Man"
+            ],
+            "refresh": false,
+            "title": "Chainsaw Man"
+          },
+          {
+            "kind": "ebook",
+            "mode": "manual",
+            "names": [
+              "Ne cède jamais"
+            ],
+            "title": "Ne cède jamais"
+          }
+        ]
+      },
+      "SearchMode": {
+        "type": "string",
+        "enum": [
+          "work",
+          "manual"
+        ]
+      },
+      "SearchProgressRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/SearchMode"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SearchState"
+          },
+          "names": {
+            "items": {
+              "$ref": "#/components/schemas/NameProgressRead"
+            },
+            "type": "array",
+            "title": "Names"
+          },
+          "queued_ahead": {
+            "type": "integer",
+            "title": "Queued Ahead"
+          },
+          "followers": {
+            "type": "integer",
+            "title": "Followers"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "mode",
+          "kind",
+          "title",
+          "state",
+          "names",
+          "queued_ahead",
+          "followers",
+          "fetched_at"
+        ],
+        "title": "SearchProgressRead"
+      },
+      "SearchState": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed"
+        ]
+      },
+      "SeriesChangeBody": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/shelfdrop__modules__library__schemas__ShortText__2"
+          },
+          "original_title": {
+            "$ref": "#/components/schemas/shelfdrop__modules__library__schemas__ShortText__1",
+            "default": ""
+          },
+          "authors": {
+            "items": {
+              "$ref": "#/components/schemas/shelfdrop__modules__library__schemas__ShortText__1"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Authors",
+            "default": []
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/shelfdrop__modules__library__schemas__ShortText__1"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Genres",
+            "default": []
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Summary",
+            "default": ""
+          },
+          "lock": {
+            "type": "boolean",
+            "title": "Lock",
+            "default": true
+          },
+          "summary_to_volumes": {
+            "type": "boolean",
+            "title": "Summary To Volumes",
+            "default": false
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_to_series": {
+            "type": "boolean",
+            "title": "Image To Series",
+            "default": true
+          },
+          "image_to_volumes": {
+            "type": "boolean",
+            "title": "Image To Volumes",
+            "default": false
+          },
+          "save_cover": {
+            "type": "boolean",
+            "title": "Save Cover",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SeriesChangeBody"
+      },
+      "SeriesRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "original_title": {
+            "type": "string",
+            "title": "Original Title"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Genres"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "has_image": {
+            "type": "boolean",
+            "title": "Has Image"
+          },
+          "volumes": {
+            "type": "integer",
+            "title": "Volumes"
+          },
+          "volumes_without_summary": {
+            "type": "integer",
+            "title": "Volumes Without Summary"
+          },
+          "volumes_without_image": {
+            "type": "integer",
+            "title": "Volumes Without Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "original_title",
+          "authors",
+          "year",
+          "genres",
+          "summary",
+          "has_image",
+          "volumes",
+          "volumes_without_summary",
+          "volumes_without_image"
+        ],
+        "title": "SeriesRead"
+      },
+      "Shown": {
+        "type": "string",
+        "enum": [
+          "downloading",
+          "waiting",
+          "placing",
+          "placed",
+          "to_place",
+          "failed"
+        ]
+      },
+      "SourceCoverRead": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "url"
+        ],
+        "title": "SourceCoverRead"
+      },
+      "SourceName": {
+        "type": "string",
+        "enum": [
+          "mangaupdates",
+          "kitsu",
+          "myanimelist",
+          "anilist",
+          "mangadex",
+          "bnf",
+          "openlibrary",
+          "wikidata"
+        ]
+      },
+      "SourceSummaryRead": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "text"
+        ],
+        "title": "SourceSummaryRead"
+      },
+      "SummariesBody": {
+        "properties": {
+          "summaries": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "maxLength": 64
+            },
+            "type": "object",
+            "maxProperties": 500,
+            "title": "Summaries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summaries"
+        ],
+        "title": "SummariesBody"
+      },
+      "Target": {
+        "type": "string",
+        "enum": [
+          "any",
+          "volume",
+          "chapters"
+        ]
+      },
+      "UploadCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "size"
+        ],
+        "title": "UploadCreate"
+      },
+      "UploadFinish": {
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f]{64}$",
+            "title": "Sha256"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sha256"
+        ],
+        "title": "UploadFinish"
+      },
+      "UploadRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "chunk_size": {
+            "type": "integer",
+            "title": "Chunk Size"
+          },
+          "chunks": {
+            "type": "integer",
+            "title": "Chunks"
+          },
+          "received": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Received"
+          },
+          "state": {
+            "$ref": "#/components/schemas/UploadState"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "size",
+          "chunk_size",
+          "chunks",
+          "received",
+          "state"
+        ],
+        "title": "UploadRead"
+      },
+      "UploadState": {
+        "type": "string",
+        "enum": [
+          "receiving",
+          "verified",
+          "listed",
+          "corrupt",
+          "lost"
+        ]
+      },
+      "Volume": {
+        "type": "integer",
+        "maximum": 9999.0,
+        "minimum": 1.0
+      },
+      "VolumeBody": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "volume",
+            "title": "Type",
+            "default": "volume"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/shelfdrop__modules__place__schemas__ShortText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "author": {
+            "$ref": "#/components/schemas/shelfdrop__modules__place__schemas__ShortText",
+            "default": ""
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Volume"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "$ref": "#/components/schemas/shelfdrop__modules__place__schemas__ShortText",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "series"
+        ],
+        "title": "VolumeBody",
+        "description": "One volume: a manga `<Series> - TXX`, a book or an audiobook under its author."
+      },
+      "VolumeImageRead": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "label"
+        ],
+        "title": "VolumeImageRead"
+      },
+      "VolumeRangeBody": {
+        "properties": {
+          "volume": {
+            "$ref": "#/components/schemas/Volume"
+          },
+          "first": {
+            "$ref": "#/components/schemas/Chapter"
+          },
+          "last": {
+            "$ref": "#/components/schemas/Chapter"
+          },
+          "replace": {
+            "type": "boolean",
+            "title": "Replace",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "volume",
+          "first",
+          "last"
+        ],
+        "title": "VolumeRangeBody"
+      },
+      "VolumesBody": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "single",
+              "range",
+              "complete",
+              "unknown"
+            ],
+            "title": "Kind"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "VolumesBody"
+      },
+      "VolumesRead": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "single",
+              "range",
+              "complete",
+              "unknown"
+            ],
+            "title": "Kind"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "first",
+          "last"
+        ],
+        "title": "VolumesRead"
+      },
+      "WaitingAdded": {
+        "properties": {
+          "added": {
+            "items": {
+              "$ref": "#/components/schemas/WaitingRead"
+            },
+            "type": "array",
+            "title": "Added"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "added",
+          "skipped"
+        ],
+        "title": "WaitingAdded"
+      },
+      "WaitingCreate": {
+        "properties": {
+          "work_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/shelfdrop__modules__waiting__schemas__ShortText__1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "$ref": "#/components/schemas/shelfdrop__modules__waiting__schemas__ShortText__2"
+          },
+          "author": {
+            "$ref": "#/components/schemas/shelfdrop__modules__waiting__schemas__ShortText__1",
+            "default": ""
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "names": {
+            "items": {
+              "$ref": "#/components/schemas/shelfdrop__modules__waiting__schemas__ShortText__1"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Names"
+          },
+          "wanted": {
+            "items": {
+              "$ref": "#/components/schemas/WantedBody"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Wanted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "kind",
+          "names",
+          "wanted"
+        ],
+        "title": "WaitingCreate",
+        "examples": [
+          {
+            "author": "Tatsuki Fujimoto",
+            "kind": "manga",
+            "names": [
+              "Chainsaw Man"
+            ],
+            "title": "Chainsaw Man",
+            "wanted": [
+              {
+                "target": "volume",
+                "volume": 23
+              }
+            ],
+            "work_id": "mangaupdates:57785063400"
+          }
+        ]
+      },
+      "WaitingRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Names"
+          },
+          "wanted": {
+            "$ref": "#/components/schemas/WantedBody"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WaitingState"
+          },
+          "releases": {
+            "type": "integer",
+            "title": "Releases"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "searched_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Searched At"
+          },
+          "next_search_at": {
+            "type": "integer",
+            "title": "Next Search At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "work_id",
+          "title",
+          "author",
+          "kind",
+          "names",
+          "wanted",
+          "label",
+          "state",
+          "releases",
+          "attempts",
+          "created_at",
+          "created_by",
+          "searched_at",
+          "next_search_at"
+        ],
+        "title": "WaitingRead"
+      },
+      "WaitingState": {
+        "type": "string",
+        "enum": [
+          "waiting",
+          "found"
+        ]
+      },
+      "WaitingsRead": {
+        "properties": {
+          "searches": {
+            "items": {
+              "$ref": "#/components/schemas/WaitingRead"
+            },
+            "type": "array",
+            "title": "Searches"
+          },
+          "every_hours": {
+            "type": "integer",
+            "title": "Every Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "searches",
+          "every_hours"
+        ],
+        "title": "WaitingsRead"
+      },
+      "WantedBody": {
+        "properties": {
+          "target": {
+            "$ref": "#/components/schemas/Target"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          },
+          "chapter_from": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 99999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter From"
+          },
+          "chapter_to": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 99999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target"
+        ],
+        "title": "WantedBody"
+      },
+      "WorkMergeCreate": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "work_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 2,
+            "title": "Work Ids"
+          },
+          "shelf_name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Shelf Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "work_ids",
+          "shelf_name"
+        ],
+        "title": "WorkMergeCreate"
+      },
+      "WorkMergeRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys"
+          },
+          "shelf_name": {
+            "type": "string",
+            "title": "Shelf Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "family",
+          "keys",
+          "shelf_name"
+        ],
+        "title": "WorkMergeRead"
+      },
+      "WorkPartRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceName"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "authors",
+          "sources"
+        ],
+        "title": "WorkPartRead"
+      },
+      "WorkRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "shelf_name": {
+            "type": "string",
+            "title": "Shelf Name"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
+          "volumes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumes"
+          },
+          "volumes_fr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumes Fr"
+          },
+          "form": {
+            "$ref": "#/components/schemas/Form"
+          },
+          "names": {
+            "items": {
+              "$ref": "#/components/schemas/NameRead"
+            },
+            "type": "array",
+            "title": "Names"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceName"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "isbns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Isbns"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Links"
+          },
+          "merge_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merge Id"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/WorkPartRead"
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "shelf_name",
+          "authors",
+          "year",
+          "volumes",
+          "volumes_fr",
+          "form",
+          "names",
+          "sources",
+          "cover_url",
+          "isbns",
+          "links",
+          "merge_id",
+          "parts"
+        ],
+        "title": "WorkRead"
+      },
+      "WorkSearchRead": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "works": {
+            "items": {
+              "$ref": "#/components/schemas/WorkRead"
+            },
+            "type": "array",
+            "title": "Works"
+          },
+          "other_forms": {
+            "items": {
+              "$ref": "#/components/schemas/WorkRead"
+            },
+            "type": "array",
+            "title": "Other Forms"
+          },
+          "unavailable": {
+            "items": {
+              "$ref": "#/components/schemas/SourceName"
+            },
+            "type": "array",
+            "title": "Unavailable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "kind",
+          "works",
+          "other_forms",
+          "unavailable"
+        ],
+        "title": "WorkSearchRead"
+      },
+      "shelfdrop__modules__downloads__schemas__ShortText": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "shelfdrop__modules__library__schemas__ShortText__1": {
+        "type": "string",
+        "maxLength": 300
+      },
+      "shelfdrop__modules__library__schemas__ShortText__2": {
+        "type": "string",
+        "maxLength": 300,
+        "minLength": 1
+      },
+      "shelfdrop__modules__place__schemas__ShortText": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "shelfdrop__modules__waiting__schemas__ShortText__1": {
+        "type": "string",
+        "maxLength": 300
+      },
+      "shelfdrop__modules__waiting__schemas__ShortText__2": {
+        "type": "string",
+        "maxLength": 300,
+        "minLength": 1
+      },
+      "ErrorCode": {
+        "description": "Stable values clients may branch on: adding one is additive, changing one is breaking.",
+        "enum": [
+          "not_signed_in",
+          "login_refused",
+          "origin_refused",
+          "token_forbidden",
+          "token_not_found",
+          "too_many_requests",
+          "not_found",
+          "work_not_found",
+          "work_merge_not_found",
+          "work_merge_refused",
+          "search_not_found",
+          "release_not_found",
+          "download_not_found",
+          "method_not_allowed",
+          "http_error",
+          "validation_failed",
+          "query_too_short",
+          "too_many_names",
+          "invalid_settings",
+          "invalid_filter_rule",
+          "release_not_in_search",
+          "release_not_automatic",
+          "download_not_retryable",
+          "too_many_attempts",
+          "jellyfin_unavailable",
+          "series_not_found",
+          "waiting_not_found",
+          "place_item_not_found",
+          "place_item_busy",
+          "place_request_refused",
+          "upload_refused",
+          "upload_not_found",
+          "upload_done",
+          "chunk_refused",
+          "upload_corrupt",
+          "image_refused",
+          "prowlarr_unavailable",
+          "sources_unavailable",
+          "internal_error"
+        ],
+        "title": "ErrorCode",
+        "type": "string"
+      },
+      "ErrorResponse": {
+        "description": "Body of every error response; `data` holds structured details or null.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "required": [
+          "code",
+          "detail",
+          "data"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "token": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An access token (`sd_...`) created on the page Paramètres, API et MCP. `read` reads; `write` also downloads, places files and keeps searches waiting. 60 requests a minute; never the settings nor the tokens. No `Origin` needed."
+      }
+    }
+  }
+}

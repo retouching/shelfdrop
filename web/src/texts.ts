@@ -387,7 +387,7 @@ export const texts = {
     mcp: "Serveur MCP",
     mcpTools: "Outils",
     api: "API REST",
-    apiLead: "Documentation :",
+    apiLead: "Documentation des routes ouvertes aux jetons :",
   },
   place: {
     dropTitle: "Envoi de fichiers",
