@@ -18,6 +18,9 @@ API = "https://openlibrary.org/search.json"
 COVERS = "https://covers.openlibrary.org/b/id/{}-M.jpg"
 EDITIONS = "https://openlibrary.org/works/{}/editions.json"
 FRENCH_LOOKUPS = 3
+# The French editions are looked for this long at most: past it, the works come without them
+# rather than the whole source missing the search.
+FRENCH_LOOKUP_SECONDS = 3.0
 FIELDS = ",".join(
     [
         "key",
@@ -74,10 +77,11 @@ class OpenLibraryClient:
                     french[work_key] = entry
                     return
 
-        async with anyio.create_task_group() as group:
-            for doc in docs[:FRENCH_LOOKUPS]:
-                if not self.french_edition(doc):
-                    group.start_soon(lookup, str(doc["key"]))
+        with anyio.move_on_after(FRENCH_LOOKUP_SECONDS):
+            async with anyio.create_task_group() as group:
+                for doc in docs[:FRENCH_LOOKUPS]:
+                    if not self.french_edition(doc):
+                        group.start_soon(lookup, str(doc["key"]))
         return [self.candidate_of(doc, french.get(str(doc["key"]))) for doc in docs]
 
     @staticmethod

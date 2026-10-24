@@ -15,7 +15,7 @@ from shelfdrop.works.exceptions import (
     SourceError,
     WorkNotFoundError,
 )
-from shelfdrop.works.flights import SearchFlights
+from shelfdrop.works.flights import SearchFlights, SourceHealth
 from shelfdrop.works.service import WorkSources
 from shelfdrop.works.types import Candidate, Family, Name, SearchOptions, SourceName, WorkSearch
 from tests.unit.settings.support import FakeSettingsReader
@@ -152,12 +152,38 @@ async def test_a_failed_source_rests_then_is_asked_again() -> None:
 
     first = await service.search("Berserk", "manga")
     second = await service.search("Monster", "manga")
+    third = await service.search("Akira", "manga")
     clock.at += SearchOptions().source_rest_seconds + 1
     await service.search("Pluto", "manga")
 
-    assert first.unavailable == ("mangadex",)
-    assert second.unavailable == ("mangadex",)
-    assert down.searches == 2
+    # Asked twice: one failure alone does not leave it out; the second one makes it rest.
+    assert (first.unavailable, second.unavailable, third.unavailable) == (
+        ("mangadex",),
+        ("mangadex",),
+        ("mangadex",),
+    )
+    assert down.searches == 3
+
+
+@pytest.mark.anyio
+async def test_a_retry_asks_a_resting_source_and_an_answer_clears_its_failures() -> None:
+    down = CountingClient("mangadex", fails=True)
+    service = new_service(
+        WorkSources(clients=(CountingClient("kitsu"), down)),
+        repository=FakeWorkRepository(),
+        clock=FixedClock(),
+    )
+    await service.search("Berserk", "manga")
+    await service.search("Monster", "manga")
+
+    await service.search("Akira", "manga", retry=True)
+
+    assert down.searches == 3
+    health = SourceHealth()
+    health.failed("bnf", 100.0, 2)
+    health.answered("bnf")
+    health.failed("bnf", 100.0, 2)
+    assert not health.is_down("bnf", 50.0)
 
 
 @pytest.mark.anyio

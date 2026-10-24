@@ -99,7 +99,7 @@ The search of a work in every metadata source of its family at once.
 - `names`: every name of the work; `checked` names are the ones searched in the indexers by default: French, English and romaji names, and the title of the work. `language` is `fr`, `en`, `ja-ro` (romaji), `ja`, `pl`, `tr`... given by a source or told by the name itself, or `latin` when neither says: such a name is shown, unchecked.
 - `volumes`: the volumes of the original edition; `volumes_fr`: those published in France.
 - `form`: `manga`, `novel`, `anthology`, `doujinshi`, `oneshot` or `other`.
-- `unavailable`: the sources that did not answer; the works come from the others.
+- `unavailable`: the sources that did not answer; the works come from the others. `?retry=true` asks the sources resting after two failures in a row too (the page shows `unavailable` with a button Réessayer).
 - `merge_id`, `parts`: a work the page joined from several by hand (`POST /api/v1/works/merges`) has the id of its merge and the works it joined, as the search found them alone (`{"id", "title", "authors", "sources"}`); `null` and `[]` otherwise.
 
 Errors: `422 query_too_short`, `422 validation_failed`, `503 sources_unavailable` (no source of the family answered).

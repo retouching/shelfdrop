@@ -128,9 +128,10 @@ class WorkSearch:
 @dataclass(frozen=True, kw_only=True)
 class SearchOptions:
     # A source that has not answered after this many seconds is left out of the search.
-    source_timeout_seconds: float = 5.0
-    # A source that failed is skipped for this many seconds.
-    source_rest_seconds: int = 300
+    source_timeout_seconds: float = 10.0
+    # A source that failed this many times in a row is skipped for `source_rest_seconds`.
+    failures_to_rest: int = 2
+    source_rest_seconds: int = 60
     # A work returned by a search can be read by its id for this many seconds.
     work_seconds: int = 7 * 24 * 3600
 

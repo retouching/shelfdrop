@@ -56,7 +56,7 @@ A request with `Authorization: Bearer <secret>` is judged by its token alone ([A
 3. **The sources.** A manga search asks MangaUpdates, Kitsu, MyAnimeList (its official API, only with its Client ID), AniList and MangaDex; a book search asks Open Library and Wikidata; the BnF answers both; a source switched off in the settings is not asked. They are asked at once:
    - an answer of the last 24 hours (the setting `search.work_cache_hours`) is read from the cache instead;
    - a source that failed in the last 5 minutes is skipped;
-   - a source that has not answered after 5 seconds, or answers an error, is left out, named in `unavailable` and rests 5 minutes.
+   - a source that has not answered after 10 seconds, or answers an error, is left out and named in `unavailable`; after two failures in a row it rests a minute (`SHELFDROP_SOURCE_REST_SECONDS`), unless the search is asked again with `retry` (the button Réessayer of the page). Open Library looks for the French editions 3 seconds at most: past it, its works come without them.
    When every source of the family is left out, the search fails (`sources_unavailable`).
    After the merge, the BnF is asked again for the 3 best works it did not find, under a name of each (French, else romaji, else English, never the text already asked): "Battle Angel Alita" finds Gunnm at the other sources, and "Gunnm" its French edition at the BnF. These answers are cached the same way.
 4. **The merge** (`shelfdrop.works.merge`). Every source gives candidates; the candidates that share an id (a source and its id, or the id another source gives: Kitsu, AniList and MangaDex give the MyAnimeList id) or an ISBN make a group. Two groups are then the same work when:

@@ -93,9 +93,9 @@ class WorkService:
         self.clock = clock
         self.settings = settings
 
-    async def search(self, query: str, kind: Kind) -> WorkSearch:
-        """Every source of the family of `kind` at once. Raises QueryTooShortError, and
-        NoSourceAnsweredError when every source failed."""
+    async def search(self, query: str, kind: Kind, *, retry: bool = False) -> WorkSearch:
+        """Every source of the family of `kind` at once; with `retry`, the resting ones too.
+        Raises QueryTooShortError, and NoSourceAnsweredError when every source failed."""
         query = " ".join(query.split())
         if len(normalize(query).replace(" ", "")) < MIN_QUERY_LENGTH:
             raise QueryTooShortError
@@ -105,7 +105,7 @@ class WorkService:
             return await asyncio.shield(running)
         future = self.flights.start(key)
         try:
-            result = await self.run_search(query, kind)
+            result = await self.run_search(query, kind, retry=retry)
         except BaseException as exc:
             future.set_exception(exc)
             future.exception()  # retrieved: the requests that joined raise it themselves
@@ -115,7 +115,7 @@ class WorkService:
         future.set_result(result)
         return result
 
-    async def run_search(self, query: str, kind: Kind) -> WorkSearch:
+    async def run_search(self, query: str, kind: Kind, *, retry: bool = False) -> WorkSearch:
         family = family_of(kind)
         enabled = await self.settings.enabled_sources()
         clients = [
@@ -125,7 +125,7 @@ class WorkService:
         ]
         now = self.clock.now()
         unavailable: list[SourceName] = []
-        answers = await self.ask(clients, query, family, now, unavailable)
+        answers = await self.ask(clients, query, family, now, unavailable, retry=retry)
         if clients and len(unavailable) == len(clients):
             raise NoSourceAnsweredError
         merges = await anyio.to_thread.run_sync(self.repository.read_merges, family)
@@ -163,9 +163,13 @@ class WorkService:
         family: Family,
         now: float,
         unavailable: list[SourceName],
+        *,
+        retry: bool = False,
     ) -> dict[tuple[SourceName, str], Answer]:
         """The answers of `clients` to `query`, by source and cache key: the cache first, then
-        every other source at once. A source that fails is added to `unavailable`."""
+        every other source at once, but those resting after failures (unless `retry`). A
+        source that fails is added to `unavailable`; it rests after
+        `SearchOptions.failures_to_rest` failures in a row."""
         cache_key = f"{family}|{normalize(query)}"
         cached = await anyio.to_thread.run_sync(
             self.repository.read_answers, [client.name for client in clients], cache_key, int(now)
@@ -176,7 +180,7 @@ class WorkService:
         }
 
         async def ask_one(client: MetadataClient) -> None:
-            if self.health.is_down(client.name, now):
+            if not retry and self.health.is_down(client.name, now):
                 unavailable.append(client.name)
                 return
             try:
@@ -187,9 +191,14 @@ class WorkService:
                     "Metadata source unavailable",
                     extra={"source": client.name, "error": type(exc).__name__},
                 )
-                self.health.failed(client.name, now + self.options.source_rest_seconds)
+                self.health.failed(
+                    client.name,
+                    now + self.options.source_rest_seconds,
+                    self.options.failures_to_rest,
+                )
                 unavailable.append(client.name)
                 return
+            self.health.answered(client.name)
             answers[client.name, cache_key] = Answer(candidates=found, fresh=True)
 
         async with anyio.create_task_group() as group:

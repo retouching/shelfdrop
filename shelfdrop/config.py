@@ -106,8 +106,8 @@ class Settings(BaseSettings):
     # Every request to a metadata source goes to this origin instead, its own origin in the
     # header X-Original-Origin: the fake sources of the test stack answer it.
     sources_origin: str | None = Field(default=None, pattern=r"^https?://[A-Za-z0-9.-]+(:\d+)?$")
-    # Seconds a source that failed is skipped.
-    source_rest_seconds: int = Field(default=300, ge=0, le=86400)
+    # Seconds a source that failed twice in a row is skipped.
+    source_rest_seconds: int = Field(default=60, ge=0, le=86400)
     # Seconds between two looks for a torrent sent to qBittorrent (ADR 0014).
     send_check_seconds: float = Field(default=8.0, ge=0, le=60)
     # Seconds the events of one batch of the journal wait for the others (ADR 0015).

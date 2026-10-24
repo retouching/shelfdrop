@@ -95,7 +95,7 @@ from shelfdrop.works.types import Clock, Kind, SearchOptions
 
 # Each request to a source gives up after this; the search gives up on the source after
 # SearchOptions.source_timeout_seconds.
-REQUEST_TIMEOUT_SECONDS: Final = 4.0
+REQUEST_TIMEOUT_SECONDS: Final = 8.0
 # Each request to Jellyfin, qBittorrent gives up after this.
 SERVICE_TIMEOUT_SECONDS: Final = 10.0
 

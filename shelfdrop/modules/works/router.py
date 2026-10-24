@@ -41,9 +41,11 @@ async def search_works(
     service: Injected[WorkService],
     q: Annotated[str, Query(min_length=1, max_length=200)],
     kind: Kind = "manga",
+    retry: bool = False,
 ) -> WorkSearchRead:
+    """`retry`: the sources resting after their failures are asked too (the button Réessayer)."""
     try:
-        found = await service.search(q, kind)
+        found = await service.search(q, kind, retry=retry)
     except QueryTooShortError as exc:
         raise query_too_short() from exc
     except NoSourceAnsweredError as exc:

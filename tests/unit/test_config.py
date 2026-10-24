@@ -45,7 +45,7 @@ def test_a_env_file_never_sets_a_test_stack_setting(
 
     assert settings.contact == "test@example.org"
     assert settings.sources_origin is None
-    assert settings.source_rest_seconds == 300
+    assert settings.source_rest_seconds == 60
     assert settings.send_check_seconds == 8
 
 
