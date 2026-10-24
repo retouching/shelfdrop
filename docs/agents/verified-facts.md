@@ -136,6 +136,21 @@ Next fact ID: F42.
   - Pinned by: `tests/unit/clients/torrents/test_qui.py::test_a_torrent_gives_its_content_path_and_takes_the_mark_of_shelfdrop`
   - Re-verify: before the first placement of a download of a real qBittorrent.
 
+### qBittorrent (WebUI API v2), signed in directly: 5.3.0 and 4.6.7 (lscr.io/linuxserver/qbittorrent `5.3.0_v2.1.2-ls484` and `4.6.7`, observed on 2026-10-24; the image run alone)
+
+- **F60** `POST /api/v2/auth/login` takes a form body, `username` and `password` (a `GET` gets a `405`). qBittorrent 5.3.0 signs in with a `204`, no body, and the cookie `QBT_SID_<port of the WebUI>` (`QBT_SID_8080`; `HttpOnly`, `SameSite=Lax`, an hour); a wrong name or password gets a `401` `Unauthorized`. qBittorrent 4.6.7 answers `200` `Ok.` and the cookie `SID` (`SameSite=Strict`), or `200` `Fails.`. On both, every other method without a session, or with one ended (`POST /api/v2/auth/logout`), gets a `403` `Forbidden`. `QbittorrentClient` (`shelfdrop/clients/torrents/qbittorrent.py`) sends back every cookie of the sign-in whatever its name, takes `Fails.` as refused, and signs in again once on a `403`.
+  - Evidence: curl and `QbittorrentClient` against the two images run alone, with the WebUI account of `docker/qbittorrent/qBittorrent.conf` (F64).
+  - Pinned by: `tests/unit/clients/torrents/test_qbittorrent.py::test_it_signs_in_once_for_the_connectors_built_at_each_use`, `test_a_session_ended_is_opened_again_once`, `test_a_wrong_password_is_refused_and_keeps_no_session`; the block `torrent_qbittorrent`.
+  - Re-verify: when the image of the test stack changes its version of qBittorrent.
+- **F61** After 5 sign-ins refused from one address, qBittorrent 5.3.0 answers the next ones, the right password included, `403` `Your IP address has been banned after too many failed authentication attempts.` (its default: 5 failures, banned an hour). `QbittorrentClient` takes a `403` of the sign-in as refused, without a second try.
+  - Evidence: 6 sign-ins with a wrong password then one with the right one, curl against the image run alone.
+  - Pinned by: `tests/unit/clients/torrents/test_qbittorrent.py::test_a_banned_address_is_refused_without_a_second_try`
+  - Re-verify: when the image of the test stack changes its version of qBittorrent.
+- **F62** qBittorrent 5.3.0 refuses with a `401` a request whose `Referer` or `Origin` names another address than its `Host` ("Referer header & Target origin mismatch" in its log), and accepts one without either. With `WebUI\HostHeaderValidation` on (its default), a `Host` whose port is not the one it listens on gets a `401` too ("Invalid Host header, port mismatch": a port published as another one), whatever `WebUI\ServerDomains`. `QbittorrentClient` sends the address of the settings as `Referer`.
+  - Evidence: curl against the image run alone, its port published as another one, and its log.
+  - Pinned by: `tests/unit/clients/torrents/test_qbittorrent.py::test_it_signs_in_once_for_the_connectors_built_at_each_use` (the `Referer`); the block `torrent_qbittorrent`.
+  - Re-verify: when the image of the test stack changes its version of qBittorrent.
+
 ### Discord (webhooks, API v10)
 
 - **F29** `POST <webhook>?wait=true` posts a message and answers it (`200`); a `multipart/form-data` body carries the JSON in `payload_json` and the files in `files[0]`..., which an embed names `attachment://<file name>`. A webhook takes 30 messages a minute: beyond, `429` with `retry_after` (seconds) in its JSON body and the header `Retry-After`.
