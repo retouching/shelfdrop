@@ -172,9 +172,14 @@ async def test_the_downloads_show_the_figures_of_qbittorrent_and_complete_once()
         ("downloaded", None),
     ]
     # The cover of the work goes with the events of the automatic download alone, read once.
-    assert [(e.type, e.cover) for e in desk.journal.events] == [
-        ("sent", COVER),
-        ("sent", None),
+    # The two sends run in the background: their events may come in either order.
+    sent = [e for e in desk.journal.events if e.type == "sent"]
+    assert sorted((str(e.facts.get("mode")), e.cover is not None) for e in sent) == [
+        ("auto", True),
+        ("manual", False),
+    ]
+    assert next(e.cover for e in sent if e.cover is not None) == COVER
+    assert [(e.type, e.cover) for e in desk.journal.events[2:]] == [
         ("to_place", None),
         ("downloaded", COVER),
     ]
