@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactElement } from "react";
 
 import { readLogs, type LogEntry, type LogFilters, type LogLevel, type LogService } from "../../api/logs";
-import { texts } from "../../texts";
+import { locale, texts } from "../../texts";
 import { RefreshBar } from "../RefreshBar";
 import { Spinner } from "../Skeletons";
 import { Card, Field, input } from "./parts";
@@ -31,8 +31,8 @@ function levelLabel(level: string): string {
 /** « 24/10 18:42:07.123 », à l'heure du navigateur. */
 function timeOf(timestamp: string): string {
   const date = new Date(timestamp);
-  const day = date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
-  const clock = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const day = date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
+  const clock = date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   return `${day} ${clock}.${String(date.getMilliseconds()).padStart(3, "0")}`;
 }
 

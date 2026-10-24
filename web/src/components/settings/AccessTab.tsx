@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { ApiError } from "../../api/http";
 import { createToken, readTokens, revokeToken, type AccessToken, type Scope } from "../../api/tokens";
-import { texts } from "../../texts";
+import { locale, texts } from "../../texts";
 import { Spinner } from "../Skeletons";
 import { dialogBody, dialogFrame } from "../dialog";
 import { stacked } from "../stacked";
@@ -19,13 +19,13 @@ const expiryDays: Readonly<Record<Expiry, 30 | 90 | 365 | null>> = { d30: 30, d9
 function usedAt(seconds: number): string {
   const date = new Date(seconds * 1000);
   return texts.settings.usedAt(
-    date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
-    date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+    date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }),
+    date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
   );
 }
 
 function dayOf(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleDateString("fr-FR");
+  return new Date(seconds * 1000).toLocaleDateString(locale);
 }
 
 const mcpTools: readonly string[] = [
@@ -45,7 +45,7 @@ const mcpConfig = `{
     "shelfdrop": {
       "type": "http",
       "url": "${origin}/mcp",
-      "headers": { "Authorization": "Bearer <jeton>" }
+      "headers": { "Authorization": "Bearer ${texts.settings.tokenPlaceholder}" }
     }
   }
 }`;

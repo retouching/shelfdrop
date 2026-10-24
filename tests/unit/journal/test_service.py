@@ -72,14 +72,21 @@ class FakeEventRepository(EventRepository):
 
 class FakeDiscordSettings:
     def __init__(
-        self, webhook: str | None = FakeDiscord.WEBHOOK, off: frozenset[str] = frozenset()
+        self,
+        webhook: str | None = FakeDiscord.WEBHOOK,
+        off: frozenset[str] = frozenset(),
+        language: str = "fr",
     ):
         self.webhook = webhook
         self.off = off
+        self.language = language
 
     async def discord(self) -> tuple[str | None, frozenset[str]]:
         events = {"sent", "placed", "login", "failed", "found"} - self.off
         return self.webhook, frozenset(events)
+
+    async def journal_language(self) -> str:
+        return self.language
 
 
 @pytest.fixture
@@ -127,6 +134,23 @@ async def test_a_batch_waits_its_window_then_goes_as_one_message() -> None:
     assert embed["fields"][0]["value"] == "T01 à T02"
     assert picture is None
     assert repository.states() == ["sent", "sent", "pending"]
+
+
+@pytest.mark.anyio
+async def test_the_language_of_the_messages_is_read_at_each_send() -> None:
+    discord = FakeDiscord()
+    settings = FakeDiscordSettings(language="en")
+    journal, sender, _, clock = new_journal(discord, settings)
+    journal.record(sent(1))
+    clock.at += 30
+    assert await sender.post_ready() == 1
+    settings.language = "fr"
+    journal.record(sent(2, group="sent:sylvain:9:Gunnm"))
+    clock.at += 30
+
+    assert await sender.post_ready() == 1
+    titles = [payload["embeds"][0]["title"] for payload, _ in discord.messages]
+    assert titles == ["Sent: Berserk", "Envoyé : Berserk"]
 
 
 @pytest.mark.anyio

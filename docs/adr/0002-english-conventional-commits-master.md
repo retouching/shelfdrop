@@ -6,7 +6,7 @@ Date: 2026-10-21
 Decided at the start of the project: commits carry the name of the owner of the repository alone, with no co-author line; regular commits, a push every 9 commits.
 
 ## Decision
-- Code, comments, logs, API messages and docs in English; the visible texts in French (ADR 0008).
+- Code, comments, logs, API messages and docs in English; the visible texts in French and in English (ADR 0008).
 - Conventional Commits in English, small and focused, each passing the gates; no `Co-authored-by`, no `Signed-off-by`, no mention of a tool.
 - Default branch `master`. A push gathers about 9 commits. The version of `pyproject.toml` starts at `0.1.0`.
 

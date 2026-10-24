@@ -334,7 +334,13 @@ class LibraryService(LibraryReader):
         sources find under its name (none when no source answers)."""
         found, books = await self.series(series_id)
         volumes = tuple(
-            VolumeImage(item_id=b.id, label=volume_label(b, found.kind), image_tag=b.image_tag)
+            VolumeImage(
+                item_id=b.id,
+                label=volume_label(b, found.kind),
+                number=b.index_number,
+                format=EXTENSIONS[found.kind],
+                image_tag=b.image_tag,
+            )
             for b in books
             if b.has_image
         )[:VOLUME_PROPOSALS]

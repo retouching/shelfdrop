@@ -2,11 +2,13 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { initLanguage } from "./i18n/language";
 import "./index.css";
 import { router } from "./router";
 import { initTheme } from "./theme";
 
 initTheme();
+initLanguage();
 
 const root = document.getElementById("root");
 

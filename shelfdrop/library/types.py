@@ -41,6 +41,10 @@ class VolumeImage:
     item_id: str
     label: str
     """'Tome 3 · CBZ'."""
+    number: int | None = None
+    """The number of the volume, None without one (the page writes its label from it)."""
+    format: str = ""
+    """'CBZ', 'EPUB', 'M4B'."""
     image_tag: str | None = None
 
 

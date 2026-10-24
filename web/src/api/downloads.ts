@@ -1,4 +1,5 @@
 // Téléchargements : envoi des releases à qBittorrent, suivi, nouvel envoi.
+import { locale } from "../texts";
 import type { Download, DownloadState, Kind, Volumes } from "../types";
 import { volumesLabel } from "../utils/volumes";
 import { request } from "./http";
@@ -90,7 +91,7 @@ function downloadOf(read: DownloadRead): Download {
     label: read.mode === "manual" ? read.title : `${series} - ${volumesLabel(volumesOf(read.volumes))}`,
     kind: read.kind,
     state: stateOf(read.progress),
-    addedAt: new Date(read.created_at * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+    addedAt: new Date(read.created_at * 1000).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
     workTitle: read.work_name,
     manual: read.mode === "manual",
     cover: read.work_id === null ? null : `/api/v1/downloads/${String(read.id)}/cover`,

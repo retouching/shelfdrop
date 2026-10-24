@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
-import { addWaiting, readOwned, useWaiting, type Wanted } from "../api/waiting";
+import { addWaiting, readOwned, useWaiting, wantedLabel, type Wanted } from "../api/waiting";
 import { texts } from "../texts";
 import type { Kind, Work } from "../types";
 import { Spinner } from "./Skeletons";
@@ -79,28 +79,18 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
   const chaptersValid =
     chapterFrom !== "" && fromNumber > 0 && (chapterTo === "" || (toNumber >= fromNumber && Number.isFinite(toNumber)));
 
-  const wanted: readonly { readonly detail: string; readonly wanted: Wanted }[] =
+  const wanted: readonly Wanted[] =
     chosen === null
       ? []
       : target === "any"
-        ? [{ detail: texts.waiting.anything, wanted: { target: "any" } }]
+        ? [{ target: "any" }]
         : target === "volumes"
-          ? [...selected]
-              .sort((a, b) => a - b)
-              .map((n) => ({ detail: `T${String(n).padStart(2, "0")}`, wanted: { target: "volume", volume: n } }))
+          ? [...selected].sort((a, b) => a - b).map((n) => ({ target: "volume", volume: n }))
           : chaptersValid
-            ? [
-                {
-                  detail:
-                    chapterTo === ""
-                      ? texts.waitDialog.chaptersFrom(String(fromNumber))
-                      : texts.waitDialog.chaptersRange(String(fromNumber), String(toNumber)),
-                  wanted: { target: "chapters", from: fromNumber, to: chapterTo === "" ? null : toNumber },
-                },
-              ]
+            ? [{ target: "chapters", from: fromNumber, to: chapterTo === "" ? null : toNumber }]
             : [];
-  const entries = wanted.map((entry) => entry.detail);
-  const fresh = wanted.filter((entry) => !already.has(entry.detail));
+  const entries = wanted.map(wantedLabel);
+  const fresh = wanted.filter((entry) => !already.has(wantedLabel(entry)));
 
   /** « 26 », « 26-30 », « 26, 28 » : des tomes pas encore dans les métadonnées. */
   function addTyped(): void {
@@ -151,7 +141,7 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
         author: chosen.author,
         kind,
         names,
-        wanted: fresh.map((entry) => entry.wanted),
+        wanted: fresh,
       });
       onAdded(result.added);
       ref.current?.close();

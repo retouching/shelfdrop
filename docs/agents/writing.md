@@ -1,6 +1,6 @@
 # Visible texts
 
-These rules hold for every text the interface shows: titles, descriptions, buttons, messages, `aria-label`, `title`, and the Discord messages. Every such text is French and lives in `web/src/texts.ts`.
+These rules hold for every text the interface shows: titles, descriptions, buttons, messages, `aria-label`, `title`, and the Discord messages. Every such text exists in French and in English: the page in `web/src/texts.ts` (French) and `web/src/i18n/en.ts` (English, the same keys, [ADR 0008](../adr/0008-front-end-and-texts.md)), the Discord messages in `shelfdrop/journal/texts.py` (`FR`, `EN`). A text is written in French first, then in English under [In English](#in-english); the English says the same thing, as an English speaker would write it, never a word-for-word copy.
 
 ## Rules of shelfdrop (they come first)
 
@@ -156,3 +156,40 @@ For detect requests, make sure the response names each pattern found with a quot
 - Often empty adverbs: juste, littéralement, honnêtement, simplement, en fait, vraiment, fondamentalement, surtout, de façon cruciale, intrinsèquement, inévitablement.
 - Often empty phrases: il est à noter que, il est important de noter que, au final, quand il s'agit de, au fond, dans le monde d'aujourd'hui, à l'ère de, la réalité, c'est que, en termes de, en ce qui concerne, afin de, à l'avenir.
 - After a colon, French typography puts a lower case letter, but for a proper noun, a title or code.
+
+### In English
+
+The rules of shelfdrop hold in English too: impersonal, short, factual.
+
+- **Impersonal tone.** No "you", no "your", no "please". A description is a noun phrase or a plain statement ("Free search and file uploads.", "Files to match."). Buttons are a bare verb, the English form of the French infinitive: "Search", "Download", "Add to waiting list".
+- **Short error messages:** what happened, in the past or the present, without advice: "Prowlarr is not answering.", "API key missing", "Failed: the API did not answer, nothing changed.".
+- **Sentence case** for every title, button and label ("Automatic search", "Download folders"), never Title Case; a product name keeps its own case (qBittorrent, Jellyfin, Prowlarr, MangaDex).
+- **Units and numbers:** a decimal point, a space before a unit ("1.2 GB", "45 s", "2 h 5 min"), no space before "%" ("40%"). Dates and times come from `Intl` in `en-GB` ("21/10", "18:42"), never written by hand.
+- **Quotes:** curly double quotes around a text typed or a name ("No work found for “Berserk”."); the French guillemets never appear in English.
+- **Plurals:** "1 release", "2 releases"; "series" stays "series".
+- **The terms**, kept the same everywhere:
+
+| French | English |
+| --- | --- |
+| Recherche automatique / Automatique | Automatic search / Automatic |
+| Recherche manuelle / Manuel | Manual search / Manual |
+| En attente, mettre en attente | Waiting list, add to waiting list |
+| Téléchargements | Downloads |
+| Ranger (the page), ranger, rangé, rangement | Place (the page), place, placed, placement |
+| À associer, associer | To match, match |
+| Mal rangé | Misplaced |
+| Paramètres, Journaux, Accès | Settings, Logs, Access |
+| Journal Discord | Discord journal |
+| Œuvre | Work |
+| Tome, T01, T01 à T03 | Volume, Vol. 01, Vol. 01 to 03 |
+| Intégrale | Complete |
+| Ch. 233 et suivants | Ch. 233 onwards |
+| Envoi (a file from the browser), envoyer | Upload, upload |
+| Envoi (a torrent to the client) | Send |
+| Jeton d'accès | Access token |
+| Connexion, se connecter, se déconnecter | Sign-in, sign in, sign out |
+| Fiche | Details |
+| Écarté (by the filters) | Set aside |
+
+- **Never translated:** release, seeds, tracker, indexer, regex, webhook, scan; the product names; the data (the names of the libraries, "BD & Mangas", the categories of the trackers, the names of the files, "T01 - Ch. 12").
+- The banned words, empty adverbs and empty phrases of the [general rules](#general-rules-no-ai-slop) are English already; em dashes stay out of the short texts.

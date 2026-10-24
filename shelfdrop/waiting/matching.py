@@ -77,8 +77,8 @@ def is_done(wanted: Wanted, volumes: Collection[int], chapters: Collection[float
 
 
 def label(wanted: Wanted) -> str:
-    """'T03', 'Ch. 233 et suivants', 'Ch. 233 à 240', 'Toute release': as the page and the
-    journal show it."""
+    """'T03', 'Ch. 233 et suivants', 'Ch. 233 à 240', 'Toute release': the label of the API, in
+    French (the page and the journal write theirs in their own language)."""
     match wanted.target:
         case "any":
             return "Toute release"

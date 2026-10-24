@@ -47,6 +47,7 @@ Kept in the database (`settings`, `secrets`), read at each use, so a change appl
 | `placement.lock_jellyfin` | on | The name, the series, the number and the authors of a file placed set and locked in Jellyfin. The sync asked from the page Jellyfin runs whatever it says. |
 | `uploads.folder` | `/data/envois` | The folder the files sent from the page Manuel wait in until they are placed, as the placement worker sees it: on the mount of the libraries, writable by the worker ([ADR 0019](adr/0019-uploads.md)). |
 | `uploads.keep_days` | 7 | The days a file sent stays in Ranger without being placed, and an upload stopped is kept; then they are removed. |
+| `journal.language` | `fr` | The language of the messages of the journal on Discord: `fr` or `en` ([ADR 0015](adr/0015-journal.md)). The language of the page is chosen on each device, in its sidebar ([ADR 0008](adr/0008-front-end-and-texts.md)). |
 | `discord.events.<event>` | on | The events of the journal sent to Discord: `sent`, `downloaded`, `placed`, `to_place`, `uploaded`, `retry`, `failed`, `misplaced`, `login`, `found` ([ADR 0015](adr/0015-journal.md)). Without the secret `discord.webhook`, nothing is posted. |
 
 The secrets: `prowlarr.api_key`, `torrent.api_key`, `torrent.password`, `jellyfin.api_key`, `sources.myanimelist.client_id`, `discord.webhook`. Sealed with AES-GCM under `SHELFDROP_SECRET_KEY`, opened in memory at the time of a call, never logged nor shown.

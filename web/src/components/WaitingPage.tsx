@@ -1,7 +1,7 @@
 import { useState, type ReactElement } from "react";
 
 import { removeWaiting, saveInterval, searchWaitingNow, useWaiting, type WaitingSearch } from "../api/waiting";
-import { texts } from "../texts";
+import { locale, texts } from "../texts";
 import { stacked } from "./stacked";
 import { Spinner } from "./Skeletons";
 
@@ -13,11 +13,11 @@ type Props = {
 };
 
 function clockOf(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  return new Date(seconds * 1000).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
 
 function dayOf(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  return new Date(seconds * 1000).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
 }
 
 export function WaitingPage({ onOpen, onAdd }: Props): ReactElement {

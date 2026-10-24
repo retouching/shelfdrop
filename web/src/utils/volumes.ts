@@ -1,4 +1,5 @@
 // Règles pures sur les tomes : libellés, couverture d'une sélection, meilleure release par tome.
+import { locale, texts } from "../texts";
 import type { Release, Volumes } from "../types";
 
 function pad(n: number): string {
@@ -8,11 +9,11 @@ function pad(n: number): string {
 export function volumesLabel(volumes: Volumes): string {
   switch (volumes.kind) {
     case "single":
-      return `T${pad(volumes.number)}`;
+      return texts.volumeLabels.volume(pad(volumes.number));
     case "range":
-      return `T${pad(volumes.from)} à T${pad(volumes.to)}`;
+      return texts.volumeLabels.range(pad(volumes.from), pad(volumes.to));
     case "complete":
-      return "Intégrale";
+      return texts.volumeLabels.complete;
     case "unknown":
       return "?";
   }
@@ -61,11 +62,11 @@ export function bestPerVolume(
 /** « T01 à T22 », « T01, T03 et T05 à T07 » : les tomes couverts par une sélection. */
 export function coverageLabel(releases: readonly Release[]): string {
   if (releases.some((release) => release.volumes.kind === "complete")) {
-    return "Intégrale";
+    return texts.volumeLabels.complete;
   }
   const numbers = [...new Set(releases.flatMap((release) => volumeNumbers(release.volumes)))].sort((a, b) => a - b);
   if (numbers.length === 0) {
-    return "Tome inconnu";
+    return texts.volumeLabels.unknown;
   }
   const parts: string[] = [];
   let start = numbers[0] ?? 0;
@@ -75,14 +76,13 @@ export function coverageLabel(releases: readonly Release[]): string {
       previous = n;
       continue;
     }
-    parts.push(start === previous ? `T${pad(start)}` : `T${pad(start)} à T${pad(previous)}`);
+    parts.push(
+      start === previous ? texts.volumeLabels.volume(pad(start)) : texts.volumeLabels.range(pad(start), pad(previous)),
+    );
     start = n;
     previous = n;
   }
-  if (parts.length === 1) {
-    return parts[0] ?? "";
-  }
-  return `${parts.slice(0, -1).join(", ")} et ${parts.at(-1) ?? ""}`;
+  return new Intl.ListFormat(locale, { type: "conjunction" }).format(parts);
 }
 
 /** Valeur du champ « Tomes » : « 6 », « 1-41 », vide pour une intégrale ou un livre seul. */

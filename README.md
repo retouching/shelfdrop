@@ -58,14 +58,14 @@ How to take them again: [CONTRIBUTING.md](CONTRIBUTING.md#screenshots).
 - **Release search** in Prowlarr under each name of the work, scored by your filters, ranked by your trackers, in the categories you choose for each indexer.
 - **Downloads** sent to qBittorrent (directly or through [qui](https://github.com/autobrr/qui)), Deluge or Transmission, followed live, sent again when a torrent did not arrive.
 - **Automatic placement**: volumes renamed and hard-linked into the right library (manga and comics, books, audiobooks), MP3 tracks merged into one M4B with its chapters and cover, metadata written and locked in Jellyfin.
-- **Ranger**: the files shelfdrop could not place alone, linked by hand to a work, a volume or chapters, or ignored; files uploaded from the browser land there too.
+- **Place** (Ranger in French): the files shelfdrop could not place alone, linked by hand to a work, a volume or chapters, or ignored; files uploaded from the browser land there too.
 - **Jellyfin page**: the series of your libraries, their volumes and missing numbers, each file downloadable and editable, and a forced sync of the metadata.
 - **Waiting list**: searches kept and run again until a release shows up.
-- **Discord journal** of the sends, downloads and placements, with covers.
+- **Discord journal** of the sends, downloads and placements, with covers, in English or in French.
 - **Accounts**: one internal administrator account, and the administrators of your Jellyfin server.
 - **API and MCP server** with access tokens (read, or read and download), documented in OpenAPI with Swagger UI at `/api/docs`.
 - **Guided first launch** from the browser: the account, Prowlarr, the torrent client, Jellyfin, the libraries.
-- Pages that work on a phone, settings changed live, logs readable from the settings.
+- Pages in English and in French, the language chosen on each device (the browser's by default); pages that work on a phone, settings changed live, logs readable from the settings.
 
 ## Requirements
 

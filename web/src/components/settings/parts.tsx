@@ -2,7 +2,7 @@
 import { useState, type ReactElement, type ReactNode } from "react";
 
 import type { ProbeRead } from "../../api/settings";
-import { texts } from "../../texts";
+import { locale, texts } from "../../texts";
 import { CheckIcon } from "../icons";
 import { Spinner } from "../Skeletons";
 
@@ -94,7 +94,7 @@ export function Toggle({
 
 /** « 21/10/2026 » : la date de définition d'un secret (secondes Unix). */
 function dayOf(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleDateString("fr-FR");
+  return new Date(seconds * 1000).toLocaleDateString(locale);
 }
 
 /**
@@ -203,7 +203,7 @@ export function probeMessage(probe: ProbeRead, name: string): TestResult {
   switch (probe.state) {
     case "connected": {
       if (probe.elapsed_ms !== null) {
-        const seconds = (probe.elapsed_ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+        const seconds = (probe.elapsed_ms / 1000).toLocaleString(locale, { maximumFractionDigits: 1 });
         return { ok: true, message: results.answersIn(seconds) };
       }
       const count = probe.count ?? 0;

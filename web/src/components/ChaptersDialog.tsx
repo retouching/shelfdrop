@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { placeFile } from "../api/place";
-import { texts } from "../texts";
+import { locale, texts } from "../texts";
 import type { ShelfFile } from "../types";
 import { Spinner } from "./Skeletons";
 import { field, guessQuery, WorkPicker, type Pick } from "./WorkPicker";
@@ -40,7 +40,7 @@ function missingLabel(missing: readonly number[]): string {
       break;
     }
     if (chapter !== previous + 1) {
-      parts.push(start === previous ? String(start) : `${String(start)} à ${String(previous)}`);
+      parts.push(start === previous ? String(start) : texts.chapters.missingRange(String(start), String(previous)));
       start = chapter;
     }
     previous = chapter;
@@ -49,7 +49,7 @@ function missingLabel(missing: readonly number[]): string {
 }
 
 function chapterLabel(chapter: number): string {
-  return Number.isInteger(chapter) ? String(chapter) : chapter.toLocaleString("fr-FR");
+  return Number.isInteger(chapter) ? String(chapter) : chapter.toLocaleString(locale);
 }
 
 export function ChaptersDialog({ file, chapters, existing, loose, onClose, onPlaced }: Props): ReactElement {

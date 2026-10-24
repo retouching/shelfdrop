@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactElement, type SubmitEvent } from "react"
 
 import { changePassword, createAccount, readAccount, type InternalAccount } from "../../api/account";
 import { ApiError } from "../../api/http";
-import { texts } from "../../texts";
+import { locale, texts } from "../../texts";
 import { AccountFields, draftReady, emptyDraft, PASSWORD_MIN, type AccountDraft } from "../AccountFields";
 import { Spinner } from "../Skeletons";
 import { Card, Field, input } from "./parts";
@@ -13,7 +13,7 @@ const button =
   "flex items-center gap-2 rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-60";
 
 function dayOf(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleDateString("fr-FR");
+  return new Date(seconds * 1000).toLocaleDateString(locale);
 }
 
 function CreateForm({ onCreated }: { readonly onCreated: (account: InternalAccount) => void }): ReactElement {
