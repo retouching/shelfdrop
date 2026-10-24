@@ -721,7 +721,7 @@ def jellyfin_library_stubs(folder: str, items: list[dict[str, Any]]) -> list[dic
 
 
 def jellyfin_file_stubs(item_id: str, data: bytes) -> list[dict[str, Any]]:
-    """The file of an item of the fake Jellyfin (`GET /Items/{id}/Download`, F38): whole, and
+    """The file of an item of the fake Jellyfin (`GET /Items/{id}/Download`, F39): whole, and
     its first byte alone with its size for `Range: bytes=0-0`."""
     key = {"Authorization": {"contains": f'Token="{JELLYFIN_API_KEY}"'}}
     path = f"/Items/{item_id}/Download"

@@ -262,7 +262,7 @@ class JellyfinClient:
         )
 
     async def download(self, url: str | None, api_key: str | None, item_id: str) -> JellyfinFile:
-        """`GET /Items/{id}/Download`: the file of a book or an audiobook, as it comes (F38).
+        """`GET /Items/{id}/Download`: the file of a book or an audiobook, as it comes (F39).
         Raises ServiceError (`status` 404 for an item it does not have)."""
         response = await self.open_stream(url, f"/Items/{item_id}/Download", api_key, {})
         if response.status_code != 200:
@@ -279,7 +279,7 @@ class JellyfinClient:
     async def file_size(self, url: str | None, api_key: str | None, item_id: str) -> int | None:
         """The size of the file of an item: `GET /Items/{id}/Download` for its first byte alone
         (`Range: bytes=0-0`, the total of its `Content-Range`), or the `Content-Length` of the
-        whole file when the range is not taken, never read (F38). None when Jellyfin tells
+        whole file when the range is not taken, never read (F39). None when Jellyfin tells
         neither or does not answer."""
         try:
             response = await self.open_stream(

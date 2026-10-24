@@ -771,6 +771,73 @@
         ]
       }
     },
+    "/api/v1/downloads/{download_id}/cover": {
+      "get": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Read Download Cover",
+        "description": "The cover of the work of an automatic download, for the page: read by the API at the\nsources of the work, kept a while in memory.",
+        "operationId": "read_download_cover_api_v1_downloads__download_id__cover_get",
+        "parameters": [
+          {
+            "name": "download_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Download Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
     "/api/v1/library/series": {
       "get": {
         "tags": [
@@ -921,6 +988,227 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SeriesRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/series/{series_id}/volumes": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read Volumes",
+        "operationId": "read_volumes_api_v1_library_series__series_id__volumes_get",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/shelfdrop__modules__library__schemas__VolumesRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/items/{item_id}/file": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read File",
+        "description": "The file of a book or an audiobook, as Jellyfin sends it (`/Items/{id}/Download`).",
+        "operationId": "read_file_api_v1_library_items__item_id__file_get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/items/{item_id}": {
+      "put": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Change Volume",
+        "operationId": "change_volume_api_v1_library_items__item_id__put",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeChangeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumeRead"
                 }
               }
             }
@@ -1199,6 +1487,129 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ScanRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/library/sync": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Read Sync",
+        "operationId": "read_sync_api_v1_library_sync_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "read",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Start Sync",
+        "description": "The metadata of the files placed sent again to Jellyfin, in the background; while a\nsync runs, its state alone.",
+        "operationId": "start_sync_api_v1_library_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncRead"
                 }
               }
             }
@@ -1726,6 +2137,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/ChaptersBody"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IgnoreBody"
                   }
                 ],
                 "discriminator": {
@@ -1733,7 +2147,8 @@
                   "mapping": {
                     "volume": "#/components/schemas/VolumeBody",
                     "chapter": "#/components/schemas/ChapterBody",
-                    "chapters": "#/components/schemas/ChaptersBody"
+                    "chapters": "#/components/schemas/ChaptersBody",
+                    "ignore": "#/components/schemas/IgnoreBody"
                   }
                 },
                 "title": "Body"
@@ -1743,6 +2158,85 @@
         },
         "responses": {
           "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/place/items/{item_id}/resume": {
+      "post": {
+        "tags": [
+          "place"
+        ],
+        "summary": "Resume Item",
+        "description": "An ignored file back among the files to place.",
+        "operationId": "resume_item_api_v1_place_items__item_id__resume_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -2543,6 +3037,21 @@
           "other"
         ]
       },
+      "IgnoreBody": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ignore",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "IgnoreBody",
+        "description": "The file left where it is: out of the files to place, nothing written nor removed."
+      },
       "ImageBody": {
         "properties": {
           "kind": {
@@ -2750,7 +3259,8 @@
           "unlinked",
           "chapters",
           "misplaced",
-          "placed"
+          "placed",
+          "ignored"
         ]
       },
       "ItemsRead": {
@@ -3082,7 +3592,7 @@
             "title": "Size"
           },
           "volumes": {
-            "$ref": "#/components/schemas/VolumesRead"
+            "$ref": "#/components/schemas/shelfdrop__modules__searches__schemas__VolumesRead"
           },
           "score": {
             "type": "integer",
@@ -3630,6 +4140,96 @@
         ],
         "title": "SummariesBody"
       },
+      "SyncBody": {
+        "properties": {
+          "series_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Id"
+          }
+        },
+        "type": "object",
+        "title": "SyncBody"
+      },
+      "SyncRead": {
+        "properties": {
+          "stage": {
+            "$ref": "#/components/schemas/SyncStage"
+          },
+          "series_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Id"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "not_found": {
+            "type": "integer",
+            "title": "Not Found"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "series_id",
+          "changed",
+          "unchanged",
+          "not_found",
+          "started_at",
+          "ended_at"
+        ],
+        "title": "SyncRead"
+      },
+      "SyncStage": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "running",
+          "done",
+          "failed"
+        ]
+      },
       "Target": {
         "type": "string",
         "enum": [
@@ -3784,6 +4384,61 @@
         "title": "VolumeBody",
         "description": "One volume: a manga `<Series> - TXX`, a book or an audiobook under its author."
       },
+      "VolumeChangeBody": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/shelfdrop__modules__library__schemas__ShortText__2"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Summary",
+            "default": ""
+          },
+          "authors": {
+            "items": {
+              "$ref": "#/components/schemas/shelfdrop__modules__library__schemas__ShortText__1"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Authors",
+            "default": []
+          },
+          "lock": {
+            "type": "boolean",
+            "title": "Lock",
+            "default": true
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "VolumeChangeBody"
+      },
       "VolumeImageRead": {
         "properties": {
           "item_id": {
@@ -3826,6 +4481,76 @@
           "last"
         ],
         "title": "VolumeRangeBody"
+      },
+      "VolumeRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "has_image": {
+            "type": "boolean",
+            "title": "Has Image"
+          },
+          "file_name": {
+            "type": "string",
+            "title": "File Name"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "name",
+          "number",
+          "summary",
+          "authors",
+          "has_image",
+          "file_name",
+          "size"
+        ],
+        "title": "VolumeRead"
       },
       "VolumesBody": {
         "properties": {
@@ -3871,49 +4596,6 @@
           "kind"
         ],
         "title": "VolumesBody"
-      },
-      "VolumesRead": {
-        "properties": {
-          "kind": {
-            "type": "string",
-            "enum": [
-              "single",
-              "range",
-              "complete",
-              "unknown"
-            ],
-            "title": "Kind"
-          },
-          "first": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "First"
-          },
-          "last": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last"
-          }
-        },
-        "type": "object",
-        "required": [
-          "kind",
-          "first",
-          "last"
-        ],
-        "title": "VolumesRead"
       },
       "WaitingAdded": {
         "properties": {
@@ -4462,9 +5144,80 @@
         "maxLength": 300,
         "minLength": 1
       },
+      "shelfdrop__modules__library__schemas__VolumesRead": {
+        "properties": {
+          "series": {
+            "$ref": "#/components/schemas/SeriesRead"
+          },
+          "volumes": {
+            "items": {
+              "$ref": "#/components/schemas/VolumeRead"
+            },
+            "type": "array",
+            "title": "Volumes"
+          },
+          "missing": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Missing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "series",
+          "volumes",
+          "missing"
+        ],
+        "title": "VolumesRead"
+      },
       "shelfdrop__modules__place__schemas__ShortText": {
         "type": "string",
         "maxLength": 200
+      },
+      "shelfdrop__modules__searches__schemas__VolumesRead": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "single",
+              "range",
+              "complete",
+              "unknown"
+            ],
+            "title": "Kind"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "first",
+          "last"
+        ],
+        "title": "VolumesRead"
       },
       "shelfdrop__modules__waiting__schemas__ShortText__1": {
         "type": "string",
@@ -4491,6 +5244,7 @@
           "search_not_found",
           "release_not_found",
           "download_not_found",
+          "download_cover_not_found",
           "method_not_allowed",
           "http_error",
           "validation_failed",
@@ -4504,9 +5258,11 @@
           "too_many_attempts",
           "jellyfin_unavailable",
           "series_not_found",
+          "volume_not_found",
           "waiting_not_found",
           "place_item_not_found",
           "place_item_busy",
+          "place_item_not_ignored",
           "place_request_refused",
           "upload_refused",
           "upload_not_found",
