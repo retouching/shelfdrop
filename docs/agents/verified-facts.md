@@ -2,7 +2,7 @@
 
 Behaviours of the metadata sources, libraries and tools this code relies on. Each fact has an ID (`Fnn`, never reused), its evidence, the test that pins it and a re-verification trigger. A source has no version: its heading names the endpoint, and its facts are re-verified when the fixtures are recorded again (`uv run python -m tests.unit.works.record`) or when a recorded search fails. A library heading names the version of `uv.lock`; a version change updates the heading in the same commit and re-reads the facts no test pins.
 
-Next fact ID: F42.
+Next fact ID: F70.
 
 ## Metadata sources
 
@@ -158,6 +158,29 @@ Next fact ID: F42.
   - Evidence: the scripts of the image (`/etc/s6-overlay/s6-rc.d/init-qbittorrent-config/run`, `svc-qbittorrent/run`), the file written back by qBittorrent and its log, the two images run alone.
   - Pinned by: the block `torrent_qbittorrent` (`docker/qbittorrent/qBittorrent.conf`, the account of the tests).
   - Re-verify: when the image of the test stack changes its tag.
+
+### Deluge 2.2.0 (the JSON-RPC API of its Web UI; lscr.io/linuxserver/deluge 2.2.0-ls384, sha256:bf306ddd..., observed on 2026-10-24)
+
+- **F65** Every call is `POST <url>/json` with `{"method", "params", "id"}`, and every answer a `200` `{"result", "error", "id"}`: a failure is in `error` (`{"message", "code"}`). `auth.login(password)` answers `true` with the cookie `_session_id` (expiring in an hour), `false` for a wrong password (no cookie); any other call without the cookie gets the code 1, `Not authenticated`. The image starts with the password `deluge`.
+  - Evidence: the JSON-RPC calls made to the image `lscr.io/linuxserver/deluge:2.2.0-ls384` (sha256:bf306ddd...) run alone, on 2026-10-24.
+  - Pinned by: `tests/unit/clients/torrents/test_deluge.py::test_a_wrong_password_is_refused_and_a_missing_one_asks_nothing`, `tests/unit/clients/torrents/test_deluge.py::test_one_session_serves_every_connector_and_is_signed_in_again_when_forgotten`, `tests/integration/test_torrent_deluge.py::test_the_connection_names_the_labels_missing_then_finds_them`
+  - Re-verify: when the image or Deluge changes its version.
+- **F66** The Web UI starts connected to no daemon (`web.connected` `false`): every method of the daemon (`core.*`, `daemon.*`, `label.*`) answers the code 2, `Unknown method`, until `web.connect(<host id>)`, the id first in each host of `web.get_hosts` (`[[id, "127.0.0.1", 58846, "localclient"]]`); `web.get_host_status(id)` gives `[id, "Online", "2.2.0"]`. Connected, `daemon.get_version` gives `2.2.0`; `daemon.info` stays unknown through the Web UI. The connection is the Web UI's, kept for every session until it restarts.
+  - Evidence: the JSON-RPC calls made to the image `lscr.io/linuxserver/deluge:2.2.0-ls384` (sha256:bf306ddd...) run alone, on 2026-10-24, the Web UI restarted between two runs.
+  - Pinned by: `tests/unit/clients/torrents/test_deluge.py::test_it_signs_in_connects_its_daemon_and_names_the_labels_it_misses`
+  - Re-verify: when the image or Deluge changes its version.
+- **F67** The plugin Label is off in the image (`core.get_enabled_plugins` `[]`, `Label` in `core.get_available_plugins`); `core.enable_plugin("Label")` and `core.disable_plugin("Label")` answer `true`. Turned off, `label.get_labels` still answers through the Web UI (the methods it had at its connection) but the torrents lose their field `label`: the plugins enabled tell whether it is on. `label.add` lowercases (`Manga` gives `manga`), takes `[a-z0-9_-]` alone (`Invalid label, valid characters:[a-z0-9_-]`) and refuses a label it has (`Label already exists`), code 4; `label.set_torrent` does not lowercase (`Unknown Label` for `Manga`), and refuses a torrent it does not have (`Unknown Torrent`). `label.get_labels` lists them in lowercase.
+  - Evidence: the JSON-RPC calls made to the image `lscr.io/linuxserver/deluge:2.2.0-ls384` (sha256:bf306ddd...) run alone, on 2026-10-24.
+  - Pinned by: `tests/unit/clients/torrents/test_deluge.py::test_without_the_plugin_label_it_is_unsupported_and_sends_nothing`, `tests/integration/test_torrent_deluge.py::test_without_the_plugin_label_the_connection_is_unavailable_and_nothing_is_sent`
+  - Re-verify: when the image, Deluge or its plugin Label (0.3) changes its version.
+- **F68** `core.add_torrent_file(filename, <base64>, options)` and `core.add_torrent_magnet(uri, options)` answer the info hash in lowercase; `options.download_location` is the folder of the torrent (`save_path`), the default one of the image `/downloads`. A torrent it has gets the code 4 `Torrent already in session (<hash>)`, a file it cannot read the code 4 `decoding filedump failed`. A torrent whose file is there with its true pieces is checked and `Seeding` at 100 within seconds, with no peer.
+  - Evidence: the JSON-RPC calls made to the image `lscr.io/linuxserver/deluge:2.2.0-ls384` (sha256:bf306ddd...) run alone, on 2026-10-24.
+  - Pinned by: `tests/unit/clients/torrents/test_deluge.py::test_a_torrent_is_added_into_its_folder_labelled_and_read_by_its_hash`, `tests/unit/clients/torrents/test_deluge.py::test_a_torrent_refused_or_a_deluge_down_is_a_service_error`, `tests/integration/test_torrent_deluge.py::test_a_release_sent_is_labelled_complete_on_its_files_placed_and_never_tagged`
+  - Re-verify: when the image or Deluge changes its version.
+- **F69** `core.get_torrents_status({"id": [<hash>, ...]}, [<field>, ...])` answers an object by hash of the torrents it has: a hash it does not have, or in uppercase, is left out, a field it does not know too. `state` is one of `Allocating`, `Checking`, `Downloading`, `Seeding`, `Paused`, `Error`, `Queued`, `Moving` (`deluge.common.TORRENT_STATE`); `progress` goes from 0 to 100; `eta` is 0 when it cannot tell (no rate) and once complete; a torrent with no peer is `Downloading` with `download_payload_rate`, `num_seeds` and `num_peers` at 0; a torrent complete then paused is `Paused` at 100. `files` gives `{"index", "path", "size", "offset"}`, `path` under `save_path`, the folder of a torrent of several files in it (`Multi Pack/sub/T02.cbz`); a magnet link without its metadata has no files and the `dn` of the link as its `name`.
+  - Evidence: the JSON-RPC calls made to the image `lscr.io/linuxserver/deluge:2.2.0-ls384` (sha256:bf306ddd...) run alone, on 2026-10-24; the states, `deluge/common.py` of the image.
+  - Pinned by: `tests/unit/clients/torrents/test_deluge.py::test_the_states_of_deluge_become_the_generic_status`, `tests/unit/clients/torrents/test_deluge.py::test_the_content_path_is_the_file_of_one_the_folder_of_several`, `tests/integration/test_torrent_deluge.py::test_a_release_sent_is_labelled_complete_on_its_files_placed_and_never_tagged`
+  - Re-verify: when the image or Deluge changes its version; the state `Error` was not observed (read from the source).
 
 ### Discord (webhooks, API v10)
 

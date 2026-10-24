@@ -47,6 +47,7 @@ PARTS: Final = {
     "test_openapi.py": "access",
     "test_mcp.py": "access",
     "test_torrent_qbittorrent.py": "torrents",
+    "test_torrent_deluge.py": "torrents",
 }
 FILE_BLOCKS: Final = {
     "test_errors.py": "security_errors",
@@ -81,6 +82,7 @@ FILE_BLOCKS: Final = {
     "test_openapi.py": "access_openapi",
     "test_mcp.py": "access_mcp",
     "test_torrent_qbittorrent.py": "torrent_qbittorrent",
+    "test_torrent_deluge.py": "torrent_deluge",
 }
 
 

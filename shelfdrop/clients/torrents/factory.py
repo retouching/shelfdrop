@@ -13,6 +13,7 @@ import httpx
 from shelfdrop.clients.exceptions import ServiceNotConfiguredError
 from shelfdrop.clients.torrents.client import Connector, TorrentClient, TorrentConnection
 from shelfdrop.clients.torrents.qbittorrent import QbittorrentClient
+from shelfdrop.clients.torrents.deluge import DelugeClient
 from shelfdrop.clients.torrents.qui import QuiClient
 from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 
@@ -21,6 +22,7 @@ from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 CONNECTORS: Final[Mapping[str, Connector]] = {
     "qui": QuiClient.of,
     "qbittorrent": QbittorrentClient.of,
+    "deluge": DelugeClient.of,
 }
 
 

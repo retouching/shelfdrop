@@ -138,6 +138,31 @@ services:
       start_period: 30s
       start_interval: 1s
 
+  # A real Deluge, for the connector `deluge` (tests/integration/test_torrent_deluge.py): the
+  # linuxserver image by digest, its Web UI on 8112 (password `deluge`) on the network `sources`
+  # alone, with no way out (no tracker, no DHT reached); the torrents in the volume of the
+  # placement worker, written as its user and the group of the library.
+  deluge:
+    image: lscr.io/linuxserver/deluge:2.2.0-ls384@sha256:bf306ddd5e6d4a85d3d05ce1b947ab6e344e7fca1b7740b77c58ce170118c7ff
+    restart: "no"
+    environment:
+      PUID: "10001"
+      PGID: "1000"
+      TZ: Etc/UTC
+    volumes:
+      - media:/data
+    networks:
+      - sources
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "curl -fsS -o /dev/null http://localhost:8112/"
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+      start_interval: 1s
+
   # A real qBittorrent, for the block `torrent_qbittorrent` alone
   # (tests/integration/test_torrent_qbittorrent.py starts it with `--profile torrent-qbittorrent`
   # and removes it at its end). The account of its WebUI is set by qbittorrent/qBittorrent.conf,
