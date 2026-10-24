@@ -1,14 +1,21 @@
 """The routes of the page Ranger: the files to place, a file linked to a work (or a release in
-chapters to its volumes), a file of the shelf corrected, and the scan of the libraries."""
+chapters to its volumes) or ignored, an ignored file taken back, a file of the shelf corrected,
+and the scan of the libraries."""
 
 from fastapi import APIRouter, Query, status
 from wireup import Injected
 from wireup.integration.fastapi import WireupRoute
 
-from shelfdrop.modules.place.errors import item_busy, item_not_found, request_refused
+from shelfdrop.modules.place.errors import (
+    item_busy,
+    item_not_found,
+    item_not_ignored,
+    request_refused,
+)
 from shelfdrop.modules.place.schemas import (
     ChapterBody,
     ChaptersBody,
+    IgnoreBody,
     ItemRead,
     ItemsRead,
     PlaceBody,
@@ -19,13 +26,19 @@ from shelfdrop.placement.types import (
     LIBRARY_NAMES,
     ChapterRequest,
     ChaptersRequest,
+    IgnoreRequest,
     PlaceItem,
     PlaceRequest,
     ShelfFile,
     VolumeRange,
     VolumeRequest,
 )
-from shelfdrop.ranger.exceptions import ItemBusyError, ItemNotFoundError, RequestRefusedError
+from shelfdrop.ranger.exceptions import (
+    ItemBusyError,
+    ItemNotFoundError,
+    ItemNotIgnoredError,
+    RequestRefusedError,
+)
 from shelfdrop.ranger.service import RangerService
 
 router = APIRouter(prefix="/v1/place", tags=["place"], route_class=WireupRoute)
@@ -84,7 +97,7 @@ def volume_request(body: VolumeBody) -> VolumeRequest:
     )
 
 
-def request_of(body: VolumeBody | ChapterBody | ChaptersBody) -> PlaceRequest:
+def request_of(body: VolumeBody | ChapterBody | ChaptersBody | IgnoreBody) -> PlaceRequest:
     match body:
         case VolumeBody():
             return volume_request(body)
@@ -109,6 +122,8 @@ def request_of(body: VolumeBody | ChapterBody | ChaptersBody) -> PlaceRequest:
                 ),
                 rest=body.rest,
             )
+        case IgnoreBody():
+            return IgnoreRequest()
 
 
 @router.get("/items")
@@ -133,6 +148,18 @@ async def link_item(item_id: int, body: PlaceBody, service: Injected[RangerServi
         raise item_busy() from exc
     except RequestRefusedError as exc:
         raise request_refused() from exc
+    return item_read(item)
+
+
+@router.post("/items/{item_id}/resume")
+async def resume_item(item_id: int, service: Injected[RangerService]) -> ItemRead:
+    """An ignored file back among the files to place."""
+    try:
+        item = await service.resume(item_id)
+    except ItemNotFoundError as exc:
+        raise item_not_found() from exc
+    except ItemNotIgnoredError as exc:
+        raise item_not_ignored() from exc
     return item_read(item)
 
 

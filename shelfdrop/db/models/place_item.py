@@ -23,7 +23,8 @@ class PlaceItem(Base):
     files: Mapped[str] = mapped_column(Text)
     size: Mapped[int] = mapped_column(Integer)
     # `unlinked` (to link to a work), `chapters` (a release in chapters, to link to volumes),
-    # `misplaced` (found by the scan) or `placed`; why (`chapters`, `manual`, `root`...).
+    # `misplaced` (found by the scan), `placed` or `ignored` (left where it is, out of the files
+    # to place); why (`chapters`, `manual`, `root`...).
     state: Mapped[str] = mapped_column(String(10), index=True)
     reason: Mapped[str | None] = mapped_column(String(20))
     # The chapters of its files (JSON), the series its name or its download gives, the volumes

@@ -2736,6 +2736,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/ChaptersBody"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IgnoreBody"
                   }
                 ],
                 "discriminator": {
@@ -2743,7 +2746,8 @@
                   "mapping": {
                     "volume": "#/components/schemas/VolumeBody",
                     "chapter": "#/components/schemas/ChapterBody",
-                    "chapters": "#/components/schemas/ChaptersBody"
+                    "chapters": "#/components/schemas/ChaptersBody",
+                    "ignore": "#/components/schemas/IgnoreBody"
                   }
                 },
                 "title": "Body"
@@ -2753,6 +2757,88 @@
         },
         "responses": {
           "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request does not match the schema (`validation_failed`), or a code of the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session, or a token unknown, expired or revoked (`not_signed_in`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A write from another origin with the cookie (`origin_refused`), or a token of reading (`token_forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than 60 requests in a minute with this token (`too_many_requests`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "write",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/place/items/{item_id}/resume": {
+      "post": {
+        "tags": [
+          "place"
+        ],
+        "summary": "Resume Item",
+        "description": "An ignored file back among the files to place.",
+        "operationId": "resume_item_api_v1_place_items__item_id__resume_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -3736,6 +3822,21 @@
         ],
         "title": "HealthStatus"
       },
+      "IgnoreBody": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ignore",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "IgnoreBody",
+        "description": "The file left where it is: out of the files to place, nothing written nor removed."
+      },
       "ImageBody": {
         "properties": {
           "kind": {
@@ -3943,7 +4044,8 @@
           "unlinked",
           "chapters",
           "misplaced",
-          "placed"
+          "placed",
+          "ignored"
         ]
       },
       "ItemsRead": {
@@ -6179,6 +6281,7 @@
               "waiting_not_found",
               "place_item_not_found",
               "place_item_busy",
+              "place_item_not_ignored",
               "place_request_refused",
               "upload_refused",
               "upload_not_found",

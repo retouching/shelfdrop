@@ -37,7 +37,7 @@ The rules of the user stay the same: Hermes proposes the releases and sends noth
 | `shelfarr.py list` | `list_downloads`: state, percent, speed, time left, destination once placed |
 | `shelfarr.py retry` | `retry_download` (a torrent qBittorrent did not receive) |
 | `manga_grab.py "<Série>"` (one release a volume, Nyaa > TOS > ABN > C411, then `--yes`) | `search_works` (`manga`) then `search_releases`; the releases come ranked by score, then the order of the trackers of the settings, then the seeds: Hermes proposes, for each volume, the first release that covers it (a pack first when one covers the whole), then `grab_releases` with the volumes of each |
-| `releases.qui_add(url, kind)` for a release named by the user | `search_releases` with `mode` `manual` and the exact name, then `grab_releases`: a manual download waits in Ranger, `list_files_to_place` then `place_file` (volume, chapters, or the volumes of a release in chapters) |
+| `releases.qui_add(url, kind)` for a release named by the user | `search_releases` with `mode` `manual` and the exact name, then `grab_releases`: a manual download waits in Ranger, `list_files_to_place` then `place_file` (volume, chapters, the volumes of a release in chapters, or `ignore`) |
 | the cron `library_place.py`, its rules `state/library_place.json`, `comics_cover.py`, `audiobook_merge.py` | the placement worker of shelfdrop, from the author, the series and the volumes given at the send: nothing to write before a send |
 
 Kept outside shelfdrop: the cross-seed of qui, the searches of anime and films (the other *arr), and what the plan leaves aside (the watch of new volumes, the waiting searches through MCP).

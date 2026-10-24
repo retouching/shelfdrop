@@ -10,13 +10,19 @@ import anyio.to_thread
 from shelfdrop.placement.repository import PlacementRepository, PlacementRepositoryFactory
 from shelfdrop.placement.types import (
     ChaptersRequest,
+    ItemState,
     NewItem,
     PlaceItem,
     PlaceRequest,
     ShelfFile,
     VolumeRequest,
 )
-from shelfdrop.ranger.exceptions import ItemBusyError, ItemNotFoundError, RequestRefusedError
+from shelfdrop.ranger.exceptions import (
+    ItemBusyError,
+    ItemNotFoundError,
+    ItemNotIgnoredError,
+    RequestRefusedError,
+)
 from shelfdrop.works.types import Clock
 
 # The files of the shelf a search of the page lists at most.
@@ -46,6 +52,14 @@ def check(item: PlaceItem, request: PlaceRequest) -> None:
             raise RequestRefusedError("nothing to place")
     elif item.state == "chapters" and isinstance(request, VolumeRequest):
         raise RequestRefusedError("a release in chapters goes to its volumes")
+
+
+def open_state(item: PlaceItem) -> ItemState:
+    """The state an ignored file takes back: a release in chapters keeps its chapters, a file of
+    the libraries is misplaced, any other is to link."""
+    if item.chapters:
+        return "chapters"
+    return "misplaced" if item.origin == "library" else "unlinked"
 
 
 class RangerService:
@@ -84,6 +98,24 @@ class RangerService:
             if asked is None:
                 raise ItemNotFoundError(item_id)
             return asked
+
+        return await self.on_shelf(run)
+
+    async def resume(self, item_id: int) -> PlaceItem:
+        """An ignored file back among the files to place; its download, placed meanwhile,
+        stays placed. Raises ItemNotFoundError, ItemNotIgnoredError."""
+        now = int(self.clock.now())
+
+        def run(repository: PlacementRepository) -> PlaceItem:
+            item = repository.read_item(item_id)
+            if item is None:
+                raise ItemNotFoundError(item_id)
+            if item.state != "ignored" or not repository.resume(item_id, open_state(item), now):
+                raise ItemNotIgnoredError(item_id)
+            resumed = repository.read_item(item_id)
+            if resumed is None:
+                raise ItemNotFoundError(item_id)
+            return resumed
 
         return await self.on_shelf(run)
 

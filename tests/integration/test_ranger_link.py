@@ -1,13 +1,21 @@
 """Ranger through the real image (plan section 3, point 5): a download the worker could not
 place is listed with its files; each file linked to a work is placed by the worker as a
 volume, hardlinked (the torrent seeds on); a name taken refuses, and nothing is replaced; a
-file of the shelf searched is corrected, moved."""
+file of the shelf searched is corrected, moved; the rest of a download placed in part is listed
+alone, ignored (nothing touched, the download placed), then taken back."""
 
 import httpx
 import pytest
 
 from tests.integration.ranger_support import MAKE_CBZ, named, wait_for_items
-from tests.integration.support import SEPARATOR, FakeSources, Stack, send_completed
+from tests.integration.support import (
+    QUI_PROXY,
+    SEPARATOR,
+    FakeSources,
+    Stack,
+    send_completed,
+    wait_for_download,
+)
 
 pytestmark = [pytest.mark.ranger, pytest.mark.ranger_link]
 
@@ -89,3 +97,59 @@ def test_files_left_by_the_worker_are_linked_placed_refused_and_corrected(
     assert f"{series} - T04.cbz" in listing
     assert f"{series} - T03.cbz" not in listing
     assert download["id"] > 0
+
+
+@pytest.mark.usefixtures("media", "qbittorrent_saved")
+def test_the_rest_of_a_download_placed_in_part_is_ignored_then_taken_back(
+    client: httpx.Client, fake_sources: FakeSources, stack: Stack
+) -> None:
+    series = "Shelfdrop Ignore Test"
+    torrent = f"/data/torrents/manga/{series}"
+    bonus = f"{torrent}/{series} - Bonus.cbz"
+    stack.exec_placement(
+        "python", "-c", MAKE_CBZ, f"{torrent}/Shelfdrop.Ignore.Test.T01.FRENCH.cbz", bonus
+    )
+    download, digest = send_completed(
+        client,
+        fake_sources,
+        name=series,
+        kind="manga",
+        content_path=torrent,
+        volumes={"kind": "unknown"},
+        author="Shelfdrop Author",
+    )
+    left = wait_for_download(
+        client, download["id"], lambda d: d["progress"]["state"] in ("placed", "to_place")
+    )
+    assert left["progress"]["state"] == "to_place"
+
+    # The volume placed is not listed: the book without a volume alone.
+    items = named(wait_for_items(client, lambda i: len(named(i, torrent)) >= 1), torrent)
+    [rest] = items
+    assert (rest["path"], rest["state"], rest["reason"]) == (bonus, "unlinked", "no_volume")
+    number = rest["id"].removeprefix("item-")
+    asked = client.post(f"/api/v1/place/items/{number}/link", json={"type": "ignore"})
+    assert asked.status_code == 202, asked.text
+    assert asked.json()["state"] == "placing"
+
+    ignored = wait_for_items(client, lambda i: named(i, bonus)[0]["state"] == "ignored")
+    assert named(ignored, bonus)[0]["state"] == "ignored"
+    placed = wait_for_download(client, download["id"], lambda d: d["progress"]["state"] == "placed")
+    assert placed["progress"]["destination"] == f"BD & Mangas{SEPARATOR}{series}"
+    assert [
+        r
+        for r in fake_sources.requests("POST", f"{QUI_PROXY}/torrents/addTags")
+        if digest in r["body"]
+    ]
+    shelf = stack.exec_placement("ls", "-1", f"/data/files/comics/{series}").stdout.splitlines()
+    assert shelf == [f"{series} - T01.cbz", "cover.jpg"]
+    # The file ignored stays in the torrent, untouched.
+    stack.exec_placement("test", "-f", bonus)
+    listed = client.get("/api/v1/place/items").json()
+    assert all(i["path"] != bonus for i in listed["items"] if i["state"] != "ignored")
+
+    resumed = client.post(f"/api/v1/place/items/{number}/resume")
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["state"] == "unlinked"
+    again = client.post(f"/api/v1/place/items/{number}/resume")
+    assert (again.status_code, again.json()["code"]) == (409, "place_item_not_ignored")

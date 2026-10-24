@@ -89,6 +89,9 @@ class ErrorCode(StrEnum):
     # 409: the file of Ranger is placed already, or the worker has a request of it to do;
     # data = null.
     PLACE_ITEM_BUSY = "place_item_busy"
+    # 409: the file of Ranger taken back is not ignored (or the worker has a request of it to
+    # do); data = null.
+    PLACE_ITEM_NOT_IGNORED = "place_item_not_ignored"
     # 422: the request does not fit the file: volumes of chapters for a file that is not a
     # release in chapters (or a volume for one), volumes repeated, ranges of chapters upside
     # down or that overlap, nothing to place; data = null.

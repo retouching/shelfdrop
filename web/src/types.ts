@@ -87,7 +87,8 @@ export type FileState =
   | { readonly kind: "chapters" }
   | { readonly kind: "misplaced"; readonly reason: string }
   | { readonly kind: "placing"; readonly destination: string }
-  | { readonly kind: "placed"; readonly destination: string };
+  | { readonly kind: "placed"; readonly destination: string }
+  | { readonly kind: "ignored" };
 
 export type ShelfFile = {
   readonly id: string;

@@ -106,7 +106,7 @@ markers = [
     "placement_audio: block of placement, MP3 tracks merged into one M4B, a book (test_placement_audio.py)",
     "uploads: integration part, the files sent in chunks, taken into Ranger (test_uploads.py)",
     "ranger: integration part, the page Ranger and the files the worker places from it",
-    "ranger_link: block of ranger, a download left linked to a work, a name taken, a file corrected (test_ranger_link.py)",
+    "ranger_link: block of ranger, a download left linked to a work, a name taken, a file corrected, a file ignored (test_ranger_link.py)",
     "ranger_chapters: block of ranger, a release in chapters merged into its volumes (test_ranger_chapters.py)",
     "ranger_scan: block of ranger, the scan of the files misplaced and its time (test_ranger_scan.py)",
     "access: integration part, the access tokens, the OpenAPI document and the MCP server",

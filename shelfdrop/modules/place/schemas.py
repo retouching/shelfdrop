@@ -57,7 +57,15 @@ class ChaptersBody(BaseModel):
     rest: Rest = "keep"
 
 
-type PlaceBody = Annotated[VolumeBody | ChapterBody | ChaptersBody, Field(discriminator="type")]
+class IgnoreBody(BaseModel):
+    """The file left where it is: out of the files to place, nothing written nor removed."""
+
+    type: Literal["ignore"]
+
+
+type PlaceBody = Annotated[
+    VolumeBody | ChapterBody | ChaptersBody | IgnoreBody, Field(discriminator="type")
+]
 
 
 class ItemRead(BaseModel):
@@ -68,7 +76,8 @@ class ItemRead(BaseModel):
     name: str
     path: str
     size: int
-    # `unlinked`, `chapters`, `misplaced` or `placed`; `placing` while the worker has it.
+    # `unlinked`, `chapters`, `misplaced`, `placed` or `ignored`; `placing` while the worker
+    # has it.
     state: ItemState | Literal["placing"]
     # Why it is in Ranger: why its download was not placed (`chapters`, `manual`,
     # `no_volume`...), or why the scan found it (`root`, `naming`, `tracks`, `chapters`).

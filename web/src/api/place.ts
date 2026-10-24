@@ -11,7 +11,7 @@ type ItemRead = {
   readonly name: string;
   readonly path: string;
   readonly size: number;
-  readonly state: "unlinked" | "chapters" | "misplaced" | "placed" | "placing";
+  readonly state: "unlinked" | "chapters" | "misplaced" | "placed" | "ignored" | "placing";
   readonly reason: string | null;
   readonly error: string | null;
   readonly destination: string | null;
@@ -58,7 +58,8 @@ export type PlaceBody =
         readonly replace: boolean;
       }[];
       readonly rest: "place" | "keep";
-    };
+    }
+  | { readonly type: "ignore" };
 
 function fileOf(read: ItemRead): ShelfFile {
   const state: ShelfFile["state"] =
@@ -100,6 +101,12 @@ export async function placeFile(id: string, body: PlaceBody): Promise<ShelfFile>
   const [prefix, number] = id.split("-");
   const path = prefix === "shelf" ? `/v1/place/shelf/${number ?? ""}/link` : `/v1/place/items/${number ?? ""}/link`;
   return fileOf(await request<ItemRead>("POST", path, body));
+}
+
+/** Un fichier ignoré remis parmi les fichiers à ranger. */
+export async function resumeFile(id: string): Promise<ShelfFile> {
+  const number = id.split("-")[1] ?? "";
+  return fileOf(await request<ItemRead>("POST", `/v1/place/items/${number}/resume`));
 }
 
 export async function askScan(): Promise<void> {

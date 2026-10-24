@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from "react";
 
-import { askScan } from "../api/place";
+import { askScan, placeFile, resumeFile } from "../api/place";
 import { texts } from "../texts";
 import type { FileState, Kind, ShelfFile } from "../types";
 import { formatSize } from "../utils/format";
@@ -45,6 +45,8 @@ function stateText(state: FileState, kind: Kind | null): string {
       return texts.place.placing;
     case "placed":
       return texts.place.placed(state.destination);
+    case "ignored":
+      return texts.place.ignored;
   }
 }
 
@@ -61,6 +63,8 @@ function stateTone(state: FileState): string {
       return "bg-rose-50 text-rose-700 ring-rose-200";
     case "placed":
       return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+    case "ignored":
+      return "bg-slate-50 text-slate-600 ring-slate-200";
   }
 }
 
@@ -76,7 +80,23 @@ type Props = {
 };
 
 export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
-  const [filter, setFilter] = useState<"todo" | "all">("todo");
+  const [filter, setFilter] = useState<"todo" | "ignored" | "all">("todo");
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function act(file: ShelfFile, run: () => Promise<ShelfFile>): void {
+    setBusy(file.id);
+    run().then(
+      (changed) => {
+        setBusy(null);
+        setConfirming(null);
+        onPlaced(changed);
+      },
+      () => {
+        setBusy(null);
+      },
+    );
+  }
   const [query, setQuery] = useState("");
   const [scanAsked, setScanAsked] = useState(false);
   const [linking, setLinking] = useState<ShelfFile | null>(null);
@@ -85,7 +105,10 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
   const needle = query.trim().toLowerCase();
   const shown = files.filter(
     (file) =>
-      (filter === "all" || needsAction(file) || file.state.kind === "uploading") &&
+      (filter === "all" ||
+        (filter === "ignored"
+          ? file.state.kind === "ignored"
+          : needsAction(file) || file.state.kind === "uploading")) &&
       (needle === "" || file.path.toLowerCase().includes(needle)),
   );
 
@@ -131,7 +154,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
             aria-label={texts.place.filesTitle}
             className="inline-flex rounded-lg bg-slate-100 p-1"
           >
-            {(["todo", "all"] as const).map((option) => (
+            {(["todo", "ignored", "all"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -153,7 +176,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
         </div>
         {shown.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-500">
-            {needle === "" ? texts.place.allPlaced : texts.place.none}
+            {needle === "" && filter !== "ignored" ? texts.place.allPlaced : texts.place.none}
           </p>
         ) : (
           <table className="w-full table-fixed text-sm">
@@ -162,7 +185,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
               <col className="w-32" />
               <col className="w-24" />
               <col className="w-72" />
-              <col className="w-28" />
+              <col className="w-48" />
             </colgroup>
             <thead className="bg-band text-left text-ink">
               <tr>
@@ -220,32 +243,86 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
                     ) : null}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    {file.state.kind === "chapters" ? (
+                    {confirming === file.id ? (
+                      <span className="flex flex-col items-end gap-1.5">
+                        <span className="text-xs text-slate-500">{texts.place.ignoreConfirm}</span>
+                        <span className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirming(null);
+                            }}
+                            className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                          >
+                            {texts.place.cancel}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy === file.id}
+                            onClick={() => {
+                              act(file, () => placeFile(file.id, { type: "ignore" }));
+                            }}
+                            aria-label={texts.place.ignoreFor(file.name)}
+                            className="rounded-lg bg-slate-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {texts.place.ignore}
+                          </button>
+                        </span>
+                      </span>
+                    ) : file.state.kind === "ignored" ? (
                       <button
                         type="button"
+                        disabled={busy === file.id}
                         onClick={() => {
-                          setChaptering(file);
+                          act(file, () => resumeFile(file.id));
                         }}
-                        aria-label={texts.chapters.linkFor(file.name)}
-                        className="rounded-lg border border-transparent bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
+                        aria-label={texts.place.resumeFor(file.name)}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {texts.chapters.open}
+                        {texts.place.resume}
                       </button>
-                    ) : file.state.kind === "uploading" || file.state.kind === "placing" ? null : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLinking(file);
-                        }}
-                        aria-label={texts.place.linkFor(file.name)}
-                        className={
-                          needsAction(file)
-                            ? "rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
-                            : "rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
-                        }
-                      >
-                        {needsAction(file) ? texts.place.link : texts.place.relink}
-                      </button>
+                    ) : (
+                      <span className="flex justify-end gap-1.5">
+                        {needsAction(file) && file.id.startsWith("item-") ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirming(file.id);
+                            }}
+                            aria-label={texts.place.ignoreFor(file.name)}
+                            className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                          >
+                            {texts.place.ignore}
+                          </button>
+                        ) : null}
+                        {file.state.kind === "chapters" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChaptering(file);
+                            }}
+                            aria-label={texts.chapters.linkFor(file.name)}
+                            className="rounded-lg border border-transparent bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
+                          >
+                            {texts.chapters.open}
+                          </button>
+                        ) : file.state.kind === "uploading" || file.state.kind === "placing" ? null : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLinking(file);
+                            }}
+                            aria-label={texts.place.linkFor(file.name)}
+                            className={
+                              needsAction(file)
+                                ? "rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-strong"
+                                : "rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                            }
+                          >
+                            {needsAction(file) ? texts.place.link : texts.place.relink}
+                          </button>
+                        )}
+                      </span>
                     )}
                   </td>
                 </tr>

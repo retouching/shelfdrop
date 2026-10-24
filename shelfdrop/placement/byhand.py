@@ -37,9 +37,11 @@ from shelfdrop.placement.types import (
     LIBRARY_NAMES,
     ChapterRequest,
     ChaptersRequest,
+    IgnoreRequest,
     NewItem,
     PlacedFile,
     PlaceItem,
+    ShelfFile,
     VolumeRequest,
 )
 from shelfdrop.placement.uploads import lay_upload, remove_empty, remove_upload, upload_items
@@ -83,6 +85,22 @@ def shelf_of(folder: Path, files: Sequence[str]) -> tuple[tuple[int, ...], tuple
     return volumes_in(folder), loose_chapters(folder, files)
 
 
+def inode_of(path: str) -> tuple[int, int] | None:
+    try:
+        found = Path(path).stat()
+    except OSError:
+        return None
+    return found.st_dev, found.st_ino
+
+
+def not_shelved(files: Sequence[tuple[str, int]], shelved: Sequence[str]) -> list[tuple[str, int]]:
+    """The files of a torrent but those already on the shelf: a hardlink shares their inode."""
+    placed = {n for n in (inode_of(p) for p in shelved) if n is not None}
+    if not placed:
+        return list(files)
+    return [(path, size) for path, size in files if inode_of(path) not in placed]
+
+
 def remove_sources(paths: Sequence[str], kept: set[str]) -> None:
     """The files of the libraries now on the shelf under another name: removed."""
     for path in paths:
@@ -110,6 +128,10 @@ def set_shelf(
     loose: tuple[float, ...],
 ) -> None:
     repository.set_item_shelf(item_id, existing, loose)
+
+
+def download_files(repository: PlacementRepository, *, download_id: int) -> list[ShelfFile]:
+    return repository.read_download_files(download_id)
 
 
 def mark_upload(
@@ -253,15 +275,29 @@ class HandPlacement:
         for download in todo:
             info = torrents.get(download.info_hash or "")
             content = info.content_path if info is not None else ""
-            items = await anyio.to_thread.run_sync(self.items_for, download, content, roots)
+            shelved = [
+                f.path
+                for f in await self.placement.on_shelf(
+                    partial(download_files, download_id=download.id),
+                    commit=False,
+                )
+            ]
+            items = await anyio.to_thread.run_sync(
+                self.items_for, download, content, roots, shelved
+            )
             now = int(self.placement.clock.now())
             await self.placement.on_shelf(partial(add_items, items=items, now=now))
             logger.info("Download listed in Ranger", extra={"download": download.id})
         return len(todo)
 
     @staticmethod
-    def items_for(download: Download, content: str, roots: dict[Kind, str]) -> list[NewItem]:
+    def items_for(
+        download: Download, content: str, roots: dict[Kind, str], shelved: Sequence[str] = ()
+    ) -> list[NewItem]:
+        """The files of Ranger of `download`, but those it put on the shelf already
+        (`shelved`: a placement in part, a link refused after others)."""
         files = sized(files_of(Path(content))) if content else []
+        files = not_shelved(files, shelved)
         if download.kind != "manga":
             return items_of(download, content, files, ())
         folder = Path(roots["manga"]) / safe(download.series or download.work_name)
@@ -299,6 +335,9 @@ class HandPlacement:
         request = item.request
         if request is None:
             return
+        if isinstance(request, IgnoreRequest):
+            await self.ignore(item)
+            return
         kind: Kind = request.kind if isinstance(request, VolumeRequest) else "manga"
         roots = await self.placement.settings.libraries()
         root = Path(roots[kind])
@@ -327,6 +366,49 @@ class HandPlacement:
             await self.placement.on_shelf(lambda r: r.mark_item_placed(item.id, destination, now))
         logger.info("File of Ranger placed", extra={"item": item.id, "files": len(placed)})
         await self.after(item, destination, hand, library)
+
+    async def ignore(self, item: PlaceItem) -> None:
+        """The file left where it is (a file of a download, of the libraries or sent alike:
+        nothing is written nor removed), out of the files to place; its download placed once
+        none of its files is left."""
+        now = int(self.placement.clock.now())
+        await self.placement.on_shelf(lambda r: r.mark_item_ignored(item.id, now))
+        logger.info("File of Ranger ignored", extra={"item": item.id})
+        if item.download_id is not None:
+            await self.close_download(item.download_id, None)
+
+    async def close_download(self, download_id: int, destination: str | None) -> None:
+        """The download placed (and tagged) once none of its files is left in Ranger; without a
+        `destination`, the one of its files placed, if any."""
+        left = await self.placement.on_shelf(
+            lambda r: r.count_open_of_download(download_id), commit=False
+        )
+        download = await self.placement.on_downloads(lambda r: r.read(download_id), commit=False)
+        if download is None or left:
+            return
+        where = destination or await self.destination_of(download)
+        now = int(self.placement.clock.now())
+        await self.placement.on_downloads(lambda r: r.mark_placed(download_id, where, now))
+        await self.placement.after_placement(download, None)
+
+    async def destination_of(self, download: Download) -> str:
+        """Where the files of `download` went: the destination of its last file placed from
+        Ranger, else the series of a file the worker placed alone; empty when it has none."""
+        download_id = download.id
+        items = await self.placement.on_shelf(
+            lambda r: r.read_items_of_download(download_id), commit=False
+        )
+        placed = [i.destination for i in items if i.state == "placed" and i.destination]
+        if placed:
+            return placed[-1]
+        files = await self.placement.on_shelf(
+            lambda r: r.read_download_files(download_id), commit=False
+        )
+        if files:
+            roots = await self.placement.settings.libraries()
+            library = await self.placement.library_for(roots[files[0].kind])
+            return destination_label(files[0].kind, files[0].series, library)
+        return download.destination or ""
 
     async def failed(
         self, item: PlaceItem, reason: str, placed: Sequence[PlacedFile], now: int
@@ -384,19 +466,7 @@ class HandPlacement:
         """The download placed once none of its files is left in Ranger; the library scanned
         by Jellyfin; the event `placed`."""
         if item.download_id is not None:
-            download_id = item.download_id
-            left = await self.placement.on_shelf(
-                lambda r: r.count_open_of_download(download_id), commit=False
-            )
-            download = await self.placement.on_downloads(
-                lambda r: r.read(download_id), commit=False
-            )
-            if download is not None and left == 0:
-                now = int(self.placement.clock.now())
-                await self.placement.on_downloads(
-                    lambda r: r.mark_placed(download_id, destination, now)
-                )
-                await self.placement.after_placement(download, None)
+            await self.close_download(item.download_id, destination)
         await self.placement.refresh_library(library)
         placed = NewEvent(
             type="placed",
@@ -434,14 +504,17 @@ class HandPlacement:
 
     async def scan(self) -> int:
         """The files misplaced of every library in Ranger: new ones added, those gone removed,
-        the others read again (but those the page asked for). Returns the new ones."""
+        the others read again (but those the page asked for, and those ignored, which stay
+        ignored). Returns the new ones."""
         roots = await self.placement.settings.libraries()
         merge = await self.placement.settings.merge_mp3()
         placed = await self.placement.on_shelf(lambda r: r.read_shelf_paths(), commit=False)
         found: list[NewItem] = []
         for kind, root in roots.items():
             found += await anyio.to_thread.run_sync(scan_library, kind, Path(root), placed, merge)
-        listed = await self.placement.on_shelf(lambda r: r.read_open_of("library"), commit=False)
+        listed = await self.placement.on_shelf(
+            lambda r: r.read_open_of("library", ignored=True), commit=False
+        )
         by_path = {i.path: i for i in listed}
         seen = {f.path for f in found}
         new = [f for f in found if f.path not in by_path]
@@ -452,7 +525,9 @@ class HandPlacement:
         again = [
             (by_path[f.path].id, f)
             for f in found
-            if f.path in by_path and by_path[f.path].request is None
+            if f.path in by_path
+            and by_path[f.path].request is None
+            and by_path[f.path].state != "ignored"
         ]
         await self.placement.on_shelf(partial(update_items, items=again, now=now))
         await self.placement.on_shelf(partial(add_items, items=new, now=now))

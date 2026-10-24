@@ -21,8 +21,8 @@ type TaskKind = Literal["cover", "scan"]
 # Where a file of Ranger comes from: a download (hardlinked), the libraries (moved).
 type ItemOrigin = Literal["download", "library", "upload"]
 # A file of Ranger: to link to a work, a release in chapters to link to volumes, a file of the
-# libraries misplaced, or placed.
-type ItemState = Literal["unlinked", "chapters", "misplaced", "placed"]
+# libraries misplaced, placed, or ignored (left where it is, out of the files to place).
+type ItemState = Literal["unlinked", "chapters", "misplaced", "placed", "ignored"]
 # Why the scan found a file misplaced: at the root of its library, out of the names of the
 # shelf, MP3 tracks not merged, a folder of chapters.
 type Misplaced = Literal["root", "naming", "tracks", "chapters"]
@@ -193,7 +193,14 @@ class ChaptersRequest:
     rest: Rest = "keep"
 
 
-type PlaceRequest = VolumeRequest | ChapterRequest | ChaptersRequest
+@dataclass(frozen=True, kw_only=True)
+class IgnoreRequest:
+    """The file left where it is: out of the files to place, nothing written nor removed."""
+
+    type: Literal["ignore"] = "ignore"
+
+
+type PlaceRequest = VolumeRequest | ChapterRequest | ChaptersRequest | IgnoreRequest
 
 
 @dataclass(frozen=True, kw_only=True)

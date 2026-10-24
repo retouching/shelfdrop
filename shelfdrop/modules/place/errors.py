@@ -13,5 +13,9 @@ def item_busy() -> ApiError:
     return conflict(ErrorCode.PLACE_ITEM_BUSY, "File placed, or being placed")
 
 
+def item_not_ignored() -> ApiError:
+    return conflict(ErrorCode.PLACE_ITEM_NOT_IGNORED, "File not ignored")
+
+
 def request_refused() -> ApiError:
     return unprocessable(ErrorCode.PLACE_REQUEST_REFUSED, "Request does not fit the file")

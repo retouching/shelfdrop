@@ -1,14 +1,22 @@
+import dataclasses
+
 import pytest
 
 from shelfdrop.placement.types import (
     ChaptersRequest,
+    IgnoreRequest,
     NewItem,
     PlacedFile,
     VolumeRange,
     VolumeRequest,
 )
-from shelfdrop.ranger.exceptions import ItemBusyError, ItemNotFoundError, RequestRefusedError
-from shelfdrop.ranger.service import RangerService
+from shelfdrop.ranger.exceptions import (
+    ItemBusyError,
+    ItemNotFoundError,
+    ItemNotIgnoredError,
+    RequestRefusedError,
+)
+from shelfdrop.ranger.service import RangerService, open_state
 from tests.unit.placement.support import FakePlacementRepository
 from tests.unit.works.support import FixedClock
 
@@ -109,3 +117,37 @@ async def test_a_file_of_the_shelf_searched_is_corrected_by_a_file_of_ranger() -
     await service.scan()
     await service.scan()
     assert [t.kind for t in shelf.read_tasks()] == ["scan"]
+
+
+@pytest.mark.anyio
+async def test_a_file_is_ignored_by_the_worker_then_taken_back() -> None:
+    shelf = FakePlacementRepository()
+    service = RangerService(lambda: shelf, FixedClock())
+    item_id = shelf.add_item(new_item("chapters"), 0)
+
+    asked = await service.link(item_id, IgnoreRequest())
+    assert asked.request == IgnoreRequest()
+    with pytest.raises(ItemNotIgnoredError):
+        await service.resume(item_id)
+    shelf.mark_item_ignored(item_id, 0)
+    assert await service.count() == 0
+
+    # Taken back with its chapters: a release in chapters again.
+    shelf.change(item_id, chapters=(1.0, 2.0))
+    resumed = await service.resume(item_id)
+
+    assert (resumed.state, resumed.request) == ("chapters", None)
+    assert await service.count() == 1
+    with pytest.raises(ItemNotFoundError):
+        await service.resume(99)
+
+
+def test_an_ignored_file_takes_back_the_state_of_its_origin() -> None:
+    shelf = FakePlacementRepository()
+    download = shelf.add_item(new_item(), 0)
+    library = shelf.add_item(
+        dataclasses.replace(new_item(), origin="library", state="misplaced"), 0
+    )
+
+    assert open_state(shelf.items[download]) == "unlinked"
+    assert open_state(shelf.items[library]) == "misplaced"

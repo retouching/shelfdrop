@@ -150,6 +150,15 @@ class PlacementRepository:
         if paths:
             self.session.execute(delete(ShelfFileRow).where(ShelfFileRow.path.in_(paths)))
 
+    def read_download_files(self, download_id: int) -> list[ShelfFile]:
+        """The files a download put on the shelf (by the worker alone, or from Ranger)."""
+        rows = self.session.scalars(
+            select(ShelfFileRow)
+            .where(ShelfFileRow.download_id == download_id)
+            .order_by(ShelfFileRow.id)
+        )
+        return [file_of(row) for row in rows]
+
     def read_shelf_paths(self) -> set[str]:
         """The paths of every file the placement put on the shelf."""
         return set(self.session.scalars(select(ShelfFileRow.path)))
@@ -260,9 +269,13 @@ class PlacementRepository:
             if n is not None
         }
 
-    def read_open_of(self, origin: ItemOrigin) -> list[PlaceItem]:
+    def read_open_of(self, origin: ItemOrigin, *, ignored: bool = False) -> list[PlaceItem]:
+        """The files of `origin` still to place (and those ignored with `ignored`)."""
+        states = (*OPEN, "ignored") if ignored else OPEN
         rows = self.session.scalars(
-            select(PlaceItemRow).where(PlaceItemRow.origin == origin, PlaceItemRow.state.in_(OPEN))
+            select(PlaceItemRow).where(
+                PlaceItemRow.origin == origin, PlaceItemRow.state.in_(states)
+            )
         )
         return [item_of(row) for row in rows]
 
@@ -309,6 +322,31 @@ class PlacementRepository:
                 state="placed", request=None, error=None, destination=destination, updated_at=now
             )
         )
+
+    def mark_item_ignored(self, item_id: int, now: int) -> None:
+        """The file left where it is, out of the files to place."""
+        self.session.execute(
+            update(PlaceItemRow)
+            .where(PlaceItemRow.id == item_id)
+            .values(state="ignored", request=None, error=None, updated_at=now)
+        )
+
+    def resume(self, item_id: int, state: ItemState, now: int) -> bool:
+        """An ignored file back to `state`; False when it is not ignored."""
+        done = self.session.execute(
+            update(PlaceItemRow)
+            .where(PlaceItemRow.id == item_id, PlaceItemRow.state == "ignored")
+            .values(state=state, request=None, error=None, updated_at=now)
+        )
+        return bool(getattr(done, "rowcount", 0))
+
+    def read_items_of_download(self, download_id: int) -> list[PlaceItem]:
+        rows = self.session.scalars(
+            select(PlaceItemRow)
+            .where(PlaceItemRow.download_id == download_id)
+            .order_by(PlaceItemRow.id)
+        )
+        return [item_of(row) for row in rows]
 
     def mark_item_failed(self, item_id: int, error: str, now: int) -> None:
         """The request not done: the file stays in Ranger with the reason."""

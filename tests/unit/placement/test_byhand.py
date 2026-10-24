@@ -6,7 +6,12 @@ import pytest
 
 from shelfdrop.placement.byhand import scan_slot
 from shelfdrop.placement.paths import SEPARATOR
-from shelfdrop.placement.types import ChaptersRequest, VolumeRange, VolumeRequest
+from shelfdrop.placement.types import (
+    ChaptersRequest,
+    IgnoreRequest,
+    VolumeRange,
+    VolumeRequest,
+)
 from shelfdrop.releases.types import Volumes
 from tests.unit.placement.support import Bench, cbz, completed, new_bench
 
@@ -121,6 +126,60 @@ async def test_the_scan_runs_once_a_day_and_when_the_page_asks(tmp_path: Path) -
     [message] = bench.journal.of("misplaced")
     assert message.facts == {"library": "BD & Mangas", "count": 1}
     os.remove(bench.roots["manga"] / "Berserk T01.cbz")
+    bench.shelf.add_task("scan", "", b"", 0)
+    await bench.hand.round()
+    assert bench.shelf.items == {}
+
+
+@pytest.mark.anyio
+async def test_the_rest_of_a_download_placed_in_part_is_listed_alone_then_ignored(
+    tmp_path: Path,
+) -> None:
+    bench = new_bench(tmp_path)
+    torrent = tmp_path / "torrents" / "Berserk"
+    files = [cbz(torrent / n, ["1.jpg"]) for n in ("Berserk T41.cbz", "Berserk bonus.cbz")]
+    download = completed(bench, torrent, volumes=Volumes(kind="unknown"))
+    await bench.service.round()
+    await bench.hand.round()
+
+    # The volume placed is not listed again: only the book without a volume.
+    [item] = bench.shelf.items.values()
+    assert (item.path, item.state, item.reason) == (str(files[1]), "unlinked", "no_volume")
+    assert bench.shelf.ask(item.id, IgnoreRequest(), 0)
+    await bench.hand.round()
+
+    assert bench.shelf.items[item.id].state == "ignored"
+    assert bench.shelf.count_open() == 0
+    assert all(f.is_file() for f in files)
+    assert sorted(p.name for p in (bench.roots["manga"] / "Berserk").iterdir()) == [
+        "Berserk - T41.cbz",
+        "cover.jpg",
+    ]
+    row = bench.downloads.rows[download.id]
+    assert (row.stage, row.destination) == ("placed", f"BD & Mangas{SEPARATOR}Berserk")
+    assert bench.qui.torrents[row.info_hash or ""]["tags"] == "placé"
+    assert bench.journal.of("placed") == []
+
+
+@pytest.mark.anyio
+async def test_a_file_of_the_library_ignored_stays_ignored_at_the_next_scan(
+    tmp_path: Path,
+) -> None:
+    bench = new_bench(tmp_path)
+    loose = bench.roots["ebook"] / "Goggins.epub"
+    loose.write_bytes(b"book")
+    await bench.hand.round()
+    [item] = bench.shelf.items.values()
+    assert bench.shelf.ask(item.id, IgnoreRequest(), 0)
+    await bench.hand.round()
+
+    bench.shelf.add_task("scan", "", b"", 0)
+    await bench.hand.round()
+
+    assert list(bench.shelf.items) == [item.id]
+    assert bench.shelf.items[item.id].state == "ignored"
+    assert loose.read_bytes() == b"book"
+    loose.unlink()
     bench.shelf.add_task("scan", "", b"", 0)
     await bench.hand.round()
     assert bench.shelf.items == {}

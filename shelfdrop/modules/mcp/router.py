@@ -192,8 +192,9 @@ def new_mcp_server(app: FastAPI, version: str) -> MCPServer:
     @server.tool(annotations=WRITE)
     async def place_file(ctx: Context, item_id: int, request: PlaceBody) -> ItemRead:
         """Link a file of Ranger (the number of its id `item-<n>`) to a work and shelve it: a
-        volume, chapters, or the volumes of a release in chapters. The placement worker does it
-        within a minute; list_files_to_place shows the result."""
+        volume, chapters, or the volumes of a release in chapters; or ignore it (`ignore`: left
+        where it is, out of the files to place). The placement worker does it within a minute;
+        list_files_to_place shows the result."""
         require_write(ctx)
         async with scope_of(app) as scope:
             service = await scope.get(RangerService)

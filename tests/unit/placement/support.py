@@ -19,10 +19,11 @@ from shelfdrop.downloads.covers import DownloadCovers
 from shelfdrop.downloads.types import Download, NewDownload
 from shelfdrop.placement.audio import AudioError, AudioTools
 from shelfdrop.placement.byhand import HandPlacement
-from shelfdrop.placement.repository import PlacementRepository
+from shelfdrop.placement.repository import OPEN, PlacementRepository
 from shelfdrop.placement.service import PlacementService
 from shelfdrop.placement.types import (
     ItemOrigin,
+    ItemState,
     LibraryTask,
     NewItem,
     PlacedFile,
@@ -78,10 +79,12 @@ class FakePlacementRepository(PlacementRepository):
         self.ids = itertools.count(1)
         self.items: dict[int, PlaceItem] = {}
         self.scans: list[int] = []
+        self.owners: dict[str, int | None] = {}
 
     @override
     def add_files(self, files: Sequence[PlacedFile], now: int) -> None:
         for placed in files:
+            self.owners[placed.path] = placed.download_id
             self.files.append(
                 ShelfFile(
                     id=next(self.ids),
@@ -134,6 +137,10 @@ class FakePlacementRepository(PlacementRepository):
         self.files = [f for f in self.files if f.path not in paths]
 
     @override
+    def read_download_files(self, download_id: int) -> list[ShelfFile]:
+        return [f for f in self.files if self.owners.get(f.path) == download_id]
+
+    @override
     def read_shelf_paths(self) -> set[str]:
         return {f.path for f in self.files}
 
@@ -176,9 +183,7 @@ class FakePlacementRepository(PlacementRepository):
     @override
     def read_items(self, *, placed: bool) -> list[PlaceItem]:
         return [
-            i
-            for i in sorted(self.items.values(), key=lambda i: -i.id)
-            if placed or i.state != "placed"
+            i for i in sorted(self.items.values(), key=lambda i: -i.id) if placed or i.state in OPEN
         ]
 
     @override
@@ -187,20 +192,21 @@ class FakePlacementRepository(PlacementRepository):
 
     @override
     def count_open(self) -> int:
-        return sum(1 for i in self.items.values() if i.state != "placed")
+        return sum(1 for i in self.items.values() if i.state in OPEN)
 
     @override
     def read_item_downloads(self) -> set[int]:
         return {i.download_id for i in self.items.values() if i.download_id is not None}
 
     @override
-    def read_open_of(self, origin: ItemOrigin) -> list[PlaceItem]:
-        return [i for i in self.items.values() if i.origin == origin and i.state != "placed"]
+    def read_open_of(self, origin: ItemOrigin, *, ignored: bool = False) -> list[PlaceItem]:
+        states = (*OPEN, "ignored") if ignored else OPEN
+        return [i for i in self.items.values() if i.origin == origin and i.state in states]
 
     @override
     def count_open_of_download(self, download_id: int) -> int:
         return sum(
-            1 for i in self.items.values() if i.download_id == download_id and i.state != "placed"
+            1 for i in self.items.values() if i.download_id == download_id and i.state in OPEN
         )
 
     @override
@@ -211,18 +217,34 @@ class FakePlacementRepository(PlacementRepository):
     @override
     def ask(self, item_id: int, request: PlaceRequest, now: int) -> bool:
         item = self.items.get(item_id)
-        if item is None or item.state == "placed" or item.request is not None:
+        if item is None or item.state not in OPEN or item.request is not None:
             return False
         self.change(item_id, request=request, error=None)
         return True
 
     @override
     def read_asked(self) -> list[PlaceItem]:
-        return [i for i in self.items.values() if i.request is not None and i.state != "placed"]
+        return [i for i in self.items.values() if i.request is not None and i.state in OPEN]
 
     @override
     def mark_item_placed(self, item_id: int, destination: str, now: int) -> None:
         self.change(item_id, state="placed", request=None, error=None, destination=destination)
+
+    @override
+    def mark_item_ignored(self, item_id: int, now: int) -> None:
+        self.change(item_id, state="ignored", request=None, error=None)
+
+    @override
+    def resume(self, item_id: int, state: ItemState, now: int) -> bool:
+        item = self.items.get(item_id)
+        if item is None or item.state != "ignored":
+            return False
+        self.change(item_id, state=state, request=None, error=None)
+        return True
+
+    @override
+    def read_items_of_download(self, download_id: int) -> list[PlaceItem]:
+        return [i for i in self.items.values() if i.download_id == download_id]
 
     @override
     def mark_item_failed(self, item_id: int, error: str, now: int) -> None:
