@@ -1,6 +1,6 @@
 # 0012. Settings in the database, sealed secrets
 Status: Accepted
-Date: 2026-10-21
+Date: 2026-10-24
 
 ## Context
 Decided on 2026-10-21: every setting is changed from the settings page, without a restart: the addresses and the keys of Prowlarr, qBittorrent and Jellyfin, the metadata sources, the search. The `.env` file keeps the bootstrap alone: the key of the secrets and the place of the database. The keys already in a `.env` (taken over from an earlier tool) are imported once. A secret never goes back to the browser, nor to a log, an event or the audit.
@@ -11,7 +11,7 @@ Decided on 2026-10-21: every setting is changed from the settings page, without 
 - The other domains read their settings at each use, through `shelfdrop.settings.reader.SettingsReader` (a singleton on sessions of its own): the address and the key of Prowlarr, the Client ID of MyAnimeList, the sources switched on, the number of names searched and the durations of the caches. They know it through a `Protocol` of their own (`WorkSettings`, `NameLimit`, `AnswerTime`, the `Connection` of `ProwlarrClient`), never by an import.
 - At start (the lifespan of the application), `SettingsService.import_environment` imports `SHELFDROP_PROWLARR_URL`, `SHELFDROP_PROWLARR_API_KEY`, `SHELFDROP_JELLYFIN_URL` and `SHELFDROP_MYANIMELIST_CLIENT_ID`: each value the database does not hold yet, once (the keys imported are kept under `settings.imported`); a value cleared on the page later is not imported again, a value the page set is never overwritten. The audit names the actor `environment`.
 
-- `POST /api/v1/settings/test` tests a service or a source with the values typed, before they are saved (`shelfdrop.settings.probes`); `ConnectionMonitor` runs the same tests in the background, at start then every 5 minutes, for the services saved, and logs a failure once. qBittorrent is reached through the client proxy of qui (`<address of qui>/proxy/<key>`): qui signs in to qBittorrent, shelfdrop holds one key.
+- `POST /api/v1/settings/test` tests a service or a source with the values typed, before they are saved (`shelfdrop.settings.probes`); `ConnectionMonitor` runs the same tests in the background, at start then every 5 minutes, for the services saved, and logs a failure once. The torrent client is reached through the connector of the client saved, with the credentials it signs in with ([ADR 0025](0025-torrent-clients.md)).
 - Every change of a setting, a secret, the trackers or the filters is audited: who, when, which key; never a value.
 
 ## Rejected alternatives
@@ -23,3 +23,6 @@ Decided on 2026-10-21: every setting is changed from the settings page, without 
 - Losing `SHELFDROP_SECRET_KEY` loses the secrets: they are typed again on the page. The API does not start without it.
 - A setting has no variable of its own any more but the four imported; `.env.example` lists the bootstrap.
 - The tests of the background forget their results at a restart, and run again at start.
+
+## Replaced
+- qBittorrent reached through the client proxy of qui alone, shelfdrop holding one key (`qbittorrent.url`, `qbittorrent.api_key`): replaced by the torrent clients of [ADR 0025](0025-torrent-clients.md), qui one of them, its settings moved to `torrent.*`.
