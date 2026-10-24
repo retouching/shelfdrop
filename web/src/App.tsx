@@ -11,7 +11,7 @@ import { ResultsCard } from "./components/ResultsCard";
 import { SearchForm } from "./components/SearchForm";
 import { UploadZone } from "./components/UploadZone";
 import { SelectionBar } from "./components/SelectionBar";
-import { Sidebar, type Page } from "./components/Sidebar";
+import { Sidebar } from "./components/Sidebar";
 import { StatStrip, type Stat } from "./components/StatStrip";
 import { Bone, LoadingLabel, ResultsSkeleton, WorkListSkeleton } from "./components/Skeletons";
 import { LibraryPage } from "./components/library/LibraryPage";
@@ -26,6 +26,7 @@ import { whenSignedOut } from "./api/http";
 import type { SearchProgress } from "./api/searches";
 import { readSession, signOut } from "./api/session";
 import { readHealth } from "./api/settings";
+import { sectionRoute, useRoute, type Page, type Route } from "./state/route";
 import { loadSettings, useSettings, valueOf } from "./state/settings";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
 import { retryDownload } from "./api/downloads";
@@ -42,6 +43,27 @@ import { bestPerVolume, coverageLabel, volumeNumbers } from "./utils/volumes";
 const DEFAULT_MAX_NAMES = 6;
 /** Les tests des services tournent toutes les 5 minutes : la page relit leur résultat au même rythme. */
 const HEALTH_EVERY_MS = 5 * 60 * 1000;
+
+/** L'en-tête de chaque section. */
+const headings: Readonly<Record<Page, Parameters<typeof PageHeader>[0]>> = {
+  auto: { section: texts.nav.search, title: texts.pages.auto, lead: texts.pages.autoLead },
+  manual: { section: texts.nav.search, title: texts.pages.manual, lead: texts.pages.manualLead },
+  waiting: { section: texts.nav.search, title: texts.pages.waiting, lead: texts.pages.waitingLead },
+  downloads: { section: texts.nav.library, title: texts.pages.downloads, lead: texts.pages.downloadsLead },
+  place: { section: texts.nav.library, title: texts.pages.place, lead: texts.pages.placeLead },
+  metadata: { section: texts.nav.library, title: texts.pages.metadata, lead: texts.pages.metadataLead },
+  settings: { section: texts.nav.admin, title: texts.pages.settings, lead: texts.pages.settingsLead },
+};
+
+const mainClasses: Readonly<Record<Page, string>> = {
+  auto: "space-y-6 px-10 pt-8 pb-24",
+  manual: "space-y-6 px-10 pt-8 pb-24",
+  waiting: "px-10 pt-8 pb-24",
+  downloads: "space-y-8 px-10 py-8",
+  place: "px-10 pt-8 pb-24",
+  metadata: "px-10 pt-8 pb-24",
+  settings: "px-10 pt-8 pb-24",
+};
 
 function stats(downloads: readonly Download[]): readonly Stat[] {
   const count = (kinds: readonly string[]): string =>
@@ -61,7 +83,8 @@ export function App(): ReactElement | null {
   const settings = useSettings();
   const maxNamesSetting = valueOf(settings, "search.max_names");
   const maxNames = typeof maxNamesSetting === "number" ? maxNamesSetting : DEFAULT_MAX_NAMES;
-  const [page, setPage] = useState<Page>("auto");
+  const [route, navigate] = useRoute(leave);
+  const page = route.page;
   const [kind, setKind] = useState<Kind>("manga");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
@@ -196,6 +219,18 @@ export function App(): ReactElement | null {
     chooseWork(null);
   }
 
+  /**
+   * Changer de section, par la barre ou par Précédent et Suivant : quitter une page de recherche
+   * l'efface, en y revenant rien n'est relancé ; la recherche n'est jamais dans l'adresse.
+   */
+  function leave(next: Route): void {
+    if (next.page !== page) {
+      clearSearch();
+    }
+    setSelected(new Set());
+    setNotice(null);
+  }
+
   /** Tout effacer : le texte, l'œuvre et ses noms, les releases, la sélection et le message. */
   function clearSearch(): void {
     setQuery("");
@@ -307,6 +342,204 @@ export function App(): ReactElement | null {
     setSelected(next);
   }
 
+  /** La vue de la section : la barre, l'en-tête et le cadre restent, seule la vue change. */
+  function view(current: Route): ReactElement {
+    switch (current.page) {
+      case "auto":
+      case "manual":
+        return (
+          <>
+            <SearchForm
+              key={`${kind}-${query}`}
+              kind={kind}
+              initialQuery={query}
+              busy={manual ? releasesLoading : worksLoading}
+              onSearch={search}
+              onKind={(next) => {
+                clearSearch();
+                setKind(next);
+              }}
+              onClear={clearSearch}
+              searched={query !== ""}
+            />
+            {manual ? (
+              <UploadZone
+                onFiles={(list) => {
+                  void upload(list);
+                }}
+              />
+            ) : null}
+            {notice === null ? null : (
+              <p
+                role="status"
+                className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800"
+              >
+                {notice}
+              </p>
+            )}
+            {manual ? (
+              query === "" ? null : (
+                <Releases
+                  state={releasesState}
+                  workTitle={query}
+                  progressNames={progress}
+                  manual
+                  releases={releases}
+                  rejectedCount={rejected.length}
+                  showRejected={showRejected}
+                  onShowRejected={setShowRejected}
+                  minimum={minimum}
+                  cachedMinutes={cachedMinutes}
+                  onRefresh={() => {
+                    setRefreshRound((n) => n + 1);
+                  }}
+                  selected={selected}
+                  onToggle={toggle}
+                  onToggleAll={(select) => {
+                    setSelected(select ? new Set(selectable.map((release) => release.id)) : new Set());
+                  }}
+                  onBestPerVolume={() => {
+                    setSelected(new Set(bestPerVolume(selectable, selected)));
+                  }}
+                />
+              )
+            ) : (
+              <>
+                {worksLoading ? (
+                  <section aria-busy="true" aria-labelledby="works-loading" className="space-y-3">
+                    <h2 id="works-loading" className="font-semibold text-ink">
+                      {texts.works.caption(query)}
+                    </h2>
+                    <LoadingLabel label={texts.loading.works} />
+                    <WorkListSkeleton />
+                  </section>
+                ) : (
+                  <>
+                    <WorkList
+                      query={query}
+                      works={works}
+                      selectedId={work?.id ?? null}
+                      loading={releasesLoading}
+                      onChoose={chooseWork}
+                      onMerge={setMerging}
+                      onSplit={split}
+                    />
+                    {work === null ? null : (
+                      <>
+                        <NameChips titles={work.titles} enabled={names} onToggle={toggleName} />
+                        <Releases
+                          state={releasesState}
+                          workTitle={work.title}
+                          progressNames={progress}
+                          manual={false}
+                          releases={releases}
+                          rejectedCount={rejected.length}
+                          showRejected={showRejected}
+                          onShowRejected={setShowRejected}
+                          minimum={minimum}
+                          cachedMinutes={cachedMinutes}
+                          onRefresh={() => {
+                            setRefreshRound((n) => n + 1);
+                          }}
+                          onWait={() => {
+                            setWaitOpen(true);
+                          }}
+                          selected={selected}
+                          onToggle={toggle}
+                          onToggleAll={(select) => {
+                            setSelected(select ? new Set(selectable.map((release) => release.id)) : new Set());
+                          }}
+                          onBestPerVolume={() => {
+                            setSelected(new Set(bestPerVolume(selectable, selected)));
+                          }}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            <SelectionBar
+              count={selectedReleases.length}
+              coverage={coverageLabel(selectedReleases)}
+              onClear={() => {
+                setSelected(new Set());
+              }}
+              onDownload={() => {
+                setDialogOpen(true);
+              }}
+            />
+          </>
+        );
+      case "settings":
+        return (
+          <SettingsPage
+            tab={current.tab}
+            onTab={(tab) => {
+              navigate({ page: "settings", tab });
+            }}
+          />
+        );
+      case "waiting":
+        return (
+          <WaitingPage
+            onAdd={() => {
+              setWaitAdding(true);
+            }}
+            onOpen={(entry) => {
+              navigate({ page: "auto" });
+              search(entry.title, entry.kind);
+            }}
+          />
+        );
+      case "metadata":
+        return <LibraryPage />;
+      case "place":
+        return <PlacePage files={files} onPlaced={place.refresh} onSearch={setPlaceText} />;
+      case "downloads":
+        return (
+          <>
+            {downloadsList.downloads === null ? (
+              <section aria-busy="true" aria-label={texts.loading.downloads} className="space-y-8">
+                <LoadingLabel label={texts.loading.downloads} />
+                <div aria-hidden="true" className="grid gap-4 sm:grid-cols-3">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="space-y-2 border-l border-slate-200 pl-4">
+                      <Bone className="h-3.5 w-24" />
+                      <Bone className="h-7 w-10" />
+                      <Bone className="h-3 w-32" />
+                    </div>
+                  ))}
+                </div>
+                <ResultsSkeleton rows={4} />
+              </section>
+            ) : (
+              <>
+                <RefreshBar
+                  updatedAt={downloadsList.updatedAt}
+                  refreshing={downloadsList.refreshing}
+                  onRefresh={downloadsList.refresh}
+                  live={{ on: live, every: liveEvery, onToggle: setLive, onEvery: setLiveEvery }}
+                />
+                <StatStrip stats={stats(downloads)} />
+                <DownloadsTable
+                  downloads={downloads}
+                  retrying={retrying}
+                  onRetry={(download) => {
+                    void retry(download);
+                  }}
+                  onOtherRelease={(download) => {
+                    navigate({ page: download.manual ? "manual" : "auto" });
+                    search(download.workTitle, download.kind);
+                  }}
+                />
+              </>
+            )}
+          </>
+        );
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-page text-ink">
       <Sidebar
@@ -317,13 +550,11 @@ export function App(): ReactElement | null {
         waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
         toPlaceCount={place.open}
         onNavigate={(next) => {
-          // Quitter une page de recherche l'efface : en y revenant, rien n'est relancé.
+          leave(sectionRoute(next));
+          // Paramètres, déjà ouvert, garde son onglet.
           if (next !== page) {
-            clearSearch();
+            navigate(sectionRoute(next));
           }
-          setPage(next);
-          setSelected(new Set());
-          setNotice(null);
         }}
         onSignOut={() => {
           signOut().then(
@@ -337,215 +568,8 @@ export function App(): ReactElement | null {
         }}
       />
       <div className="min-w-0 flex-1">
-        {page === "auto" || page === "manual" ? (
-          <>
-            <PageHeader
-              section={texts.nav.search}
-              title={manual ? texts.pages.manual : texts.pages.auto}
-              lead={manual ? texts.pages.manualLead : texts.pages.autoLead}
-            />
-            <main className="space-y-6 px-10 pt-8 pb-24">
-              <SearchForm
-                key={`${kind}-${query}`}
-                kind={kind}
-                initialQuery={query}
-                busy={manual ? releasesLoading : worksLoading}
-                onSearch={search}
-                onKind={(next) => {
-                  clearSearch();
-                  setKind(next);
-                }}
-                onClear={clearSearch}
-                searched={query !== ""}
-              />
-              {manual ? (
-                <UploadZone
-                  onFiles={(list) => {
-                    void upload(list);
-                  }}
-                />
-              ) : null}
-              {notice === null ? null : (
-                <p
-                  role="status"
-                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800"
-                >
-                  {notice}
-                </p>
-              )}
-              {manual ? (
-                query === "" ? null : (
-                  <Releases
-                    state={releasesState}
-                    workTitle={query}
-                    progressNames={progress}
-                    manual
-                    releases={releases}
-                    rejectedCount={rejected.length}
-                    showRejected={showRejected}
-                    onShowRejected={setShowRejected}
-                    minimum={minimum}
-                    cachedMinutes={cachedMinutes}
-                    onRefresh={() => {
-                      setRefreshRound((n) => n + 1);
-                    }}
-                    selected={selected}
-                    onToggle={toggle}
-                    onToggleAll={(select) => {
-                      setSelected(select ? new Set(selectable.map((release) => release.id)) : new Set());
-                    }}
-                    onBestPerVolume={() => {
-                      setSelected(new Set(bestPerVolume(selectable, selected)));
-                    }}
-                  />
-                )
-              ) : (
-                <>
-                  {worksLoading ? (
-                    <section aria-busy="true" aria-labelledby="works-loading" className="space-y-3">
-                      <h2 id="works-loading" className="font-semibold text-ink">
-                        {texts.works.caption(query)}
-                      </h2>
-                      <LoadingLabel label={texts.loading.works} />
-                      <WorkListSkeleton />
-                    </section>
-                  ) : (
-                    <>
-                      <WorkList
-                        query={query}
-                        works={works}
-                        selectedId={work?.id ?? null}
-                        loading={releasesLoading}
-                        onChoose={chooseWork}
-                        onMerge={setMerging}
-                        onSplit={split}
-                      />
-                      {work === null ? null : (
-                        <>
-                          <NameChips titles={work.titles} enabled={names} onToggle={toggleName} />
-                          <Releases
-                            state={releasesState}
-                            workTitle={work.title}
-                            progressNames={progress}
-                            manual={false}
-                            releases={releases}
-                            rejectedCount={rejected.length}
-                            showRejected={showRejected}
-                            onShowRejected={setShowRejected}
-                            minimum={minimum}
-                            cachedMinutes={cachedMinutes}
-                            onRefresh={() => {
-                              setRefreshRound((n) => n + 1);
-                            }}
-                            onWait={() => {
-                              setWaitOpen(true);
-                            }}
-                            selected={selected}
-                            onToggle={toggle}
-                            onToggleAll={(select) => {
-                              setSelected(select ? new Set(selectable.map((release) => release.id)) : new Set());
-                            }}
-                            onBestPerVolume={() => {
-                              setSelected(new Set(bestPerVolume(selectable, selected)));
-                            }}
-                          />
-                        </>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-              <SelectionBar
-                count={selectedReleases.length}
-                coverage={coverageLabel(selectedReleases)}
-                onClear={() => {
-                  setSelected(new Set());
-                }}
-                onDownload={() => {
-                  setDialogOpen(true);
-                }}
-              />
-            </main>
-          </>
-        ) : page === "settings" ? (
-          <>
-            <PageHeader section={texts.nav.admin} title={texts.pages.settings} lead={texts.pages.settingsLead} />
-            <main className="px-10 pt-8 pb-24">
-              <SettingsPage />
-            </main>
-          </>
-        ) : page === "waiting" ? (
-          <>
-            <PageHeader section={texts.nav.search} title={texts.pages.waiting} lead={texts.pages.waitingLead} />
-            <main className="px-10 pt-8 pb-24">
-              <WaitingPage
-                onAdd={() => {
-                  setWaitAdding(true);
-                }}
-                onOpen={(entry) => {
-                  setPage("auto");
-                  search(entry.title, entry.kind);
-                }}
-              />
-            </main>
-          </>
-        ) : page === "metadata" ? (
-          <>
-            <PageHeader section={texts.nav.library} title={texts.pages.metadata} lead={texts.pages.metadataLead} />
-            <main className="px-10 pt-8 pb-24">
-              <LibraryPage />
-            </main>
-          </>
-        ) : page === "place" ? (
-          <>
-            <PageHeader section={texts.nav.library} title={texts.pages.place} lead={texts.pages.placeLead} />
-            <main className="px-10 pt-8 pb-24">
-              <PlacePage files={files} onPlaced={place.refresh} onSearch={setPlaceText} />
-            </main>
-          </>
-        ) : (
-          <>
-            <PageHeader section={texts.nav.library} title={texts.pages.downloads} lead={texts.pages.downloadsLead} />
-            <main className="space-y-8 px-10 py-8">
-              {downloadsList.downloads === null ? (
-                <section aria-busy="true" aria-label={texts.loading.downloads} className="space-y-8">
-                  <LoadingLabel label={texts.loading.downloads} />
-                  <div aria-hidden="true" className="grid gap-4 sm:grid-cols-3">
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className="space-y-2 border-l border-slate-200 pl-4">
-                        <Bone className="h-3.5 w-24" />
-                        <Bone className="h-7 w-10" />
-                        <Bone className="h-3 w-32" />
-                      </div>
-                    ))}
-                  </div>
-                  <ResultsSkeleton rows={4} />
-                </section>
-              ) : (
-                <>
-                  <RefreshBar
-                    updatedAt={downloadsList.updatedAt}
-                    refreshing={downloadsList.refreshing}
-                    onRefresh={downloadsList.refresh}
-                    live={{ on: live, every: liveEvery, onToggle: setLive, onEvery: setLiveEvery }}
-                  />
-                  <StatStrip stats={stats(downloads)} />
-                  <DownloadsTable
-                    downloads={downloads}
-                    retrying={retrying}
-                    onRetry={(download) => {
-                      void retry(download);
-                    }}
-                    onOtherRelease={(download) => {
-                      setPage(download.manual ? "manual" : "auto");
-                      search(download.workTitle, download.kind);
-                    }}
-                  />
-                </>
-              )}
-            </main>
-          </>
-        )}
+        <PageHeader {...headings[page]} />
+        <main className={mainClasses[page]}>{view(route)}</main>
       </div>
       {dialogOpen && searchIdOfReleases !== null ? (
         <DownloadDialog

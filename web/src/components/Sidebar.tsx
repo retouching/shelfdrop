@@ -1,5 +1,6 @@
-import { useState, type ReactElement } from "react";
+import { useState, type MouseEvent, type ReactElement } from "react";
 
+import { pathOf, sectionRoute, type Page } from "../state/route";
 import { texts } from "../texts";
 import { readTheme, saveTheme, type ThemeChoice } from "../theme";
 import {
@@ -50,8 +51,6 @@ function ThemeSwitch(): ReactElement {
   );
 }
 
-export type Page = "auto" | "manual" | "waiting" | "downloads" | "place" | "metadata" | "settings";
-
 type Props = {
   readonly page: Page;
   readonly username: string;
@@ -64,7 +63,9 @@ type Props = {
   readonly onSignOut: () => void;
 };
 
-function NavButton({
+/** Le lien d'une section : un clic simple change la vue, un clic du milieu ouvre un onglet. */
+function NavLink({
+  page,
   active,
   label,
   icon,
@@ -72,6 +73,7 @@ function NavButton({
   alert,
   onClick,
 }: {
+  readonly page: Page;
   readonly active: boolean;
   readonly label: string;
   readonly icon: ReactElement;
@@ -80,9 +82,15 @@ function NavButton({
   readonly onClick: () => void;
 }): ReactElement {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <a
+      href={pathOf(sectionRoute(page))}
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+        event.preventDefault();
+        onClick();
+      }}
       aria-current={active ? "page" : undefined}
       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[15px] ${
         active ? "bg-accent-soft font-medium text-accent-text" : "text-slate-600 hover:bg-slate-50 hover:text-ink"
@@ -96,7 +104,7 @@ function NavButton({
         </span>
       )}
       {alert === true ? <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" /> : null}
-    </button>
+    </a>
   );
 }
 
@@ -124,7 +132,8 @@ export function Sidebar({
       <nav aria-label={texts.nav.label} className="flex-1 space-y-6 px-3 py-5">
         <div className="space-y-1">
           <p className="px-3 pb-1 text-sm font-semibold text-ink">{texts.nav.search}</p>
-          <NavButton
+          <NavLink
+            page="auto"
             active={page === "auto"}
             label={texts.nav.auto}
             icon={<SearchIcon />}
@@ -132,7 +141,8 @@ export function Sidebar({
               onNavigate("auto");
             }}
           />
-          <NavButton
+          <NavLink
+            page="manual"
             active={page === "manual"}
             label={texts.nav.manual}
             icon={<FileIcon />}
@@ -140,7 +150,8 @@ export function Sidebar({
               onNavigate("manual");
             }}
           />
-          <NavButton
+          <NavLink
+            page="waiting"
             active={page === "waiting"}
             label={texts.nav.waiting}
             icon={<ClockIcon />}
@@ -152,7 +163,8 @@ export function Sidebar({
         </div>
         <div className="space-y-1">
           <p className="px-3 pb-1 text-sm font-semibold text-ink">{texts.nav.library}</p>
-          <NavButton
+          <NavLink
+            page="downloads"
             active={page === "downloads"}
             label={texts.nav.downloads}
             icon={<DownloadIcon />}
@@ -161,7 +173,8 @@ export function Sidebar({
               onNavigate("downloads");
             }}
           />
-          <NavButton
+          <NavLink
+            page="place"
             active={page === "place"}
             label={texts.nav.place}
             icon={<ShelfIcon />}
@@ -170,7 +183,8 @@ export function Sidebar({
               onNavigate("place");
             }}
           />
-          <NavButton
+          <NavLink
+            page="metadata"
             active={page === "metadata"}
             label={texts.nav.metadata}
             icon={<ImageIcon />}
@@ -181,7 +195,8 @@ export function Sidebar({
         </div>
         <div className="space-y-1">
           <p className="px-3 pb-1 text-sm font-semibold text-ink">{texts.nav.admin}</p>
-          <NavButton
+          <NavLink
+            page="settings"
             active={page === "settings"}
             label={texts.nav.settings}
             icon={<GearIcon />}

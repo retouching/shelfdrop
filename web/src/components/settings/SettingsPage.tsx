@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from "react";
 
+import { settingsTabs, type SettingsTab } from "../../state/route";
 import { saveSearchSettings } from "../../state/searchSettings";
 import { loadSettings, saveChangedSettings } from "../../state/settings";
 import { texts } from "../../texts";
@@ -17,11 +18,7 @@ import {
   type ServiceTests,
 } from "./tabs";
 
-type Tab = keyof typeof texts.settings.tabs;
-
-const tabs: readonly Tab[] = ["services", "sources", "search", "filters", "placement", "discord", "access"];
-
-function TabContent({ tab, tests }: { readonly tab: Tab; readonly tests: ServiceTests }): ReactElement | null {
+function TabContent({ tab, tests }: { readonly tab: SettingsTab; readonly tests: ServiceTests }): ReactElement | null {
   switch (tab) {
     case "services":
       return <ServicesTab tests={tests} />;
@@ -40,27 +37,33 @@ function TabContent({ tab, tests }: { readonly tab: Tab; readonly tests: Service
   }
 }
 
-export function SettingsPage(): ReactElement {
-  const [tab, setTab] = useState<Tab>("services");
+type Props = {
+  /** L'onglet montré, tenu par l'adresse. */
+  readonly tab: SettingsTab;
+  readonly onTab: (tab: SettingsTab) => void;
+};
 
+export function SettingsPage({ tab, onTab }: Props): ReactElement {
   useEffect(() => {
     // Une erreur de lecture laisse les champs vides.
     loadSettings().catch(() => undefined);
   }, []);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  // « Enregistré » ne reste que sur l'onglet où le bouton a servi, tant qu'on n'en change pas.
+  const [savedOn, setSavedOn] = useState<SettingsTab | null>(null);
+  const saved = savedOn === tab;
   // « Tout tester » est à côté de « Enregistrer », aligné avec lui : la page tient les tests de Services.
   const tests = useServiceTests();
 
   async function save(): Promise<void> {
     setSaving(true);
-    setSaved(false);
+    setSavedOn(null);
     try {
       // Rangement et API et MCP ne sont pas encore enregistrés : ils viennent avec leur étape.
       await Promise.all([saveSearchSettings(), saveChangedSettings()]);
-      setSaved(true);
+      setSavedOn(tab);
     } catch {
-      setSaved(false);
+      setSavedOn(null);
     } finally {
       setSaving(false);
     }
@@ -74,7 +77,7 @@ export function SettingsPage(): ReactElement {
           aria-label={texts.settings.tabsLabel}
           className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1"
         >
-          {tabs.map((option) => (
+          {settingsTabs.map((option) => (
             <button
               key={option}
               type="button"
@@ -83,8 +86,8 @@ export function SettingsPage(): ReactElement {
               aria-selected={option === tab}
               aria-controls="settings-panel"
               onClick={() => {
-                setTab(option);
-                setSaved(false);
+                setSavedOn(null);
+                onTab(option);
               }}
               className={
                 option === tab

@@ -14,7 +14,30 @@ def test_the_root_is_the_index(client: httpx.Client) -> None:
     assert '<div id="root">' in response.text
 
 
-@pytest.mark.parametrize("path", ["/telechargements", "/ranger/inbox", "/a/b/c"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/manuel",
+        "/en-attente",
+        "/telechargements",
+        "/ranger",
+        "/jellyfin",
+        "/parametres",
+        "/parametres/filtres",
+        "/parametres/acces",
+    ],
+)
+def test_every_section_is_the_index(client: httpx.Client, path: str) -> None:
+    """The address of each section and of each tab of the settings (ADR 0008) is a page, never a
+    file of the build."""
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-cache"
+    assert response.text == client.get("/").text
+
+
+@pytest.mark.parametrize("path", ["/ranger/inbox", "/a/b/c"])
 def test_any_other_page_is_the_index(client: httpx.Client, path: str) -> None:
     response = client.get(path)
 
