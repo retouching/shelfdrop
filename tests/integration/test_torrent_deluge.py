@@ -185,7 +185,7 @@ def test_the_connection_names_the_labels_missing_then_finds_them(
 
 
 @pytest.mark.usefixtures("deluge_saved")
-def test_without_the_plugin_label_the_connection_is_unavailable_and_nothing_is_sent(
+def test_without_the_plugin_label_the_connection_says_why_and_nothing_is_sent(
     client: httpx.Client, fake_sources: FakeSources, stack: Stack
 ) -> None:
     series = "Shelfdrop Deluge Refused"
@@ -196,7 +196,12 @@ def test_without_the_plugin_label_the_connection_is_unavailable_and_nothing_is_s
     download_id = send(client, fake_sources, series, torrent)
     failed = wait_for_download(client, download_id, lambda d: d["progress"]["state"] != "waiting")
 
-    assert (result["ok"], result["state"], result["version"]) == (False, "unavailable", "2.2.0")
+    assert (result["ok"], result["state"], result["reason"], result["version"]) == (
+        False,
+        "unsupported",
+        "label-plugin",
+        "2.2.0",
+    )
     assert (failed["progress"]["state"], failed["progress"]["reason"]) == ("failed", "not_received")
     [listed] = deluge_calls(stack, ("core.get_torrents_status", [{"id": [digest]}, ["name"]]))
     assert listed["result"] == {}
