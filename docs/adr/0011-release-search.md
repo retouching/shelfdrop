@@ -29,5 +29,5 @@ Decided on 2026-10-21. A release is found only under the name it was posted unde
 ## Consequences
 - The front-end reads the releases only once the search ends; the events give the progress before.
 - A tracker with categories of its own adds one Prowlarr request per name; the progress of a name counts what each of its requests found.
-- The categories of the trackers saved before their choice come at the next read of Prowlarr (Relire Prowlarr); until then, the page offers the default ones alone.
+- The categories of the trackers saved before their choice are read from Prowlarr at the first read of the trackers that finds one in use without them; while Prowlarr does not answer, the standard categories chosen or by default show under their Newznab name.
 - The rule expressions run in Python `re` on the server and in JavaScript in the page (the test field): a construct only one of them knows is refused or reads differently.

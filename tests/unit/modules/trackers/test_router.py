@@ -8,7 +8,13 @@ from shelfdrop.http.errors.exceptions import ApiError
 from shelfdrop.modules.trackers.router import read_trackers, refresh_trackers, save_trackers
 from shelfdrop.modules.trackers.schemas import KindCategories, TrackerChoice, TrackersUpdate
 from shelfdrop.releases.service import ReleaseService
-from tests.unit.releases.support import FakeReleaseRepository, new_board, new_prowlarr
+from shelfdrop.releases.types import Tracker
+from tests.unit.releases.support import (
+    FakeReleaseRepository,
+    ProwlarrReplay,
+    new_board,
+    new_prowlarr,
+)
 from tests.unit.settings.support import FakeSettingsReader
 from tests.unit.works.support import FixedClock
 
@@ -20,9 +26,11 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
-def new_service() -> ReleaseService:
-    repository = FakeReleaseRepository()
-    client, _ = new_prowlarr()
+def new_service(
+    repository: FakeReleaseRepository | None = None, replay: ProwlarrReplay | None = None
+) -> ReleaseService:
+    repository = repository or FakeReleaseRepository()
+    client, _ = new_prowlarr(replay)
     clock = FixedClock()
     board = new_board(client, repository, clock=clock)
     return ReleaseService(repository, board, client, board.options, clock, FakeSettingsReader())
@@ -79,3 +87,48 @@ async def test_a_category_a_tracker_does_not_know_is_a_422() -> None:
 
     assert (refused.value.status_code, refused.value.code) == (422, "unknown_tracker_category")
     assert refused.value.data == {"indexer_ids": [4]}
+
+
+def unread_nyaa() -> FakeReleaseRepository:
+    """A tracker saved before its categories were kept: none read."""
+    repository = FakeReleaseRepository()
+    repository.trackers = [
+        Tracker(
+            indexer_id=1,
+            name="Nyaa.si",
+            language=None,
+            prowlarr_enabled=True,
+            used=True,
+            auto=True,
+        )
+    ]
+    return repository
+
+
+@pytest.mark.anyio
+async def test_the_categories_never_read_are_read_from_prowlarr_at_the_first_read() -> None:
+    repository = unread_nyaa()
+
+    read = await read_trackers(new_service(repository))
+
+    nyaa = next(t for t in read.trackers if t.name == "Nyaa.si")
+    names = {c.id: c.name for c in nyaa.available_categories}
+    assert names[156719] == "Literature - English-translated"
+    assert all(t.available for t in repository.trackers if t.used)
+
+
+@pytest.mark.anyio
+async def test_prowlarr_down_still_names_the_standard_categories() -> None:
+    replay = ProwlarrReplay()
+    replay.data["indexers"] = {}
+    repository = unread_nyaa()
+
+    read = await read_trackers(new_service(repository, replay))
+
+    nyaa = read.trackers[0]
+    assert [(c.id, c.name) for c in nyaa.available_categories] == [
+        (3030, "Audio/Audiobook"),
+        (7020, "Books/EBook"),
+        (7030, "Books/Comics"),
+    ]
+    assert repository.trackers[0].available == ()

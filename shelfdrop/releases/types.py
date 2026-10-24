@@ -19,6 +19,25 @@ DEFAULT_CATEGORIES: dict[Kind, tuple[int, ...]] = {
     "audiobook": (3030,),  # Audio/Audiobook
 }
 
+# The names of the standard categories of Prowlarr (Newznab) of the books and the audio, for a
+# category chosen or by default that the indexers were not read for yet.
+STANDARD_CATEGORIES: dict[int, str] = {
+    3000: "Audio",
+    3010: "Audio/MP3",
+    3020: "Audio/Video",
+    3030: "Audio/Audiobook",
+    3040: "Audio/Lossless",
+    3050: "Audio/Other",
+    3060: "Audio/Foreign",
+    7000: "Books",
+    7010: "Books/Mags",
+    7020: "Books/EBook",
+    7030: "Books/Comics",
+    7040: "Books/Technical",
+    7050: "Books/Other",
+    7060: "Books/Foreign",
+}
+
 
 @dataclass(frozen=True, kw_only=True)
 class Volumes:

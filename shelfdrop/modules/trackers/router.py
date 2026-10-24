@@ -19,13 +19,33 @@ from shelfdrop.modules.trackers.schemas import (
 )
 from shelfdrop.releases.exceptions import ProwlarrError, UnknownCategoryError
 from shelfdrop.releases.service import ReleaseService
-from shelfdrop.releases.types import DEFAULT_CATEGORIES, Tracker, TrackerChoice
+from shelfdrop.releases.types import (
+    DEFAULT_CATEGORIES,
+    STANDARD_CATEGORIES,
+    Category,
+    Tracker,
+    TrackerChoice,
+)
 
 router = APIRouter(prefix="/v1/trackers", tags=["trackers"], route_class=WireupRoute)
 
 
+def shown_categories(tracker: Tracker, ids: set[int]) -> list[Category]:
+    """The categories read in Prowlarr, then the standard ones among `ids` it did not give (not
+    read yet), with their name."""
+    read = {c.id for c in tracker.available}
+    standard = [
+        Category(id=i, name=STANDARD_CATEGORIES[i])
+        for i in sorted(ids - read)
+        if i in STANDARD_CATEGORIES
+    ]
+    return [*tracker.available, *standard]
+
+
 def tracker_read(tracker: Tracker) -> TrackerRead:
     chosen = tracker.chosen or {}
+    kinds = {kind: chosen.get(kind, DEFAULT_CATEGORIES[kind]) for kind in DEFAULT_CATEGORIES}
+    shown = shown_categories(tracker, {i for ids in kinds.values() for i in ids})
     return TrackerRead(
         indexer_id=tracker.indexer_id,
         name=tracker.name,
@@ -33,7 +53,7 @@ def tracker_read(tracker: Tracker) -> TrackerRead:
         prowlarr_enabled=tracker.prowlarr_enabled,
         used=tracker.used,
         auto=tracker.auto,
-        available_categories=[CategoryRead.model_validate(c) for c in tracker.available],
+        available_categories=[CategoryRead.model_validate(c) for c in shown],
         categories=KindCategories(
             manga=list(chosen.get("manga", DEFAULT_CATEGORIES["manga"])),
             ebook=list(chosen.get("ebook", DEFAULT_CATEGORIES["ebook"])),

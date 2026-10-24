@@ -1,6 +1,7 @@
 """ReleaseService: the search of releases in Prowlarr, under the names of a work or a text typed,
 and the trackers and the filters it uses."""
 
+import logging
 from collections.abc import AsyncIterator, Sequence
 from typing import Final, Protocol
 
@@ -10,6 +11,7 @@ import anyio.to_thread
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient
 from shelfdrop.releases.exceptions import (
     InvalidRuleError,
+    ProwlarrError,
     ReleaseNotFoundError,
     TooManyNamesError,
     UnknownCategoryError,
@@ -38,6 +40,8 @@ from shelfdrop.releases.types import (
 from shelfdrop.utils.text import normalize
 from shelfdrop.works.exceptions import QueryTooShortError
 from shelfdrop.works.types import Clock, Kind
+
+logger = logging.getLogger(__name__)
 
 MINIMUM_KEY: Final = "filters.minimum"
 # The minimum score before it is ever saved.
@@ -133,7 +137,16 @@ class ReleaseService:
         return await self.prowlarr.torrent(found.download_url)
 
     async def read_trackers(self) -> list[Tracker]:
-        return await anyio.to_thread.run_sync(self.repository.read_trackers)
+        """The trackers saved; read again from Prowlarr first when one in use never had its
+        categories read (after the update that added them), Prowlarr down or not."""
+        trackers = await anyio.to_thread.run_sync(self.repository.read_trackers)
+        if not any(t.used and t.prowlarr_enabled and not t.available for t in trackers):
+            return trackers
+        try:
+            return await self.refresh_trackers()
+        except ProwlarrError as exc:
+            logger.info("Categories of the trackers not read", extra={"error": type(exc).__name__})
+            return trackers
 
     async def refresh_trackers(self) -> list[Tracker]:
         """The trackers after a read of the indexers of Prowlarr. Raises ProwlarrError."""
