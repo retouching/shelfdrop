@@ -24,6 +24,7 @@ type DownloadRead = {
   readonly title: string;
   readonly mode: "auto" | "manual";
   readonly kind: Kind;
+  readonly work_id: string | null;
   readonly work_name: string;
   readonly series: string;
   readonly volumes: VolumesBody;
@@ -92,6 +93,7 @@ function downloadOf(read: DownloadRead): Download {
     addedAt: new Date(read.created_at * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
     workTitle: read.work_name,
     manual: read.mode === "manual",
+    cover: read.work_id === null ? null : `/api/v1/downloads/${String(read.id)}/cover`,
   };
 }
 

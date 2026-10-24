@@ -73,6 +73,8 @@ export type Download = {
   /** Le nom de l'œuvre, ou le texte d'une recherche manuelle : « Autre release » le cherche. */
   readonly workTitle: string;
   readonly manual: boolean;
+  /** La couverture de l'œuvre, lue par l'API (null sans œuvre) ; un emplacement vide quand elle n'en a pas. */
+  readonly cover: string | null;
 };
 
 /** Un fichier à ranger : envoyé depuis la page, ou trouvé dans la bibliothèque ou les téléchargements. */

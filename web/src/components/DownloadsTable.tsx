@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { texts } from "../texts";
 import type { Download, DownloadState } from "../types";
 import { formatDuration, formatSpeed } from "../utils/format";
+import { Cover } from "./library/Cover";
 import { Spinner } from "./Skeletons";
 
 function stateText(state: DownloadState): string {
@@ -106,8 +107,11 @@ export function DownloadsTable({
             {shown.map((download) => (
               <tr key={download.id}>
                 <td className="px-5 py-3 text-slate-500 tabular-nums">{download.addedAt}</td>
-                <td className="truncate px-3 py-3 font-medium text-ink" title={download.label}>
-                  {download.label}
+                <td className="px-3 py-2 font-medium text-ink" title={download.label}>
+                  <span className="flex items-center gap-3">
+                    <Cover src={download.cover} label={download.label} className="h-14 w-10" bare />
+                    <span className="min-w-0 truncate">{download.label}</span>
+                  </span>
                 </td>
                 <td className="px-3 py-3 text-slate-600">{texts.kinds[download.kind]}</td>
                 <td className="px-3 py-3">

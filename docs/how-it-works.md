@@ -37,7 +37,7 @@ A request with `Authorization: Bearer <secret>` is judged by its token alone ([A
 
 1. **The releases.** They are read from the search kept, scored with the filters and ranked with the trackers of now. The search of a work gives automatic downloads, which take only releases kept from a tracker whose `auto` is on; a manual search gives manual ones. Each release is a row of `downloads`: its work, its author, its series, its volumes, its kind, its category of qBittorrent, the account that sent it.
 2. **The send**, after the answer (`shelfdrop.downloads.sender.DownloadSender`, 2 at a time): the torrent is asked to Prowlarr (`ProwlarrClient.torrent`) and its id read (`shelfdrop.utils.torrent`); qBittorrent, through qui, already lists it: a duplicate. Otherwise it is added into its category, then looked for by its hash 3 times, 8 seconds apart: found, sent; otherwise not received. The torrent is kept: a retry sends it again as it is.
-3. **The follow-up.** `GET /api/v1/downloads` asks qBittorrent, in one request, for the downloads sent: their state, percent, speed and time left. A torrent complete is `completed` from then on: an automatic one waits for its placement, a manual one is to place in Ranger.
+3. **The follow-up.** `GET /api/v1/downloads` asks qBittorrent, in one request, for the downloads sent: their state, percent, speed and time left. A torrent complete is `completed` from then on: an automatic one waits for its placement, a manual one is to place in Ranger. The page shows the cover of the work of each automatic download, read by the API (`GET /api/v1/downloads/{id}/cover`), an empty frame without one.
 4. **A stop** during a send leaves it `sending`: it is sent again at start.
 
 ## Work search
