@@ -728,7 +728,8 @@ def jellyfin_file_stubs(item_id: str, data: bytes) -> list[dict[str, Any]]:
     headers = {"Content-Type": "application/octet-stream"}
     return [
         {
-            "priority": 1,
+            # Below the range stub: WireMock takes the first priority that matches (1 first).
+            "priority": 2,
             "request": {"method": "GET", "urlPath": path, "headers": key},
             "response": {
                 "status": 200,
