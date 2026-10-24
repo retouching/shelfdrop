@@ -8,17 +8,22 @@ import {
   readProposals,
   readScan,
   startScan,
+  unlinkWork,
   type ImageChoice,
   type Proposals,
   type Series,
 } from "../../api/library";
+import { sourceName } from "../../api/works";
 import { texts } from "../../texts";
+import { field } from "../fields";
 import { Spinner } from "../Skeletons";
-import { field } from "../WorkPicker";
+import { TitleField } from "../TitleField";
+import { AdoptDialog } from "./AdoptDialog";
 import { Cover } from "./Cover";
 import { scanModes, type ScanMode } from "./scan";
 import { SyncButton } from "./SyncButton";
 import { VolumesSection } from "./VolumesSection";
+import { WorkLinkDialog } from "./WorkLinkDialog";
 import { dialogBody, dialogFrame } from "../dialog";
 
 type Props = {
@@ -127,6 +132,9 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
   const [notice, setNotice] = useState<string | null>(null);
   // Relit les tomes après une synchronisation.
   const [volumesRead, setVolumesRead] = useState(0);
+  const [linking, setLinking] = useState(false);
+  const [adopting, setAdopting] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
 
   useEffect(() => {
     ref.current?.showModal();
@@ -170,7 +178,20 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
     }
   }
 
+  async function unlink(): Promise<void> {
+    setUnlinking(true);
+    setError(null);
+    try {
+      setProposals(await unlinkWork(series.id));
+    } catch {
+      setError(texts.seriesWork.failed);
+    } finally {
+      setUnlinking(false);
+    }
+  }
+
   const proposedSummary = proposals?.summaries[0] ?? null;
+  const work = proposals?.work ?? null;
   const changed = keys.filter((key) => fields[key] !== initial[key]).length + (image.kind === "current" ? 0 : 1);
 
   function set(key: keyof Fields, value: string): void {
@@ -426,8 +447,83 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
           </section>
 
           <section className="space-y-4">
+            <div className="flex gap-3 rounded-lg bg-band p-3">
+              <Cover src={work?.cover ?? null} label={work?.title ?? series.name} className="h-24 w-16" bare />
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-xs text-slate-500">
+                  {texts.seriesWork.label}
+                  {work === null
+                    ? ""
+                    : ` · ${proposals?.linked === true ? texts.seriesWork.linked : texts.seriesWork.found}`}
+                </p>
+                {proposals === null ? (
+                  <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+                    <Spinner className="size-3" /> {texts.editor.proposalsLoading}
+                  </p>
+                ) : work === null ? (
+                  <p className="text-sm text-slate-500">{texts.seriesWork.none}</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium wrap-anywhere">{work.title}</p>
+                    <p className="text-xs wrap-anywhere text-slate-500">
+                      {[
+                        work.year === null ? "" : String(work.year),
+                        work.authors.join(", "),
+                        work.sources.map(sourceName).join(", "),
+                      ]
+                        .filter((part) => part !== "")
+                        .join(" · ")}
+                    </p>
+                  </>
+                )}
+                <span className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={proposals === null}
+                    onClick={() => {
+                      setLinking(true);
+                    }}
+                    className="rounded-lg border border-slate-200 bg-surface px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {texts.seriesWork.change}
+                  </button>
+                  {proposals?.linked === true ? (
+                    <button
+                      type="button"
+                      disabled={unlinking}
+                      onClick={() => {
+                        void unlink();
+                      }}
+                      className="flex items-center gap-2 rounded-lg border border-slate-200 bg-surface px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {unlinking ? <Spinner className="size-3" /> : null}
+                      {texts.seriesWork.unlink}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={work === null}
+                    onClick={() => {
+                      setAdopting(true);
+                    }}
+                    className="rounded-lg border border-slate-200 bg-surface px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {texts.adoption.open}
+                  </button>
+                </span>
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {input("name", texts.editor.name)}
+              <TitleField
+                label={texts.editor.name}
+                value={fields.name}
+                onChange={(value) => {
+                  set("name", value);
+                }}
+                names={proposals?.names ?? []}
+                chosen={work?.shelfName ?? series.name}
+                className={fields.name === initial.name ? "" : "border-accent"}
+              />
               {input("originalTitle", texts.editor.originalTitle)}
               {input("authors", texts.editor.authors)}
               {input("year", texts.editor.year)}
@@ -477,6 +573,40 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
 
           <VolumesSection series={series} version={volumesRead} onNotice={setNotice} onChanged={onChanged} />
         </div>
+        {linking ? (
+          <WorkLinkDialog
+            seriesId={series.id}
+            kind={series.kind}
+            name={series.name}
+            onClose={() => {
+              setLinking(false);
+            }}
+            onLinked={(read) => {
+              setProposals(read);
+              setError(null);
+              setNotice(texts.seriesWork.done(read.work?.title ?? series.name));
+            }}
+          />
+        ) : null}
+        {adopting ? (
+          <AdoptDialog
+            seriesId={series.id}
+            name={series.name}
+            onClose={() => {
+              setAdopting(false);
+            }}
+            onAdopted={(result) => {
+              setError(null);
+              setNotice(
+                result.conflicts.length === 0
+                  ? texts.adoption.done(result.adopted, result.renamed)
+                  : `${texts.adoption.done(result.adopted, result.renamed)} ${texts.adoption.conflicts(result.conflicts.length)}`,
+              );
+              setVolumesRead((count) => count + 1);
+              onChanged();
+            }}
+          />
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-4 md:px-6">
           {error === null ? (

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 
 import { sendDownloads } from "../api/downloads";
+import { readWork } from "../api/works";
 import { useTorrentClientName } from "../state/settings";
 import { texts } from "../texts";
 import type { Download, Kind, Release } from "../types";
 import { Spinner } from "./Skeletons";
 import { compareForDisplay, coverageLabel, parseVolumesInput, volumesInput } from "../utils/volumes";
 import { dialogBody, dialogFrame } from "./dialog";
+import { TitleField } from "./TitleField";
+import { proposalsOf } from "../utils/titles";
 
 type Props = {
   readonly kind: Kind;
@@ -29,6 +32,9 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
   const first = releases[0];
   const [author, setAuthor] = useState(first?.author ?? "");
   const [series, setSeries] = useState(first?.series ?? "");
+  // Le nom retenu d'office, et les noms connus de l'œuvre, lus à l'ouverture.
+  const chosen = first?.series ?? "";
+  const [names, setNames] = useState<ReturnType<typeof proposalsOf>>([]);
   const [volumes, setVolumes] = useState<Readonly<Record<string, string>>>(() =>
     Object.fromEntries(releases.map((release) => [release.id, volumesInput(release.volumes)])),
   );
@@ -36,6 +42,24 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
   useEffect(() => {
     ref.current?.showModal();
   }, []);
+
+  useEffect(() => {
+    if (manual || workId === null) {
+      return undefined;
+    }
+    let stopped = false;
+    readWork(workId).then(
+      (work) => {
+        if (!stopped) {
+          setNames(proposalsOf(work.titles));
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      stopped = true;
+    };
+  }, [manual, workId]);
 
   const ordered = [...releases].sort(compareForDisplay);
   const coverage = coverageLabel(
@@ -98,16 +122,13 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
                   className={field}
                 />
               </label>
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium">{texts.dialog.series}</span>
-                <input
-                  value={series}
-                  onChange={(event) => {
-                    setSeries(event.target.value);
-                  }}
-                  className={field}
-                />
-              </label>
+              <TitleField
+                label={texts.dialog.series}
+                value={series}
+                onChange={setSeries}
+                names={names}
+                chosen={chosen}
+              />
             </div>
           )}
           <fieldset>

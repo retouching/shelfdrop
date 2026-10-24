@@ -76,8 +76,8 @@ export function saveFilters(filters: FilterSettings): Promise<FilterSettings> {
   return request<FilterSettings>("PUT", "/v1/filters", filters);
 }
 
-/** Une valeur des paramètres : adresse, nombre ou interrupteur. */
-export type SettingValue = string | number | boolean | null;
+/** Une valeur des paramètres : adresse, nombre, interrupteur, ou un ordre (une liste de valeurs). */
+export type SettingValue = string | number | boolean | readonly string[] | null;
 
 export type SettingsRead = {
   readonly values: Readonly<Record<string, SettingValue>>;

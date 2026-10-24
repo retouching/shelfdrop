@@ -2,7 +2,13 @@
 import type { Kind, Work } from "../types";
 import { request } from "./http";
 
-type NameRead = { readonly title: string; readonly language: string; readonly checked: boolean };
+type NameRead = {
+  readonly title: string;
+  readonly language: string;
+  readonly checked: boolean;
+  /** Les sources qui le donnent, de la plus sûre à la moins sûre ; aucune pour une œuvre trouvée avant. */
+  readonly sources?: readonly string[];
+};
 
 type WorkRead = {
   readonly id: string;
@@ -33,7 +39,7 @@ type WorkSearchRead = {
 };
 
 /** Noms propres des sources, tels qu'elles s'écrivent. */
-const SOURCE_NAMES: Readonly<Record<string, string>> = {
+export const SOURCE_NAMES: Readonly<Record<string, string>> = {
   mangaupdates: "MangaUpdates",
   kitsu: "Kitsu",
   myanimelist: "MyAnimeList",
@@ -50,6 +56,11 @@ export function languageLabel(language: string): string {
     return "Romaji";
   }
   return language === "latin" ? "" : language.toUpperCase();
+}
+
+/** Le nom propre d'une source (« MangaUpdates »). */
+export function sourceName(source: string): string {
+  return SOURCE_NAMES[source] ?? source;
 }
 
 function sourcesOf(sources: readonly string[]): string {
@@ -84,6 +95,8 @@ function workOf(read: WorkRead): Work {
     titles: read.names.map((name) => ({
       title: name.title,
       language: languageLabel(name.language),
+      code: name.language,
+      sources: name.sources ?? [],
       checked: name.checked,
     })),
   };
@@ -102,6 +115,11 @@ export async function searchWorks(query: string, kind: Kind, retry = false): Pro
     works: [...found.works, ...found.other_forms].map(workOf),
     unavailable: found.unavailable.map((source) => SOURCE_NAMES[source] ?? source),
   };
+}
+
+/** Une œuvre trouvée par une recherche des derniers jours, par son id. */
+export async function readWork(id: string): Promise<Work> {
+  return workOf(await request<WorkRead>("GET", `/v1/works/${encodeURIComponent(id)}`));
 }
 
 /** Les œuvres réunies en une sous le nom choisi ; une fusion parmi elles reçoit les autres. */
