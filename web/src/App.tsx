@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 
 import { DownloadDialog } from "./components/DownloadDialog";
 import { DownloadsTable } from "./components/DownloadsTable";
@@ -12,6 +12,7 @@ import { SearchForm } from "./components/SearchForm";
 import { UploadZone } from "./components/UploadZone";
 import { SelectionBar } from "./components/SelectionBar";
 import { Sidebar } from "./components/Sidebar";
+import { TopBar } from "./components/TopBar";
 import { StatStrip, type Stat } from "./components/StatStrip";
 import { Bone, LoadingLabel, ResultsSkeleton, WorkListSkeleton } from "./components/Skeletons";
 import { LibraryPage } from "./components/library/LibraryPage";
@@ -58,13 +59,13 @@ const headings: Readonly<Record<Page, Parameters<typeof PageHeader>[0]>> = {
 };
 
 const mainClasses: Readonly<Record<Page, string>> = {
-  auto: "space-y-6 px-10 pt-8 pb-24",
-  manual: "space-y-6 px-10 pt-8 pb-24",
-  waiting: "px-10 pt-8 pb-24",
-  downloads: "space-y-8 px-10 py-8",
-  place: "px-10 pt-8 pb-24",
-  metadata: "px-10 pt-8 pb-24",
-  settings: "px-10 pt-8 pb-24",
+  auto: "space-y-6 px-4 pt-6 pb-24 md:px-10 md:pt-8",
+  manual: "space-y-6 px-4 pt-6 pb-24 md:px-10 md:pt-8",
+  waiting: "px-4 pt-6 pb-24 md:px-10 md:pt-8",
+  downloads: "space-y-8 px-4 py-6 md:px-10 md:py-8",
+  place: "px-4 pt-6 pb-24 md:px-10 md:pt-8",
+  metadata: "px-4 pt-6 pb-24 md:px-10 md:pt-8",
+  settings: "px-4 pt-6 pb-24 md:px-10 md:pt-8",
 };
 
 function stats(downloads: readonly Download[]): readonly Stat[] {
@@ -106,6 +107,11 @@ export function App(): ReactElement | null {
   // Les envois de fichiers de la page Manuel : en cours, refusés, ou vérifiés en attente de Ranger.
   const [uploads, setUploads] = useState<readonly ShelfFile[]>([]);
   const [placeText, setPlaceText] = useState("");
+  // La navigation des petits écrans, ouverte par le bouton Menu de la barre du haut.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+  }, []);
 
   const [searchId, setSearchId] = useState(0);
   const [refreshRound, setRefreshRound] = useState(0);
@@ -564,8 +570,20 @@ export function App(): ReactElement | null {
   }
 
   return (
-    <div className="flex min-h-screen bg-page text-ink">
+    <div className="min-h-screen bg-page text-ink md:flex">
+      <TopBar
+        title={headings[page].title}
+        controls="navigation"
+        open={menuOpen}
+        alert={servicesDown}
+        onMenu={() => {
+          setMenuOpen((current) => !current);
+        }}
+      />
       <Sidebar
+        id="navigation"
+        open={menuOpen}
+        onClose={closeMenu}
         page={page}
         username={username}
         internal={user.internal}
@@ -574,6 +592,7 @@ export function App(): ReactElement | null {
         waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
         toPlaceCount={place.open}
         onNavigate={(next) => {
+          setMenuOpen(false);
           leave(sectionRoute(next));
           // Paramètres, déjà ouvert, garde son onglet.
           if (next !== page) {
@@ -591,7 +610,7 @@ export function App(): ReactElement | null {
           );
         }}
       />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 md:flex-1">
         <PageHeader {...headings[page]} />
         <main className={mainClasses[page]}>{view(route)}</main>
       </div>

@@ -152,3 +152,22 @@ export function ClockIcon(props: Props): ReactElement {
     </Svg>
   );
 }
+
+export function MenuIcon(props: Props): ReactElement {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </Svg>
+  );
+}
+
+export function CloseIcon(props: Props): ReactElement {
+  return (
+    <Svg {...props}>
+      <path d="m6 6 12 12" />
+      <path d="M18 6 6 18" />
+    </Svg>
+  );
+}

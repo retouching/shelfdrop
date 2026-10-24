@@ -72,6 +72,8 @@ export const texts = {
     admin: "Administration",
     settings: "Paramètres",
     breadcrumb: "Fil d'Ariane",
+    menu: "Menu",
+    closeMenu: "Fermer le menu",
     role: "Administrateur Jellyfin",
     internalRole: "Compte interne",
     logout: "Se déconnecter",
