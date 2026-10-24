@@ -13,12 +13,14 @@ import httpx
 from shelfdrop.clients.exceptions import ServiceNotConfiguredError
 from shelfdrop.clients.torrents.client import Connector, TorrentClient, TorrentConnection
 from shelfdrop.clients.torrents.qui import QuiClient
+from shelfdrop.clients.torrents.transmission import TransmissionClient
 from shelfdrop.clients.torrents.types import TorrentCheck, TorrentInfo
 
 # The connectors, by the name of the setting `torrent.client`. A client the settings know but no
 # connector serves yet (shelfdrop.settings.catalog.CLIENTS) gets `UnavailableClient`.
 CONNECTORS: Final[Mapping[str, Connector]] = {
     "qui": QuiClient.of,
+    "transmission": TransmissionClient.of,
 }
 
 
