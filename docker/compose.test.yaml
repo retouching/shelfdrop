@@ -138,6 +138,39 @@ services:
       start_period: 30s
       start_interval: 1s
 
+  # A real qBittorrent, for the block `torrent_qbittorrent` alone
+  # (tests/integration/test_torrent_qbittorrent.py starts it with `--profile torrent-qbittorrent`
+  # and removes it at its end). The account of its WebUI is set by qbittorrent/qBittorrent.conf,
+  # which the image copies at its first start (F64); it saves into the volume of the placement
+  # worker, as the user of the worker and the group of the library. Its port is published for the
+  # tests on the loopback: the host header validation is off there (F62). DHT, LSD and PeX are
+  # off, and the torrents of the tests name no tracker that answers: it never finds a peer.
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:5.3.0_v2.1.2-ls484
+    profiles: [torrent-qbittorrent]
+    restart: "no"
+    environment:
+      PUID: "10001"
+      PGID: "1000"
+      TZ: Etc/UTC
+    volumes:
+      - ./qbittorrent/qBittorrent.conf:/defaults/qBittorrent.conf:ro
+      - media:/data
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - default
+      - sources
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "curl -sS -o /dev/null http://localhost:8080/"
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+      start_interval: 1s
+
 volumes:
   media:
 
