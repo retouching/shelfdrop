@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState, type ReactElement } from "react";
 import { testConnection, type SettingValue, type Tracker } from "../../api/settings";
 import { isTorrentClient, setSecret, setValue, torrentClientOf, useSettings, valueOf } from "../../state/settings";
 import { loadSearchSettings, rereadTrackers, setTrackers, useSearchSettings } from "../../state/searchSettings";
+import { languages } from "../../i18n/language";
 import { texts } from "../../texts";
 import type { Kind, TorrentClient } from "../../types";
 import { Spinner } from "../Skeletons";
@@ -744,19 +745,20 @@ export function PlacementTab(): ReactElement {
 }
 
 /** Couleurs des embeds, une par type d'événement (palette Radix du site). */
-const events: readonly { readonly id: string; readonly name: string; readonly color: string }[] = [
-  { id: "sent", name: "Envoyé", color: "#6E56CF" },
-  { id: "downloaded", name: "Téléchargé", color: "#7CE2FE" },
-  { id: "placed", name: "Rangé", color: "#30A46C" },
-  { id: "to_place", name: "À associer", color: "#FFC53D" },
-  { id: "uploaded", name: "Fichier envoyé", color: "#AB4ABA" },
-  { id: "retry", name: "Réessai", color: "#F76B15" },
-  { id: "failed", name: "Échec", color: "#E5484D" },
-  { id: "misplaced", name: "Mal rangés", color: "#8E8C99" },
-  { id: "login", name: "Connexion", color: "#D6409F" },
+const events: readonly { readonly id: keyof typeof texts.settings.eventNames; readonly color: string }[] = [
+  { id: "sent", color: "#6E56CF" },
+  { id: "downloaded", color: "#7CE2FE" },
+  { id: "placed", color: "#30A46C" },
+  { id: "to_place", color: "#FFC53D" },
+  { id: "uploaded", color: "#AB4ABA" },
+  { id: "retry", color: "#F76B15" },
+  { id: "failed", color: "#E5484D" },
+  { id: "misplaced", color: "#8E8C99" },
+  { id: "login", color: "#D6409F" },
 ];
 
 const WEBHOOK_KEY = "discord.webhook";
+const LANGUAGE_KEY = "journal.language";
 
 function EventRow({ event }: { readonly event: (typeof events)[number] }): ReactElement {
   const settings = useSettings();
@@ -768,7 +770,7 @@ function EventRow({ event }: { readonly event: (typeof events)[number] }): React
       </svg>
       <div className="flex-1">
         <Toggle
-          label={event.name}
+          label={texts.settings.eventNames[event.id]}
           checked={valueOf(settings, key) !== false}
           onChange={(checked) => {
             setValue(key, checked);
@@ -793,6 +795,21 @@ export function DiscordTab(): ReactElement {
             setSecret(WEBHOOK_KEY, next);
           }}
         />
+        <Field label={texts.settings.journalLanguage}>
+          <select
+            value={valueOf(settings, LANGUAGE_KEY) === "en" ? "en" : "fr"}
+            onChange={(event) => {
+              setValue(LANGUAGE_KEY, event.target.value);
+            }}
+            className={input}
+          >
+            {languages.map((option) => (
+              <option key={option} value={option} lang={option}>
+                {texts.nav.languages[option]}
+              </option>
+            ))}
+          </select>
+        </Field>
       </Card>
       <Card title={texts.settings.events}>
         <ul className="-my-2.5 divide-y divide-slate-200">

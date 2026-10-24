@@ -1,11 +1,14 @@
-// Tous les textes visibles de la page. Règles : docs/agents/writing.md (no-ai-slop en français).
+// Tous les textes visibles de la page, en français ; l'anglais dans i18n/en.ts, de la même forme
+// (vérifiée par TypeScript). Règles : docs/agents/writing.md. La langue : i18n/language.ts.
+import { en } from "./i18n/en";
+import { language } from "./i18n/language";
 import type { Kind, TorrentClient } from "./types";
 
 function plural(n: number, one: string, many: string): string {
   return n === 1 ? `1 ${one}` : `${String(n)} ${many}`;
 }
 
-export const texts = {
+const fr = {
   appName: "shelfdrop",
   appTagline: "Livres, BD et audio",
   /** Le nom du client torrent dans les messages. */
@@ -86,6 +89,25 @@ export const texts = {
     logout: "Se déconnecter",
     theme: "Thème",
     themes: { light: "Clair", dark: "Sombre", system: "Système" },
+    language: "Langue",
+    /** Chaque langue sous son propre nom, dans les deux dictionnaires. */
+    languages: { fr: "Français", en: "English" },
+  },
+  /** Tailles, débits et durées (le nombre déjà formaté dans la langue). */
+  units: {
+    gigabytes: (value: string): string => `${value} Go`,
+    megabytes: (value: string): string => `${value} Mo`,
+    speed: (value: string): string => `${value} Mo/s`,
+    seconds: (n: number): string => `${String(n)} s`,
+    minutes: (n: number): string => `${String(n)} min`,
+    hours: (hours: number, minutes: number): string => `${String(hours)} h ${String(minutes)}`,
+  },
+  /** Les tomes d'une release ou d'une sélection (« T01 », « T01 à T22 »). */
+  volumeLabels: {
+    volume: (n: string): string => `T${n}`,
+    range: (from: string, to: string): string => `T${from} à T${to}`,
+    complete: "Intégrale",
+    unknown: "Tome inconnu",
   },
   pages: {
     search: "Rechercher",
@@ -329,6 +351,7 @@ export const texts = {
     ebook: "Livre",
     audiobook: "Livre audio",
   } satisfies Record<Kind, string>,
+  /** Le nom du dossier de chaque bibliothèque, tel que le rangement l'écrit : une donnée, jamais traduite. */
   libraries: {
     manga: "BD & Mangas",
     ebook: "Livres",
@@ -421,7 +444,19 @@ export const texts = {
     scanHour: "Scan des fichiers mal rangés",
     uploadRetention: "Garder les envois non associés (jours)",
     webhook: "Webhook",
+    journalLanguage: "Langue des messages",
     events: "Événements envoyés",
+    eventNames: {
+      sent: "Envoyé",
+      downloaded: "Téléchargé",
+      placed: "Rangé",
+      to_place: "À associer",
+      uploaded: "Fichier envoyé",
+      retry: "Réessai",
+      failed: "Échec",
+      misplaced: "Mal rangés",
+      login: "Connexion",
+    },
     sendTest: "Envoyer un message de test",
     results: {
       connected: (parts: readonly string[]): string => ["Connecté", ...parts].join(" · "),
@@ -468,6 +503,7 @@ export const texts = {
     close: "Fermer",
     mcp: "Serveur MCP",
     mcpTools: "Outils",
+    tokenPlaceholder: "<jeton>",
     api: "API REST",
     apiLead: "Documentation des routes ouvertes aux jetons :",
   },
@@ -600,6 +636,7 @@ export const texts = {
     unlink: (volume: number): string => `Délier le tome ${String(volume)}`,
     range: (from: string, to: string, count: number): string =>
       `Ch. ${from} à ${to} (${plural(count, "chapitre", "chapitres")})`,
+    missingRange: (from: string, to: string): string => `${from} à ${to}`,
     pages: (n: number): string => `${String(n)} pages`,
     cover: "Fusionné en un CBZ · couverture : 1re page",
     complete: "Complet",
@@ -718,3 +755,18 @@ export const texts = {
     duplicate: (client: string): string => `Ce torrent est déjà dans ${client}.`,
   },
 } as const;
+
+/** La forme d'un dictionnaire : les mêmes clés, des textes quelconques. */
+type Widen<T> = T extends string
+  ? string
+  : T extends (...args: infer A) => infer R
+    ? (...args: A) => Widen<R>
+    : T extends object
+      ? { readonly [K in keyof T]: Widen<T[K]> }
+      : T;
+
+export type Texts = Widen<typeof fr>;
+
+export const texts: Texts = language === "en" ? en : fr;
+
+export { language, locale } from "./i18n/language";

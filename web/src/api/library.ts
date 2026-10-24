@@ -1,4 +1,5 @@
 // La page Jellyfin : les séries des bibliothèques de Jellyfin, leurs propositions, leurs changements, les scans.
+import { texts } from "../texts";
 import type { Kind } from "../types";
 import { request } from "./http";
 
@@ -103,6 +104,8 @@ export async function readProposals(id: string): Promise<Proposals> {
     readonly volumes: readonly {
       readonly item_id: string;
       readonly label: string;
+      readonly number: number | null;
+      readonly format: string;
       readonly image_tag: string | null;
     }[];
     readonly covers: Proposals["covers"];
@@ -111,7 +114,8 @@ export async function readProposals(id: string): Promise<Proposals> {
   return {
     volumes: body.volumes.map((volume) => ({
       itemId: volume.item_id,
-      label: volume.label,
+      // « Tome 3 · CBZ » de l'API, réécrit dans la langue de la page ; sans numéro, le nom du tome.
+      label: volume.number === null ? volume.label : `${texts.volumes.number(volume.number)} · ${volume.format}`,
       imageTag: volume.image_tag,
     })),
     covers: body.covers,

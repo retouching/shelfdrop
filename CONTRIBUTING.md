@@ -51,7 +51,7 @@ It writes ten pages at 1920x1080 and two at 390x844 (twice the density) in WebP.
 
 - The rules of the code (layers, naming, errors, logging, tests) are in [CLAUDE.md](CLAUDE.md); they hold for humans and coding agents alike.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/), in English, on `master` ([ADR 0002](docs/adr/0002-english-conventional-commits-master.md)).
-- The documentation changes in the same commit as the code it describes. Every text the interface shows is French and lives in `web/src/texts.ts`.
+- The documentation changes in the same commit as the code it describes. Every text the interface shows exists in French, in `web/src/texts.ts`, and in English, in `web/src/i18n/en.ts` (ADR 0008).
 
 ## Documents for agents
 

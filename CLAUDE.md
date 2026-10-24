@@ -31,7 +31,7 @@ Details per file and symbol: [docs/agents/development.md](docs/agents/developmen
 - `shelfdrop/http/`: global HTTP layer: errors, middlewares, `release_session`, the guards of the routes, the OpenAPI document (`openapi.py`, [ADR 0021](docs/adr/0021-openapi.md)); `shelfdrop/logging/`: logging shared by the API and the CLI, and the rotating files of logs of the API and of the placement worker; `shelfdrop/logs/`: those files read for the page ([ADR 0023](docs/adr/0023-logs.md)): `service.py` (`LogReader`), `types.py`; `shelfdrop/utils/`: generic pure helpers.
 - `shelfdrop/modules/<feature>/`: one package per HTTP feature (`health`, `session`, `account`: the internal account, `setup`: the set-up of the first launch, `settings`, `works`, `searches`, `releases`, `downloads`, `trackers`, `filters`, `library`, `waiting`, `place`: the page Ranger, `uploads`: the files sent from the page Manuel, `tokens`: the access tokens, `logs`: the logs read by the page, `docs`: the OpenAPI document and its page, `mcp`: the MCP server and its tools ([ADR 0022](docs/adr/0022-mcp-server.md)), `web`: the pages of the front-end).
 - `shelfdrop/cli/`: the `shelfdrop` command (`shelfdrop db upgrade`, `shelfdrop db check`, `shelfdrop placement run`: the placement worker, composed by `shelfdrop.container.run_placement`).
-- `web/`: the front-end; its visible texts are in `web/src/texts.ts` and follow [docs/agents/writing.md](docs/agents/writing.md).
+- `web/`: the front-end; its visible texts are in `web/src/texts.ts` (French) and `web/src/i18n/en.ts` (English, the same keys) and follow [docs/agents/writing.md](docs/agents/writing.md).
 - `tests/unit/`, `tests/integration/`: see Testing rules. `docker/`: `api.Dockerfile`, `compose.yaml` (the stack: the services `api` and `placement`) and `compose.test.yaml` (the test stack, over it). `.githooks/pre-push`: the gates before each push. `scripts/screenshots.cjs`: the screenshots of the README, taken with Playwright (the command: `CONTRIBUTING.md`).
 - `docs/`: the pages for the users and the ADRs, `docs/agents/` the pages for the agents (see Documentation); `README.md`: what shelfdrop is, how to start it and where each page is; `CONTRIBUTING.md`: set-up, tests and commits for a human contributor; `LICENSE`: MIT.
 
@@ -69,7 +69,7 @@ Run:
 Dependencies: `uv add <pkg>`, `uv add --dev <pkg>`; never `pip install`. Commit `uv.lock` with the change.
 
 ## Code conventions
-- Everything in English: code, comments, docs, API messages, logs. Every text the front-end shows is French and follows [docs/agents/writing.md](docs/agents/writing.md), and lives in `web/src/texts.ts` alone.
+- Everything in English: code, comments, docs, API messages, logs. Every text the front-end shows exists in French and in English and follows [docs/agents/writing.md](docs/agents/writing.md): French in `web/src/texts.ts`, English in `web/src/i18n/en.ts`, nowhere else; a component reads `texts.<key>`.
 - Type everything; mypy and TypeScript run in strict mode. No `# type: ignore`, `# noqa` or ESLint disable without an explanation on the same line.
 - No name starts with an underscore (`tests/unit/test_naming.py`), but `_` alone, dunders and what a library imposes (`Settings(_env_file=None)`).
 - Read configuration only through `Settings`, never `os.environ`. `Settings` holds the bootstrap alone (what the process needs before its database); a setting the page changes goes in `shelfdrop/settings/catalog.py` and is read at each use (ADR 0012). A new variable gets a `SHELFDROP_` name, an entry in `.env.example` and, if the container needs it, in `docker/compose.yaml`.
@@ -105,7 +105,7 @@ Dependencies: `uv add <pkg>`, `uv add --dev <pkg>`; never `pip install`. Commit 
 - Never commit `.env`, tokens, secrets, `CLAUDE.local.md` or caches.
 
 ## Documentation
-- Reference documents, in English but `docs/agents/writing.md`, whose examples are French. Every agent and developer reads them before analysing, planning, coding or reviewing; when the code contradicts them, the code wins: fix the docs in the same change, or report the bug.
+- Reference documents, in English but `docs/agents/writing.md`, whose examples are French and English. Every agent and developer reads them before analysing, planning, coding or reviewing; when the code contradicts them, the code wins: fix the docs in the same change, or report the bug.
   - For the users of shelfdrop: `README.md`, `CONTRIBUTING.md` (set-up, tests, commits, for a human contributor); the pages of `docs/`: `installation.md`, `configuration.md`, `api.md`, `how-it-works.md`, `mcp-client.md` (the configuration of an MCP client); `docs/adr/NNNN-<slug>.md` (one living ADR per subject).
   - For the agents (and the developers who want the detail), in `docs/agents/`: `development.md` (module map, layers, database, tests), `writing.md` (the visible texts), `verified-facts.md` (behaviours of the sources and libraries this code relies on, each with its evidence, its pinning test and its re-verification trigger).
 - A rule or a command lives here; a description or a contract lives in `docs/`; code-level detail in docstrings and `ErrorCode` comments. Each description has one home: link to it, never copy it.

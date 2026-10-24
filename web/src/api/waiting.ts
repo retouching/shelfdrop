@@ -1,6 +1,7 @@
 // Les recherches mises en attente : lues dans l'API, relues chaque minute tant qu'une page les montre.
 import { useEffect, useSyncExternalStore } from "react";
 
+import { texts } from "../texts";
 import type { Kind } from "../types";
 import { request } from "./http";
 
@@ -18,7 +19,7 @@ export type WaitingSearch = {
   readonly kind: Kind;
   readonly names: readonly string[];
   readonly wanted: Wanted;
-  /** « T03 », « Ch. 233 et suivants », « Toute release ». */
+  /** « T03 », « Ch. 233 et suivants », « Toute release » : `wantedLabel`, dans la langue de la page. */
   readonly detail: string;
   readonly state: WaitingState;
   readonly attempts: number;
@@ -48,7 +49,6 @@ type WaitingRead = {
   readonly kind: Kind;
   readonly names: readonly string[];
   readonly wanted: WantedBody;
-  readonly label: string;
   readonly state: "waiting" | "found";
   readonly releases: number;
   readonly attempts: number;
@@ -79,6 +79,20 @@ function wantedBody(wanted: Wanted): WantedBody {
   }
 }
 
+/** Ce qu'une recherche attend, tel que la page l'affiche : « T03 », « Ch. 233 et suivants ». */
+export function wantedLabel(wanted: Wanted): string {
+  switch (wanted.target) {
+    case "any":
+      return texts.waiting.anything;
+    case "volume":
+      return texts.volumeLabels.volume(String(wanted.volume).padStart(2, "0"));
+    case "chapters":
+      return wanted.to === null
+        ? texts.waitDialog.chaptersFrom(String(wanted.from))
+        : texts.waitDialog.chaptersRange(String(wanted.from), String(wanted.to));
+  }
+}
+
 function searchOf(read: WaitingRead): WaitingSearch {
   return {
     id: read.id,
@@ -87,7 +101,7 @@ function searchOf(read: WaitingRead): WaitingSearch {
     kind: read.kind,
     names: read.names,
     wanted: wantedOf(read.wanted),
-    detail: read.label,
+    detail: wantedLabel(wantedOf(read.wanted)),
     state: read.state === "found" ? { kind: "found", releases: read.releases } : { kind: "waiting" },
     attempts: read.attempts,
     addedAt: read.created_at,

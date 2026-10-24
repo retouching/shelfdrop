@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactElement, type RefObject } from "react";
 
+import { language, languages, saveLanguage } from "../i18n/language";
 import { pathOf, sectionRoute, type Page } from "../state/route";
 import { texts } from "../texts";
 import { readTheme, saveTheme, type ThemeChoice } from "../theme";
@@ -46,6 +47,31 @@ function ThemeSwitch(): ReactElement {
         >
           {themeIcons[option]}
           {texts.nav.themes[option]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** La langue de cet appareil : chaque langue sous son propre nom ; un choix recharge la page. */
+function LanguageSwitch(): ReactElement {
+  return (
+    <div role="radiogroup" aria-label={texts.nav.language} className="flex rounded-lg bg-slate-100 p-1">
+      {languages.map((option) => (
+        <button
+          key={option}
+          type="button"
+          role="radio"
+          lang={option}
+          aria-checked={option === language}
+          onClick={() => {
+            saveLanguage(option);
+          }}
+          className={`flex min-h-10 flex-1 items-center justify-center rounded-md py-1 text-xs md:min-h-0 ${
+            option === language ? "bg-surface font-medium text-ink shadow-sm" : "text-slate-500 hover:text-ink"
+          }`}
+        >
+          {texts.nav.languages[option]}
         </button>
       ))}
     </div>
@@ -310,8 +336,9 @@ export function Sidebar({
             />
           </div>
         </nav>
-        <div className="px-3 pb-3">
+        <div className="space-y-2 px-3 pb-3">
           <ThemeSwitch />
+          <LanguageSwitch />
         </div>
         <div className="flex items-center gap-3 border-t border-slate-200 px-5 py-4">
           <span className="flex size-9 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-text uppercase">
