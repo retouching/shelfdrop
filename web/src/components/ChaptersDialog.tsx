@@ -158,7 +158,7 @@ export function ChaptersDialog({ file, chapters, existing, loose, onClose, onPla
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="chapters-title" className={dialogFrame["6xlTall"]}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby="chapters-title" className={dialogFrame.form72}>
       <div className={dialogBody.taller}>
         <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="chapters-title" className="text-lg font-semibold">

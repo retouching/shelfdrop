@@ -63,7 +63,7 @@ export function MergeDialog({ kind, work, onClose, onMerged }: Props): ReactElem
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="merge-title" className={dialogFrame["2xl"]}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby="merge-title" className={dialogFrame.fit}>
       <div className={dialogBody.regular}>
         <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="merge-title" className="text-lg font-semibold">

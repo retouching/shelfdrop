@@ -72,7 +72,7 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="dialog-title" className={dialogFrame["2xl"]}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby="dialog-title" className={dialogFrame.fit}>
       <form onSubmit={submit} className={dialogBody.regular}>
         <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="dialog-title" className="text-lg font-semibold">
@@ -123,7 +123,10 @@ export function DownloadDialog({ kind, searchId, workId, releases, manual, onClo
                     inputMode="numeric"
                     className="w-20 rounded-md border border-slate-200 px-2 py-1 text-center text-sm outline-none focus:border-accent"
                   />
-                  <span className="truncate text-sm text-slate-600" title={release.title}>
+                  <span
+                    className="min-w-0 flex-1 truncate text-sm text-slate-600 [contain:inline-size]"
+                    title={release.title}
+                  >
                     {release.title}
                   </span>
                 </li>

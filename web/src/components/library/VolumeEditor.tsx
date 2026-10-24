@@ -79,7 +79,7 @@ export function VolumeEditor({ volume, onClose, onApplied }: Props): ReactElemen
   const preview = image?.preview ?? (volume.hasImage ? itemImage(volume.id, volume.imageTag, 400) : null);
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="volume-title" className={dialogFrame["3xlTall"]}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby="volume-title" className={dialogFrame.form48}>
       <div className={dialogBody.tall}>
         <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="volume-title" className="text-lg font-semibold">

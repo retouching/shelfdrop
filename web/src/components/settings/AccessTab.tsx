@@ -103,7 +103,7 @@ function CreateTokenDialog({
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="token-title" className={dialogFrame.lg}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby="token-title" className={dialogFrame.fit}>
       <div className={dialogBody.regular}>
         <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="token-title" className="text-lg font-semibold">
@@ -159,7 +159,7 @@ function CreateTokenDialog({
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-5 md:px-6">
             <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">{texts.settings.createdHint}</p>
             <div className="flex items-center gap-2">
-              <code className="min-w-0 flex-1 rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs wrap-anywhere text-ink md:truncate">
+              <code className="min-w-0 flex-1 rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs wrap-anywhere text-ink md:truncate md:[contain:inline-size]">
                 {secret}
               </code>
               <CopyButton value={secret} />

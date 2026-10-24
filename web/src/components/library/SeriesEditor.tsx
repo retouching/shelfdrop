@@ -243,7 +243,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChange
         }
       }}
       aria-labelledby="editor-title"
-      className={dialogFrame["5xlTall"]}
+      className={dialogFrame.form64}
     >
       <div className={dialogBody.tall}>
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-4 md:flex-nowrap md:px-6">

@@ -1,18 +1,23 @@
 /**
  * Les fenêtres : plein écran sous md, leur défilement à elles et leurs boutons en bas, au-dessus
- * de la zone sûre ; à partir de md, une fenêtre centrée, de la largeur donnée.
+ * de la zone sûre ; à partir de md, une fenêtre centrée aussi haute que son contenu (`h-fit` : la
+ * hauteur `auto` d'une fenêtre modale l'étirerait d'un bord à l'autre de l'écran), jusqu'à sa
+ * hauteur maximale.
  */
 const frame =
-  "m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-surface p-0 text-ink md:m-auto md:h-auto md:flex-col md:rounded-2xl md:open:flex md:border md:border-slate-200 md:shadow-2xl";
+  "m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-surface p-0 text-ink md:m-auto md:h-fit md:flex-col md:rounded-2xl md:border md:border-slate-200 md:shadow-2xl md:open:flex";
 
+/**
+ * La largeur à partir de md : `fit`, celle du contenu, entre 28rem et 56rem (90 % de l'écran au plus) ; les autres,
+ * des fenêtres faites surtout de champs (qui n'ont pas de largeur propre), une largeur préférée
+ * qui rétrécit sur un écran étroit. Un texte coupé (`truncate`) d'une fenêtre `fit` porte
+ * `[contain:inline-size]`, sinon sa longueur entière ferait la largeur de la fenêtre.
+ */
 export const dialogFrame = {
-  md: `${frame} md:max-h-[90vh] md:max-w-md`,
-  lg: `${frame} md:max-h-[90vh] md:max-w-lg`,
-  "2xl": `${frame} md:max-h-[90vh] md:max-w-2xl`,
-  "3xl": `${frame} md:max-h-[90vh] md:max-w-3xl`,
-  "3xlTall": `${frame} md:max-h-[92vh] md:max-w-3xl`,
-  "5xlTall": `${frame} md:max-h-[92vh] md:max-w-5xl`,
-  "6xlTall": `${frame} md:max-h-[94vh] md:max-w-6xl`,
+  fit: `${frame} md:max-h-[90vh] md:w-fit md:min-w-[min(28rem,90vw)] md:max-w-[min(90vw,56rem)]`,
+  form48: `${frame} md:max-h-[92vh] md:w-[min(90vw,48rem)]`,
+  form64: `${frame} md:max-h-[92vh] md:w-[min(90vw,64rem)]`,
+  form72: `${frame} md:max-h-[94vh] md:w-[min(90vw,72rem)]`,
 } as const;
 
 /**

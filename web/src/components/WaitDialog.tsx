@@ -162,7 +162,7 @@ export function WaitDialog({ kind, work, foundVolumes, onClose, onAdded }: Props
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="wait-title" className={dialogFrame["2xl"]}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby="wait-title" className={dialogFrame.fit}>
       <div className={dialogBody.regular}>
         <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="wait-title" className="text-lg font-semibold">

@@ -47,7 +47,7 @@ export function SyncButton({ seriesId, question, onDone }: Props): ReactElement 
         {running ? <Spinner className="size-3.5" /> : null}
         {running ? texts.sync.running : texts.sync.action}
       </button>
-      <dialog ref={ref} aria-label={texts.sync.action} className={dialogFrame.md}>
+      <dialog ref={ref} aria-label={texts.sync.action} className={dialogFrame.fit}>
         <div className={dialogBody.regular}>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 md:px-6 md:pt-6">
             <p className="text-sm font-medium">{question}</p>

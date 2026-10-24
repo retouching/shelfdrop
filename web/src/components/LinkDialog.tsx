@@ -92,7 +92,7 @@ export function LinkDialog({ file, onClose, onPlaced }: Props): ReactElement {
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="link-title" className={dialogFrame["3xl"]}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby="link-title" className={dialogFrame.form48}>
       <div className={dialogBody.regular}>
         <div className="border-b border-slate-200 px-4 py-4 md:px-6">
           <h2 id="link-title" className="text-lg font-semibold">
