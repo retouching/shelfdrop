@@ -17,19 +17,22 @@ def test_the_root_is_the_index(client: httpx.Client) -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        "/manuel",
-        "/en-attente",
-        "/telechargements",
-        "/ranger",
+        "/manual",
+        "/waiting",
+        "/downloads",
+        "/place",
         "/jellyfin",
-        "/parametres",
-        "/parametres/filtres",
-        "/parametres/acces",
+        "/settings",
+        "/settings/filters",
+        "/settings/access",
+        "/jellyfin/series/a1b2c3",
+        "/?q=one%20piece&kind=manga&work=mangadex:1",
+        "/place?filter=all",
     ],
 )
 def test_every_section_is_the_index(client: httpx.Client, path: str) -> None:
-    """The address of each section and of each tab of the settings (ADR 0008) is a page, never a
-    file of the build."""
+    """The address of each section, of each tab of the settings, of the sheet of a series and of a
+    search (ADR 0008) is a page, never a file of the build."""
     response = client.get(path)
 
     assert response.status_code == 200
@@ -37,7 +40,7 @@ def test_every_section_is_the_index(client: httpx.Client, path: str) -> None:
     assert response.text == client.get("/").text
 
 
-@pytest.mark.parametrize("path", ["/ranger/inbox", "/a/b/c"])
+@pytest.mark.parametrize("path", ["/place/inbox", "/a/b/c"])
 def test_any_other_page_is_the_index(client: httpx.Client, path: str) -> None:
     response = client.get(path)
 

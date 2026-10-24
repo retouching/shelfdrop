@@ -149,11 +149,11 @@ async function desktop(browser) {
   await shoot(page, "search-releases");
 
   const pages = [
-    ["downloads", "/telechargements"],
-    ["ranger", "/ranger"],
-    ["waiting-list", "/en-attente"],
-    ["settings-services", "/parametres"],
-    ["settings-logs", "/parametres/journaux"],
+    ["downloads", "/downloads"],
+    ["ranger", "/place"],
+    ["waiting-list", "/waiting"],
+    ["settings-services", "/settings"],
+    ["settings-logs", "/settings/logs"],
     ["jellyfin-series", "/jellyfin"],
   ];
   for (const [name, address] of pages) {
@@ -209,7 +209,7 @@ async function mobile(browser, session) {
   await shoot(page, "mobile-search-menu");
 
   await page.waitForTimeout(2000);
-  await page.goto(`${base}/telechargements`);
+  await page.goto(`${base}/downloads`);
   await settle(page, 2.5);
   await shoot(page, "mobile-downloads");
   await context.close();

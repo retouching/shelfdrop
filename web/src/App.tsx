@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import { Outlet, useMatches, useNavigate, useSearch } from "@tanstack/react-router";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 
-import { DownloadDialog } from "./components/DownloadDialog";
 import { DownloadsTable } from "./components/DownloadsTable";
 import { NameChips } from "./components/NameChips";
 import { LoginPage } from "./components/LoginPage";
 import { PageHeader } from "./components/PageHeader";
-import { PlacePage } from "./components/PlacePage";
-import { SettingsPage } from "./components/settings/SettingsPage";
 import { ResultsCard } from "./components/ResultsCard";
 import { SearchForm } from "./components/SearchForm";
 import { UploadList } from "./components/UploadList";
@@ -16,21 +14,17 @@ import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { StatStrip, type Stat } from "./components/StatStrip";
 import { Bone, LoadingLabel, ResultsSkeleton, WorkListSkeleton } from "./components/Skeletons";
-import { LibraryPage } from "./components/library/LibraryPage";
-import { MergeDialog } from "./components/MergeDialog";
 import { WorkList } from "./components/WorkList";
 import { ReleasesLoading } from "./components/ReleasesLoading";
 import { RefreshBar } from "./components/RefreshBar";
 import { useWaiting } from "./api/waiting";
-import { WaitingPage } from "./components/WaitingPage";
-import { WaitDialog } from "./components/WaitDialog";
 import { whenSignedOut } from "./api/http";
 import type { SearchProgress } from "./api/searches";
 import { readSession, signOut, type SessionAccount } from "./api/session";
 import { readSetup, type SetupState } from "./api/setup";
-import { SetupPanel } from "./components/SetupPanel";
 import { readHealth } from "./api/settings";
-import { sectionRoute, useRoute, type Page, type Route } from "./state/route";
+import { defaultKind, searchParamsFor, type Page } from "./state/route";
+import { ShellContext } from "./state/shell";
 import { loadSettings, torrentClientOf, useSettings, valueOf } from "./state/settings";
 import { useReleases, useWorks, type ReleasesQuery } from "./api/useSearches";
 import { retryDownload } from "./api/downloads";
@@ -47,6 +41,15 @@ import { bestPerVolume, coverageLabel, volumeNumbers } from "./utils/volumes";
 const DEFAULT_MAX_NAMES = 6;
 /** Les tests des services tournent toutes les 5 minutes : la page relit leur résultat au même rythme. */
 const HEALTH_EVERY_MS = 5 * 60 * 1000;
+const noneSelected: ReadonlySet<string> = new Set();
+
+// Chargés à leur ouverture : l'installation du premier lancement et les fenêtres des recherches.
+const SetupPanel = lazy(() => import("./components/SetupPanel").then((module) => ({ default: module.SetupPanel })));
+const DownloadDialog = lazy(() =>
+  import("./components/DownloadDialog").then((module) => ({ default: module.DownloadDialog })),
+);
+const WaitDialog = lazy(() => import("./components/WaitDialog").then((module) => ({ default: module.WaitDialog })));
+const MergeDialog = lazy(() => import("./components/MergeDialog").then((module) => ({ default: module.MergeDialog })));
 
 /** L'en-tête de chaque section. */
 const headings: Readonly<Record<Page, Parameters<typeof PageHeader>[0]>> = {
@@ -92,22 +95,42 @@ export function App(): ReactElement | null {
   const settings = useSettings();
   const maxNamesSetting = valueOf(settings, "search.max_names");
   const maxNames = typeof maxNamesSetting === "number" ? maxNamesSetting : DEFAULT_MAX_NAMES;
-  const [route, navigate] = useRoute(leave);
-  const page = route.page;
-  const [kind, setKind] = useState<Kind>("manga");
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const navigate = useNavigate();
+  // La section est celle de la route la plus profonde qui en nomme une.
+  const page: Page = useMatches({
+    select: (matches) => matches.findLast((match) => match.staticData.page !== undefined)?.staticData.page ?? "auto",
+  });
+  // La recherche est tenue par l'adresse (ADR 0008) : `/?q=…&kind=…&work=…`, `/manual?q=…&kind=…`.
+  const params = useSearch({ strict: false });
+  const searching = page === "auto" || page === "manual";
+  const query = searching ? (params.q ?? "") : "";
+  const kind: Kind = searching ? (params.kind ?? defaultKind) : defaultKind;
+  const workId = page === "auto" ? (params.work ?? null) : null;
+  // Le message d'une recherche ne reste que sur elle.
+  const noticeKey = `${page}|${kind}|${query}`;
+  const [noticeOf, setNoticeOf] = useState<{ readonly key: string; readonly text: string | null }>({
+    key: "",
+    text: null,
+  });
+  const notice = noticeOf.key === noticeKey ? noticeOf.text : null;
+  function setNotice(text: string | null): void {
+    setNoticeOf({ key: noticeKey, text });
+  }
   const [live, setLive] = useState(false);
   const [liveEvery, setLiveEvery] = useState(5);
   const [retrying, setRetrying] = useState<ReadonlySet<string>>(() => new Set());
-  const [work, setWork] = useState<Work | null>(null);
-  const [merging, setMerging] = useState<Work | null>(null);
-  const [names, setNames] = useState<ReadonlySet<string>>(() => new Set());
+  // Une fenêtre ouverte sur une recherche se ferme quand l'adresse en change (Précédent).
+  const [mergingOf, setMergingOf] = useState<{ readonly key: string; readonly work: Work } | null>(null);
+  const merging = mergingOf?.key === noticeKey ? mergingOf.work : null;
+  // Les noms cochés d'une œuvre restent hors de l'adresse : une autre œuvre repart des siens.
+  const [namesOf, setNamesOf] = useState<{ readonly workId: string | null; readonly names: ReadonlySet<string> }>(
+    () => ({
+      workId: null,
+      names: new Set(),
+    }),
+  );
   // Les envois de fichiers de la page Manuel : en cours, refusés, ou vérifiés en attente de Ranger.
   const [uploads, setUploads] = useState<readonly ShelfFile[]>([]);
-  const [placeText, setPlaceText] = useState("");
   // La navigation des petits écrans, ouverte par le bouton Menu de la barre du haut.
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => {
@@ -115,11 +138,24 @@ export function App(): ReactElement | null {
   }, []);
 
   const [searchId, setSearchId] = useState(0);
-  const [refreshRound, setRefreshRound] = useState(0);
   const manual = page === "manual";
   const [worksRetry, setWorksRetry] = useState(0);
   const worksState = useWorks(query, kind, searchId, worksRetry, ready && page === "auto");
   const worksLoading = worksState.status === "loading";
+  const works = worksState.status === "done" ? worksState.works : [];
+  // L'œuvre de l'adresse, une fois la liste lue ; un identifiant inconnu est ignoré.
+  const work = workId === null ? null : (works.find((option) => option.id === workId) ?? null);
+  const names =
+    work === null
+      ? new Set<string>()
+      : namesOf.workId === work.id
+        ? namesOf.names
+        : new Set(
+            work.titles
+              .filter((t) => t.checked !== false)
+              .map((t) => t.title)
+              .slice(0, maxNames),
+          );
   const searchedNames = manual
     ? query === ""
       ? []
@@ -138,16 +174,32 @@ export function App(): ReactElement | null {
           series: manual ? "" : (work?.title ?? ""),
         }
       : null;
+  // Relancer sans cache et cocher des releases ne vaut que pour la recherche de releases en cours.
+  const releasesKey = `${page}|${JSON.stringify(releasesQuery)}`;
+  const [refreshOf, setRefreshOf] = useState({ key: "", round: 0 });
+  const refreshRound = refreshOf.key === releasesKey ? refreshOf.round : 0;
+  function refreshReleases(): void {
+    setRefreshOf({ key: releasesKey, round: refreshRound + 1 });
+  }
+  const [selection, setSelection] = useState<{ readonly key: string; readonly ids: ReadonlySet<string> }>(() => ({
+    key: "",
+    ids: new Set(),
+  }));
+  const selected = selection.key === releasesKey ? selection.ids : noneSelected;
+  function setSelected(ids: ReadonlySet<string>): void {
+    setSelection({ key: releasesKey, ids });
+  }
+  const [dialogFor, setDialogFor] = useState<string | null>(null);
+  const dialogOpen = dialogFor === releasesKey;
+  const [waitFor, setWaitFor] = useState<string | null>(null);
+  const waitOpen = waitFor === releasesKey;
   const releasesState = useReleases(releasesQuery, refreshRound);
   const releasesLoading = releasesState.status === "running";
   const downloadsList = useDownloads(ready, page === "downloads", live, liveEvery);
   const downloads = downloadsList.downloads ?? [];
 
-  const works = worksState.status === "done" ? worksState.works : [];
   const [showRejected, setShowRejected] = useState(false);
   const waitingList = useWaiting(ready)?.searches ?? [];
-  const [waitOpen, setWaitOpen] = useState(false);
-  const [waitAdding, setWaitAdding] = useState(false);
   // Releases dans l'ordre du serveur ; celles écartées pour un mot manquant ne sont pas montrées.
   const found = useMemo(
     () =>
@@ -169,6 +221,7 @@ export function App(): ReactElement | null {
     ["downloading", "waiting", "placing"].includes(download.state.kind),
   ).length;
 
+  const placeText = page === "place" ? (params.q ?? "") : "";
   const place = usePlace(ready, page === "place", placeText);
   // Un envoi vérifié reste affiché ici jusqu'à ce que Ranger liste le fichier.
   const listed = new Set(place.files.filter((file) => file.origin === "upload").map((file) => file.name));
@@ -178,6 +231,7 @@ export function App(): ReactElement | null {
     ),
     ...place.files,
   ];
+  const shell = { placeFiles: files, refreshPlace: place.refresh };
 
   useEffect(() => {
     whenSignedOut(() => {
@@ -224,58 +278,51 @@ export function App(): ReactElement | null {
   }
   if (setup !== null && setup.needed && (user !== null || !setup.account)) {
     return (
-      <SetupPanel
-        account={user}
-        onSignedIn={(account) => {
-          setUser(account);
-          setSetup({ needed: true, account: true });
-        }}
-        onFinished={() => {
-          setSetup({ needed: false, account: true });
-        }}
-      />
+      <Suspense fallback={null}>
+        <SetupPanel
+          account={user}
+          onSignedIn={(account) => {
+            setUser(account);
+            setSetup({ needed: true, account: true });
+          }}
+          onFinished={() => {
+            setSetup({ needed: false, account: true });
+          }}
+        />
+      </Suspense>
     );
   }
   if (user === null || username === null) {
     return <LoginPage onSignedIn={setUser} />;
   }
 
-  function search(nextQuery: string, nextKind: Kind): void {
-    setKind(nextKind);
-    setQuery(nextQuery);
-    setRefreshRound(0);
-    setSelected(new Set());
-    setNotice(null);
-    setSearchId((id) => id + 1);
-    chooseWork(null);
-  }
-
   /**
-   * Changer de section, par la barre ou par Précédent et Suivant : quitter une page de recherche
-   * l'efface, en y revenant rien n'est relancé ; la recherche n'est jamais dans l'adresse.
+   * Une recherche lancée ajoute son adresse à l'historique : Précédent revient à la précédente,
+   * puis à la recherche vide. La même recherche relancée est cherchée à nouveau.
    */
-  function leave(next: Route): void {
-    if (next.page !== page) {
-      clearSearch();
-    }
+  function search(nextQuery: string, nextKind: Kind, to: "/" | "/manual" = manual ? "/manual" : "/"): void {
+    setSearchId((id) => id + 1);
     setSelected(new Set());
     setNotice(null);
+    void navigate({ to, search: searchParamsFor(nextQuery, nextKind) });
   }
 
   /** Tout effacer : le texte, l'œuvre et ses noms, les releases, la sélection et le message. */
-  function clearSearch(): void {
-    setQuery("");
-    setRefreshRound(0);
-    setSelected(new Set());
-    setNotice(null);
+  function clearSearch(nextKind: Kind = kind): void {
     setShowRejected(false);
-    chooseWork(null);
+    void navigate({
+      to: manual ? "/manual" : "/",
+      search: searchParamsFor("", nextKind),
+      // Sans recherche affichée, changer de type ne fait pas d'entrée dans l'historique.
+      replace: query === "",
+      resetScroll: false,
+    });
   }
 
   /** La liste relue après une fusion ou une séparation : le serveur l'applique à chaque recherche. */
   function searchAgain(): void {
     setSearchId((id) => id + 1);
-    chooseWork(null);
+    void navigate({ to: "/", search: searchParamsFor(query, kind), replace: true, resetScroll: false });
   }
 
   function split(merged: Work): void {
@@ -285,30 +332,25 @@ export function App(): ReactElement | null {
     splitWorks(merged.mergeId).then(searchAgain, searchAgain);
   }
 
-  function chooseWork(next: Work | null): void {
-    setWork(next);
-    setNames(
-      new Set(
-        next?.titles
-          .filter((t) => t.checked !== false)
-          .map((t) => t.title)
-          .slice(0, maxNames),
-      ),
-    );
-    setRefreshRound(0);
-    setSelected(new Set());
+  /** L'œuvre choisie ajoute son adresse : Précédent revient à la liste des œuvres. */
+  function chooseWork(next: Work): void {
+    if (next.id === workId) {
+      return;
+    }
+    void navigate({ to: "/", search: searchParamsFor(query, kind, next.id), resetScroll: false });
   }
 
   function toggleName(title: string): void {
+    if (work === null) {
+      return;
+    }
     const next = new Set(names);
     if (next.has(title)) {
       next.delete(title);
     } else if (next.size < maxNames) {
       next.add(title);
     }
-    setRefreshRound(0);
-    setNames(next);
-    setSelected(new Set());
+    setNamesOf({ workId: work.id, names: next });
   }
 
   /** Le même torrent renvoyé au client torrent ; un refus laisse la ligne telle quelle. */
@@ -380,8 +422,8 @@ export function App(): ReactElement | null {
   }
 
   /** La vue de la section : la barre, l'en-tête et le cadre restent, seule la vue change. */
-  function view(current: Route): ReactElement {
-    switch (current.page) {
+  function view(current: Page): ReactElement {
+    switch (current) {
       case "auto":
       case "manual":
         return (
@@ -393,10 +435,11 @@ export function App(): ReactElement | null {
               busy={manual ? releasesLoading : worksLoading}
               onSearch={search}
               onKind={(next) => {
-                clearSearch();
-                setKind(next);
+                clearSearch(next);
               }}
-              onClear={clearSearch}
+              onClear={() => {
+                clearSearch();
+              }}
               searched={query !== ""}
             />
             {manual ? (
@@ -410,7 +453,7 @@ export function App(): ReactElement | null {
               <UploadList
                 files={uploads}
                 onPlace={() => {
-                  navigate({ page: "place" });
+                  void navigate({ to: "/place" });
                 }}
                 onClear={() => {
                   setUploads((current) =>
@@ -440,9 +483,7 @@ export function App(): ReactElement | null {
                   onShowRejected={setShowRejected}
                   minimum={minimum}
                   cachedMinutes={cachedMinutes}
-                  onRefresh={() => {
-                    setRefreshRound((n) => n + 1);
-                  }}
+                  onRefresh={refreshReleases}
                   selected={selected}
                   onToggle={toggle}
                   onToggleAll={(select) => {
@@ -471,7 +512,9 @@ export function App(): ReactElement | null {
                       selectedId={work?.id ?? null}
                       loading={releasesLoading}
                       onChoose={chooseWork}
-                      onMerge={setMerging}
+                      onMerge={(next) => {
+                        setMergingOf({ key: noticeKey, work: next });
+                      }}
                       onSplit={split}
                       unavailable={worksState.status === "done" ? worksState.unavailable : []}
                       failed={worksState.status === "done" && worksState.failed}
@@ -493,11 +536,9 @@ export function App(): ReactElement | null {
                           onShowRejected={setShowRejected}
                           minimum={minimum}
                           cachedMinutes={cachedMinutes}
-                          onRefresh={() => {
-                            setRefreshRound((n) => n + 1);
-                          }}
+                          onRefresh={refreshReleases}
                           onWait={() => {
-                            setWaitOpen(true);
+                            setWaitFor(releasesKey);
                           }}
                           selected={selected}
                           onToggle={toggle}
@@ -521,36 +562,17 @@ export function App(): ReactElement | null {
                 setSelected(new Set());
               }}
               onDownload={() => {
-                setDialogOpen(true);
+                setDialogFor(releasesKey);
               }}
             />
           </>
         );
-      case "settings":
-        return (
-          <SettingsPage
-            tab={current.tab}
-            onTab={(tab) => {
-              navigate({ page: "settings", tab });
-            }}
-          />
-        );
       case "waiting":
-        return (
-          <WaitingPage
-            onAdd={() => {
-              setWaitAdding(true);
-            }}
-            onOpen={(entry) => {
-              navigate({ page: "auto" });
-              search(entry.title, entry.kind);
-            }}
-          />
-        );
       case "metadata":
-        return <LibraryPage />;
       case "place":
-        return <PlacePage files={files} onPlaced={place.refresh} onSearch={setPlaceText} />;
+      case "settings":
+        // Les pages chargées à la demande : la route les montre.
+        return <Outlet />;
       case "downloads":
         return (
           <>
@@ -584,8 +606,7 @@ export function App(): ReactElement | null {
                     void retry(download);
                   }}
                   onOtherRelease={(download) => {
-                    navigate({ page: download.manual ? "manual" : "auto" });
-                    search(download.workTitle, download.kind);
+                    search(download.workTitle, download.kind, download.manual ? "/manual" : "/");
                   }}
                 />
               </>
@@ -617,13 +638,8 @@ export function App(): ReactElement | null {
         settingsAlert={servicesDown}
         waitingFound={waitingList.filter((entry) => entry.state.kind === "found").length}
         toPlaceCount={place.open}
-        onNavigate={(next) => {
+        onNavigate={() => {
           setMenuOpen(false);
-          leave(sectionRoute(next));
-          // Paramètres, déjà ouvert, garde son onglet.
-          if (next !== page) {
-            navigate(sectionRoute(next));
-          }
         }}
         onSignOut={() => {
           signOut().then(
@@ -638,64 +654,57 @@ export function App(): ReactElement | null {
       />
       <div className="min-w-0 md:flex-1">
         <PageHeader {...headings[page]} />
-        <main className={mainClasses[page]}>{view(route)}</main>
+        <main className={mainClasses[page]}>
+          <ShellContext value={shell}>{view(page)}</ShellContext>
+        </main>
       </div>
-      {dialogOpen && searchIdOfReleases !== null ? (
-        <DownloadDialog
-          kind={kind}
-          searchId={searchIdOfReleases}
-          workId={manual ? null : (work?.id ?? null)}
-          manual={manual}
-          releases={selectedReleases}
-          onClose={() => {
-            setDialogOpen(false);
-          }}
-          onSent={(sent) => {
-            setDialogOpen(false);
-            setSelected(new Set());
-            setNotice(
-              manual
-                ? texts.dialog.manualNote
-                : texts.dialog.sent(sent.length, texts.torrentClients[torrentClientOf(settings, true)]),
-            );
-            downloadsList.merge(sent);
-          }}
-        />
-      ) : null}
-      {waitOpen && work !== null ? (
-        <WaitDialog
-          kind={kind}
-          work={work}
-          foundVolumes={releases.flatMap((release) => volumeNumbers(release.volumes))}
-          onClose={() => {
-            setWaitOpen(false);
-          }}
-          onAdded={(count) => {
-            setNotice(texts.waitDialog.added(count));
-          }}
-        />
-      ) : null}
-      {waitAdding ? (
-        <WaitDialog
-          kind={kind}
-          work={null}
-          foundVolumes={[]}
-          onClose={() => {
-            setWaitAdding(false);
-          }}
-          onAdded={() => undefined}
-        />
-      ) : null}
-      {merging === null ? null : (
-        <MergeDialog
-          kind={kind}
-          work={merging}
-          onClose={() => {
-            setMerging(null);
-          }}
-          onMerged={searchAgain}
-        />
-      )}
+      <Suspense fallback={null}>
+        {dialogOpen && searchIdOfReleases !== null ? (
+          <DownloadDialog
+            kind={kind}
+            searchId={searchIdOfReleases}
+            workId={manual ? null : (work?.id ?? null)}
+            manual={manual}
+            releases={selectedReleases}
+            onClose={() => {
+              setDialogFor(null);
+            }}
+            onSent={(sent) => {
+              setDialogFor(null);
+              setSelected(new Set());
+              setNotice(
+                manual
+                  ? texts.dialog.manualNote
+                  : texts.dialog.sent(sent.length, texts.torrentClients[torrentClientOf(settings, true)]),
+              );
+              downloadsList.merge(sent);
+            }}
+          />
+        ) : null}
+        {waitOpen && work !== null ? (
+          <WaitDialog
+            kind={kind}
+            work={work}
+            foundVolumes={releases.flatMap((release) => volumeNumbers(release.volumes))}
+            onClose={() => {
+              setWaitFor(null);
+            }}
+            onAdded={(count) => {
+              setNotice(texts.waitDialog.added(count));
+            }}
+          />
+        ) : null}
+        {merging === null ? null : (
+          <MergeDialog
+            kind={kind}
+            work={merging}
+            onClose={() => {
+              setMergingOf(null);
+            }}
+            onMerged={searchAgain}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

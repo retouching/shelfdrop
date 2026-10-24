@@ -50,7 +50,7 @@ async def test_a_route_of_the_api_waits_for_the_end_of_the_set_up(path: str) -> 
         "/api/v1/settings/test",
         "/health",
         "/",
-        "/parametres",
+        "/settings",
         "/assets/app.js",
         "/api/v1/settingsx",
     ],

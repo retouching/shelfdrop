@@ -1,6 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type MouseEvent, type ReactElement, type RefObject } from "react";
 
-import { pathOf, sectionRoute, type Page } from "../state/route";
+import { pagePaths, type Page } from "../state/route";
 import { texts } from "../texts";
 import { readTheme, saveTheme, type ThemeChoice } from "../theme";
 import {
@@ -62,6 +63,7 @@ type Props = {
   readonly waitingFound: number;
   /** Un service enregistré ne répond pas : point rouge sur Paramètres. */
   readonly settingsAlert: boolean;
+  /** Un lien de section suivi : le lien change l'adresse lui-même. */
   readonly onNavigate: (page: Page) => void;
   readonly onSignOut: () => void;
   /** L'identifiant de la barre, que le bouton Menu des petits écrans contrôle. */
@@ -144,7 +146,10 @@ function useDrawer(id: string, open: boolean, onClose: () => void): RefObject<HT
   return ref;
 }
 
-/** Le lien d'une section : un clic simple change la vue, un clic du milieu ouvre un onglet. */
+/**
+ * Le lien d'une section : un clic simple change la vue, un clic du milieu ouvre un onglet. La
+ * section ouverte ne change pas à son clic (Paramètres garde son onglet).
+ */
 function NavLink({
   page,
   active,
@@ -163,13 +168,15 @@ function NavLink({
   readonly onClick: () => void;
 }): ReactElement {
   return (
-    <a
-      href={pathOf(sectionRoute(page))}
+    <Link
+      to={pagePaths[page]}
       onClick={(event: MouseEvent<HTMLAnchorElement>) => {
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
           return;
         }
-        event.preventDefault();
+        if (active) {
+          event.preventDefault();
+        }
         onClick();
       }}
       aria-current={active ? "page" : undefined}
@@ -185,7 +192,7 @@ function NavLink({
         </span>
       )}
       {alert === true ? <span aria-hidden="true" className="size-2 rounded-full bg-rose-500" /> : null}
-    </a>
+    </Link>
   );
 }
 

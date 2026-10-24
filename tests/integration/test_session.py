@@ -49,7 +49,7 @@ def test_a_made_up_cookie_is_no_session(stack: Stack) -> None:
 
 def test_the_probe_and_the_pages_need_no_session(anonymous: httpx.Client) -> None:
     assert anonymous.get("/health").status_code == 200
-    page = anonymous.get("/parametres")
+    page = anonymous.get("/settings")
     assert page.status_code == 200
     assert "<!doctype html>" in page.text.lower()
 

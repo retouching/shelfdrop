@@ -53,13 +53,19 @@ function matches(series: Series, filter: Filter): boolean {
   }
 }
 
-export function LibraryPage(): ReactElement {
+type Props = {
+  /** La série dont la fiche est ouverte, tenue par l'adresse ; null : aucune. */
+  readonly seriesId: string | null;
+  readonly onOpen: (id: string) => void;
+  readonly onClose: () => void;
+};
+
+export function LibraryPage({ seriesId, onOpen, onClose }: Props): ReactElement {
   const [all, setAll] = useState<readonly Series[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [library, setLibrary] = useState<Kind | "all">("all");
   const [query, setQuery] = useState("");
-  const [editing, setEditing] = useState<Series | null>(null);
   const [filling, setFilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
@@ -145,8 +151,8 @@ export function LibraryPage(): ReactElement {
     // La liste est relue ensuite : une lecture partie avant l'enregistrement ne l'écrase pas.
     void refresh();
   }
-  // La fiche suit la série relue.
-  const edited = editing === null ? null : (all.find((series) => series.id === editing.id) ?? editing);
+  // La fiche suit la série relue ; une série inconnue n'ouvre rien.
+  const edited = seriesId === null ? null : (all.find((series) => series.id === seriesId) ?? null);
 
   return (
     <div className="space-y-6">
@@ -300,7 +306,7 @@ export function LibraryPage(): ReactElement {
               <button
                 type="button"
                 onClick={() => {
-                  setEditing(series);
+                  onOpen(series.id);
                 }}
                 aria-label={texts.library.edit(series.name)}
                 className="group w-full space-y-2 text-left"
@@ -336,10 +342,9 @@ export function LibraryPage(): ReactElement {
 
       {edited === null ? null : (
         <SeriesEditor
+          key={edited.id}
           series={edited}
-          onClose={() => {
-            setEditing(null);
-          }}
+          onClose={onClose}
           onApplied={(next) => {
             replace(next);
             setNotice(texts.library.applied(next.name));

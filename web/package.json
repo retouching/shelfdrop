@@ -12,6 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@tanstack/react-router": "1.170.46",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "swagger-ui-dist": "^5.34.0"

@@ -1,6 +1,7 @@
 import { useState, type ReactElement } from "react";
 
 import { askScan, placeFile, resumeFile } from "../api/place";
+import { placeFilters, type PlaceFilter } from "../state/route";
 import { texts } from "../texts";
 import type { FileState, Kind, ShelfFile } from "../types";
 import { formatSize } from "../utils/format";
@@ -80,12 +81,14 @@ function needsAction(file: ShelfFile): boolean {
 type Props = {
   readonly files: readonly ShelfFile[];
   readonly onPlaced: (file: ShelfFile) => void;
-  /** Le texte cherché : il cherche aussi dans les fichiers déjà rangés de la bibliothèque. */
-  readonly onSearch: (text: string) => void;
+  /** Le texte cherché, tenu par l'adresse : il cherche aussi dans les fichiers déjà rangés. */
+  readonly initialQuery: string;
+  /** Le filtre, tenu par l'adresse. */
+  readonly filter: PlaceFilter;
+  readonly onChange: (query: string, filter: PlaceFilter) => void;
 };
 
-export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
-  const [filter, setFilter] = useState<"todo" | "ignored" | "all">("todo");
+export function PlacePage({ files, onPlaced, initialQuery, filter, onChange }: Props): ReactElement {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -102,7 +105,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
       },
     );
   }
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [scanAsked, setScanAsked] = useState(false);
   const [linking, setLinking] = useState<ShelfFile | null>(null);
   const [chaptering, setChaptering] = useState<ShelfFile | null>(null);
@@ -144,10 +147,7 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
-                onSearch(event.target.value.trim());
-                if (event.target.value !== "") {
-                  setFilter("all");
-                }
+                onChange(event.target.value, event.target.value === "" ? filter : "all");
               }}
               aria-label={texts.place.filter}
               placeholder={texts.place.filterPlaceholder}
@@ -159,14 +159,14 @@ export function PlacePage({ files, onPlaced, onSearch }: Props): ReactElement {
             aria-label={texts.place.filesTitle}
             className="flex w-full rounded-lg bg-slate-100 p-1 md:inline-flex md:w-auto"
           >
-            {(["todo", "ignored", "all"] as const).map((option) => (
+            {placeFilters.map((option) => (
               <button
                 key={option}
                 type="button"
                 role="radio"
                 aria-checked={option === filter}
                 onClick={() => {
-                  setFilter(option);
+                  onChange(query, option);
                 }}
                 className={
                   option === filter

@@ -1,9 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import type { Kind } from "../types";
 
 /** Les sections de la page ; chacune a son adresse. */
 export type Page = "auto" | "manual" | "waiting" | "downloads" | "place" | "metadata" | "settings";
 
-/** Les onglets de Paramètres, dans leur ordre. */
+/** L'adresse de chaque section, celle de ses liens dans la barre. */
+export const pagePaths = {
+  auto: "/",
+  manual: "/manual",
+  waiting: "/waiting",
+  downloads: "/downloads",
+  place: "/place",
+  metadata: "/jellyfin",
+  settings: "/settings",
+} as const satisfies Readonly<Record<Page, string>>;
+
+/** Les onglets de Paramètres, dans leur ordre ; le premier est `/settings` seul. */
 export const settingsTabs = [
   "services",
   "sources",
@@ -17,96 +28,82 @@ export const settingsTabs = [
 
 export type SettingsTab = (typeof settingsTabs)[number];
 
-/** La vue montrée : une section, et l'onglet pour Paramètres. La recherche n'y est jamais. */
-export type Route =
-  { readonly page: Exclude<Page, "settings"> } | { readonly page: "settings"; readonly tab: SettingsTab };
-
-const pagePaths: Readonly<Record<Page, string>> = {
-  auto: "/",
-  manual: "/manuel",
-  waiting: "/en-attente",
-  downloads: "/telechargements",
-  place: "/ranger",
-  metadata: "/jellyfin",
-  settings: "/parametres",
-};
-
-const tabSlugs: Readonly<Record<SettingsTab, string>> = {
-  services: "services",
-  sources: "sources",
-  search: "recherche",
-  filters: "filtres",
-  placement: "rangement",
-  discord: "discord",
-  access: "acces",
-  logs: "journaux",
-};
-
-/** La vue où mène une section de la barre : Paramètres s'ouvre sur son premier onglet. */
-export function sectionRoute(page: Page): Route {
-  return page === "settings" ? { page, tab: settingsTabs[0] } : { page };
+/** L'onglet d'un segment d'adresse ; null pour un segment inconnu. */
+export function settingsTabOf(slug: string | undefined): SettingsTab | null {
+  return settingsTabs.find((tab) => tab === slug) ?? null;
 }
 
-/** L'adresse d'une vue ; le premier onglet de Paramètres est `/parametres` seul. */
-export function pathOf(route: Route): string {
-  if (route.page === "settings" && route.tab !== settingsTabs[0]) {
-    return `${pagePaths.settings}/${tabSlugs[route.tab]}`;
-  }
-  return pagePaths[route.page];
-}
+const kinds: readonly Kind[] = ["manga", "ebook", "audiobook"];
 
-/** La vue d'une adresse ; une adresse inconnue est la page Automatique. */
-export function routeOf(pathname: string): Route {
-  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
-  const settingsPrefix = `${pagePaths.settings}/`;
-  if (path.startsWith(settingsPrefix)) {
-    const slug = path.slice(settingsPrefix.length);
-    const tab = settingsTabs.find((option) => tabSlugs[option] === slug);
-    return tab === undefined ? { page: "auto" } : { page: "settings", tab };
-  }
-  const page = (Object.keys(pagePaths) as Page[]).find((option) => pagePaths[option] === path);
-  if (page === undefined) {
-    return { page: "auto" };
-  }
-  return sectionRoute(page);
-}
+/** Le type cherché par défaut, jamais écrit dans l'adresse sans texte. */
+export const defaultKind: Kind = "manga";
 
 /**
- * La vue tenue par l'adresse : `navigate` ajoute une entrée à l'historique, les boutons
- * Précédent et Suivant du navigateur changent la vue et appellent `onBrowse` avant.
+ * Les paramètres d'une recherche : `/?q=…&kind=…&work=…`, `/manual?q=…&kind=…`. Lus, chacun est
+ * présent, `undefined` s'il manque ou ne vaut rien : TanStack Router garde sinon la valeur brute
+ * de l'adresse à côté de celles vérifiées.
  */
-export function useRoute(onBrowse: (next: Route) => void): readonly [Route, (next: Route) => void] {
-  const [route, setRoute] = useState<Route>(() => routeOf(window.location.pathname));
-  const browseRef = useRef(onBrowse);
+export type SearchParams = {
+  readonly q?: string | undefined;
+  readonly kind?: Kind | undefined;
+  /** L'œuvre choisie dans la liste (page Automatique seule). */
+  readonly work?: string | undefined;
+};
 
-  useEffect(() => {
-    browseRef.current = onBrowse;
-  });
-
-  useEffect(() => {
-    // Une adresse inconnue, ou écrite autrement, est remplacée par celle de sa vue.
-    const path = pathOf(routeOf(window.location.pathname));
-    if (path !== window.location.pathname) {
-      window.history.replaceState(null, "", path);
-    }
-    function listener(): void {
-      const next = routeOf(window.location.pathname);
-      browseRef.current(next);
-      setRoute(next);
-    }
-    window.addEventListener("popstate", listener);
-    return () => {
-      window.removeEventListener("popstate", listener);
-    };
-  }, []);
-
-  function navigate(next: Route): void {
-    const path = pathOf(next);
-    if (path !== window.location.pathname) {
-      window.history.pushState(null, "", path);
-    }
-    setRoute(next);
+function text(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
   }
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
 
-  return [route, navigate];
+/** Les paramètres lus dans l'adresse ; une valeur invalide est ignorée. */
+export function searchParamsOf(raw: Readonly<Record<string, unknown>>, withWork: boolean): SearchParams {
+  const q = text(raw["q"]);
+  const kind = kinds.find((option) => option === raw["kind"]);
+  const work = q === undefined || !withWork ? undefined : text(raw["work"]);
+  return { q, kind, work };
+}
+
+/** Les paramètres écrits pour une recherche : le type par défaut n'apparaît qu'avec un texte. */
+export function searchParamsFor(q: string, kind: Kind, work?: string): SearchParams {
+  const query = q.trim();
+  return {
+    ...(query === "" ? {} : { q: query }),
+    ...(query === "" && kind === defaultKind ? {} : { kind }),
+    ...(query === "" || work === undefined ? {} : { work }),
+  };
+}
+
+export const placeFilters = ["todo", "ignored", "all"] as const;
+
+export type PlaceFilter = (typeof placeFilters)[number];
+
+/** Les filtres de Ranger : `/place?q=…&filter=…` ; « À ranger » est le filtre sans paramètre. */
+export type PlaceParams = {
+  readonly q?: string | undefined;
+  readonly filter?: Exclude<PlaceFilter, "todo"> | undefined;
+};
+
+export function placeParamsOf(raw: Readonly<Record<string, unknown>>): PlaceParams {
+  const q = text(raw["q"]);
+  const filter = placeFilters.find((option) => option === raw["filter"]);
+  return { q, filter: filter === "todo" ? undefined : filter };
+}
+
+/** Les paramètres d'une adresse, en texte simple (`?q=one+piece`), jamais en JSON. */
+export function parseSearch(search: string): Record<string, string> {
+  return Object.fromEntries(new URLSearchParams(search));
+}
+
+export function stringifySearch(params: Readonly<Record<string, unknown>>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string" && value !== "") {
+      query.set(key, value);
+    }
+  }
+  const written = query.toString();
+  return written === "" ? "" : `?${written}`;
 }

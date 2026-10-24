@@ -112,7 +112,7 @@ async def test_the_pages_fall_back_to_the_index(tmp_path: Path) -> None:
     async with client_for(settings_for(tmp_path)) as client:
         asset = await client.get("/assets/app.js")
         icon = await client.get("/favicon.svg")
-        page = await client.get("/telechargements")
+        page = await client.get("/downloads")
         escape = await client.get("/..%2Fpyproject.toml")
         font = await client.get("/fonts/outfit.woff2")
 
@@ -304,7 +304,7 @@ async def test_before_the_end_of_the_set_up_the_api_answers_its_routes_alone(
         session = await client.get("/api/v1/session")
         settings = await client.get("/api/v1/settings")
         health = await client.get("/health")
-        page = await client.get("/parametres")
+        page = await client.get("/settings")
 
     assert (works.status_code, works.json()["code"]) == (409, "setup_required")
     assert (tokens.status_code, mcp.status_code) == (409, 409)
