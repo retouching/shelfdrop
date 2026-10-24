@@ -1,4 +1,4 @@
-"""The routes of the internal account, from the settings (ADR 0023): read it, create it (an
+"""The routes of the internal account, from the settings (ADR 0024): read it, create it (an
 installation signed in through Jellyfin), change its password. Async: a hash waits in the
 threadpool."""
 

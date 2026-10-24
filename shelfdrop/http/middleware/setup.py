@@ -1,4 +1,4 @@
-"""The set-up of the first launch (ADR 0023): while it is not finished, every request under
+"""The set-up of the first launch (ADR 0024): while it is not finished, every request under
 the paths guarded (the API, the MCP server) answers 409 `setup_required`, but those under the
 paths left open (the set-up, the session, the settings). /health and the pages stay outside."""
 

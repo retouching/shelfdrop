@@ -1,4 +1,4 @@
-"""The routes of the set-up of the first launch (ADR 0023): its state, the internal account
+"""The routes of the set-up of the first launch (ADR 0024): its state, the internal account
 (the first step, open to anyone while no account exists), the end. Async: a hash waits in the
 threadpool, the end waits on the test of Jellyfin."""
 

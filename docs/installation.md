@@ -28,7 +28,7 @@ Both services write their records to stderr, read by `docker compose ... logs`, 
 The `.env` file (mode 600: it holds the key of the secrets) sets `SHELFDROP_CONTACT` and `SHELFDROP_SECRET_KEY`, and the variables Compose reads: `SHELFDROP_MEDIA_DIR`, `SHELFDROP_LIBRARY_GID`, `SHELFDROP_API_PORT`, `SHELFDROP_PROXY_ADDRESS`. The other settings are changed on the settings page ([configuration](configuration.md)).
 
 ## The first launch
-The pages of a new installation open on the set-up ([ADR 0023](adr/0023-first-launch-setup.md)), and the API answers its steps alone (`409 setup_required` to the others):
+The pages of a new installation open on the set-up ([ADR 0024](adr/0024-first-launch-setup.md)), and the API answers its steps alone (`409 setup_required` to the others):
 1. **The internal account**: a name and a password (10 characters at least), the administrator of shelfdrop; its session opens. Anyone who reaches the pages can create it while it does not exist: do this step before the site is published.
 2. **Prowlarr**: its address and its API key, and their test.
 3. **qBittorrent**: the address of qui and the key of its client proxy, and their test.

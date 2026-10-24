@@ -1,4 +1,4 @@
-"""The set-up of the first launch through the real API (ADR 0023), on an API of its own: the
+"""The set-up of the first launch through the real API (ADR 0024), on an API of its own: the
 service `api-setup` of docker/compose.test.yaml, on an empty database and without the settings
 of the environment, against the fake Prowlarr, qBittorrent (behind qui) and Jellyfin. Its sign-ins
 are counted by its own process. And, on the stack shared, the internal account created from the

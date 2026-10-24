@@ -1,5 +1,5 @@
 """AccountService: the internal account of shelfdrop (one administrator, without Jellyfin) and
-the set-up of the first launch it opens (ADR 0023).
+the set-up of the first launch it opens (ADR 0024).
 
 The password is kept as its scrypt alone; it is never logged. The hashes run in the threadpool:
 each one takes about a tenth of a second.

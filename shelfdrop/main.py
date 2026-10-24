@@ -162,7 +162,7 @@ def build_app(settings: Settings) -> DocumentedApi:
         McpMiddleware, path=MCP_PATH, server=mcp_app, check=partial(check_token, app)
     )
     # Before the set-up of the first launch is finished, the API answers its routes alone
-    # (ADR 0023).
+    # (ADR 0024).
     app.add_middleware(
         SetupMiddleware,
         guarded=(prefix, MCP_PATH),
@@ -189,7 +189,9 @@ def build_app(settings: Settings) -> DocumentedApi:
         account_router,
         trackers_router,
         filters_router,
-        tokens_router, logs_router):
+        tokens_router,
+        logs_router,
+    ):
         app.include(router, prefix=prefix, guard=require_session)
     for router in (searches_router, releases_router, docs_router(settings.static_dir)):
         app.include(router, prefix=prefix, guard=require_reader)

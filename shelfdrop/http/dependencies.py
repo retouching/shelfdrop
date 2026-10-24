@@ -150,7 +150,7 @@ async def check_token(app: FastAPI, secret: str) -> StoredToken:
 
 
 async def setup_needed(app: FastAPI) -> bool:
-    """Whether the set-up of the first launch is still needed (ADR 0023), outside a route
+    """Whether the set-up of the first launch is still needed (ADR 0024), outside a route
     (`SetupMiddleware`): once it is known finished, the database is no longer read."""
     gate = await get_app_container(app).get(SetupGate)
     if gate.done:
