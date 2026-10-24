@@ -1,4 +1,6 @@
-import { useState, type ReactElement } from "react";
+import { useRef, useState, type ReactElement } from "react";
+
+import { useQueuedSrc } from "../../state/imageQueue";
 
 type Props = {
   /** L'adresse de l'image ; null sans image. */
@@ -9,11 +11,17 @@ type Props = {
   readonly bare?: boolean;
 };
 
-/** Vignette de couverture : l'image, ou un emplacement vide quand il n'y en a pas ou qu'elle ne se charge pas. */
+/**
+ * Vignette de couverture : l'image, ou un emplacement vide quand il n'y en a pas ou qu'elle ne se charge pas.
+ * Les images de l'API se chargent près de l'écran, par lots (`useQueuedSrc`), à une taille fixe.
+ */
 export function Cover({ src, label, className, bare = false }: Props): ReactElement {
   const size = className ?? "h-36 w-24";
   const [broken, setBroken] = useState<string | null>(null);
-  if (src === null || broken === src) {
+  const ref = useRef<HTMLImageElement>(null);
+  const wanted = src === null || broken === src ? null : src;
+  const { shown, ended } = useQueuedSrc(wanted, ref);
+  if (wanted === null) {
     return (
       <span
         className={`${size} flex shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-slate-300 bg-band p-2 text-center text-slate-400`}
@@ -36,11 +44,17 @@ export function Cover({ src, label, className, bare = false }: Props): ReactElem
   }
   return (
     <img
-      src={src}
+      ref={ref}
+      src={shown ?? undefined}
       alt=""
       loading="lazy"
+      decoding="async"
+      width={200}
+      height={300}
+      onLoad={ended}
       onError={() => {
-        setBroken(src);
+        ended();
+        setBroken(wanted);
       }}
       className={`${size} shrink-0 rounded-md bg-band object-cover shadow-sm`}
     />

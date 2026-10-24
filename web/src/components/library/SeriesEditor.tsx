@@ -25,6 +25,8 @@ type Props = {
   readonly onClose: () => void;
   readonly onApplied: (next: Series) => void;
   readonly onRescanned: (name: string) => void;
+  /** La série a changé dans Jellyfin (une synchronisation, un tome) : la liste est relue. */
+  readonly onChanged: () => void;
 };
 
 type Fields = {
@@ -60,16 +62,16 @@ function listOf(text: string): readonly string[] {
 /** Image choisie : l'actuelle, celle d'un tome, d'une source, d'un lien ou d'un fichier envoyé. */
 type Choice =
   | { readonly kind: "current" }
-  | { readonly kind: "item"; readonly itemId: string }
+  | { readonly kind: "item"; readonly itemId: string; readonly imageTag: string | null }
   | { readonly kind: "url"; readonly url: string }
   | { readonly kind: "file"; readonly name: string; readonly data: string; readonly preview: string };
 
 function previewOf(series: Series, choice: Choice): string | null {
   switch (choice.kind) {
     case "current":
-      return series.hasImage ? itemImage(series.id, 600) : null;
+      return series.hasImage ? itemImage(series.id, series.imageTag, 600) : null;
     case "item":
-      return itemImage(choice.itemId, 600);
+      return itemImage(choice.itemId, choice.imageTag, 600);
     case "url":
       return choice.url;
     case "file":
@@ -90,10 +92,25 @@ function imageOf(choice: Choice): ImageChoice | null {
   }
 }
 
-export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props): ReactElement {
+export function SeriesEditor({ series, onClose, onApplied, onRescanned, onChanged }: Props): ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
   const initial = fieldsOf(series);
   const [fields, setFields] = useState<Fields>(initial);
+  // Les champs de la série relue remplacent ceux qui n'ont pas été modifiés.
+  const [base, setBase] = useState<Fields>(initial);
+  const keys = Object.keys(initial) as (keyof Fields)[];
+  if (keys.some((key) => base[key] !== initial[key])) {
+    setBase(initial);
+    setFields((current) => {
+      const next = { ...current };
+      for (const key of keys) {
+        if (current[key] === base[key]) {
+          next[key] = initial[key];
+        }
+      }
+      return next;
+    });
+  }
   const [image, setImage] = useState<Choice>({ kind: "current" });
   const [url, setUrl] = useState("");
   const [toSeries, setToSeries] = useState(true);
@@ -153,9 +170,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
   }
 
   const proposedSummary = proposals?.summaries[0] ?? null;
-  const changed =
-    (Object.keys(initial) as (keyof Fields)[]).filter((key) => fields[key] !== initial[key]).length +
-    (image.kind === "current" ? 0 : 1);
+  const changed = keys.filter((key) => fields[key] !== initial[key]).length + (image.kind === "current" ? 0 : 1);
 
   function set(key: keyof Fields, value: string): void {
     setFields((current) => ({ ...current, [key]: value }));
@@ -288,6 +303,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
                   setError(null);
                   setNotice(message);
                   setVolumesRead((count) => count + 1);
+                  onChanged();
                 }
               }}
             />
@@ -309,7 +325,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
                     active={image.kind === "current"}
                     label={texts.editor.current}
                     caption={texts.editor.current}
-                    src={series.hasImage ? itemImage(series.id, 200) : null}
+                    src={series.hasImage ? itemImage(series.id, series.imageTag, 200) : null}
                     title={series.name}
                     onClick={() => {
                       setImage({ kind: "current" });
@@ -322,10 +338,10 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
                       active={image.kind === "item" && image.itemId === volume.itemId}
                       label={volume.label}
                       caption={volume.label}
-                      src={itemImage(volume.itemId, 200)}
+                      src={itemImage(volume.itemId, volume.imageTag, 200)}
                       title={series.name}
                       onClick={() => {
-                        setImage({ kind: "item", itemId: volume.itemId });
+                        setImage({ kind: "item", itemId: volume.itemId, imageTag: volume.imageTag });
                       }}
                     />
                   </li>
@@ -458,7 +474,7 @@ export function SeriesEditor({ series, onClose, onApplied, onRescanned }: Props)
             </div>
           </section>
 
-          <VolumesSection series={series} version={volumesRead} onNotice={setNotice} />
+          <VolumesSection series={series} version={volumesRead} onNotice={setNotice} onChanged={onChanged} />
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-6 py-4">

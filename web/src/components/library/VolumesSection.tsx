@@ -12,10 +12,12 @@ type Props = {
   /** Relu à chaque changement : après une synchronisation, par exemple. */
   readonly version: number;
   readonly onNotice: (message: string) => void;
+  /** Un tome a changé : la série (ses tomes sans résumé, sans image) est relue. */
+  readonly onChanged: () => void;
 };
 
 /** Les tomes d'une série : leur couverture, leur numéro, leur fichier, et les numéros manquants. */
-export function VolumesSection({ series, version, onNotice }: Props): ReactElement {
+export function VolumesSection({ series, version, onNotice, onChanged }: Props): ReactElement {
   const [read, setRead] = useState<SeriesVolumes | null>(null);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState<Volume | null>(null);
@@ -46,6 +48,7 @@ export function VolumesSection({ series, version, onNotice }: Props): ReactEleme
         : { ...current, volumes: current.volumes.map((volume) => (volume.id === next.id ? next : volume)) },
     );
     onNotice(texts.volumes.applied(next.name));
+    onChanged();
   }
 
   return (
@@ -75,7 +78,7 @@ export function VolumesSection({ series, version, onNotice }: Props): ReactEleme
               {read.volumes.map((volume) => (
                 <li key={volume.id} className="flex items-center gap-3 py-2">
                   <Cover
-                    src={volume.hasImage ? itemImage(volume.id, 120) : null}
+                    src={volume.hasImage ? itemImage(volume.id, volume.imageTag, 120) : null}
                     label={volume.name}
                     className="h-16 w-11"
                     bare

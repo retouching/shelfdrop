@@ -66,16 +66,27 @@ export function LibraryPage(): ReactElement {
   const [scan, setScan] = useState<number | null>(null);
   const [scanMode, setScanMode] = useState<ScanMode>("new");
 
+  // Le numéro de la dernière lecture : une réponse plus ancienne, arrivée après, est laissée.
+  const readsRef = useRef(0);
   const refresh = useCallback(async (): Promise<void> => {
+    readsRef.current += 1;
+    const read = readsRef.current;
     setRefreshing(true);
     try {
-      setAll(await readSeries());
-      setError(null);
-      setUpdatedAt(new Date());
+      const found = await readSeries();
+      if (read === readsRef.current) {
+        setAll(found);
+        setError(null);
+        setUpdatedAt(new Date());
+      }
     } catch {
-      setError(texts.library.unavailable);
+      if (read === readsRef.current) {
+        setError(texts.library.unavailable);
+      }
     } finally {
-      setRefreshing(false);
+      if (read === readsRef.current) {
+        setRefreshing(false);
+      }
     }
   }, []);
 
@@ -130,7 +141,11 @@ export function LibraryPage(): ReactElement {
 
   function replace(next: Series): void {
     setAll((current) => (current ?? []).map((series) => (series.id === next.id ? next : series)));
+    // La liste est relue ensuite : une lecture partie avant l'enregistrement ne l'écrase pas.
+    void refresh();
   }
+  // La fiche suit la série relue.
+  const edited = editing === null ? null : (all.find((series) => series.id === editing.id) ?? editing);
 
   return (
     <div className="space-y-6">
@@ -286,7 +301,7 @@ export function LibraryPage(): ReactElement {
                 className="group w-full space-y-2 text-left"
               >
                 <Cover
-                  src={series.hasImage ? itemImage(series.id) : null}
+                  src={series.hasImage ? itemImage(series.id, series.imageTag) : null}
                   label={series.name}
                   className="aspect-[2/3] w-full transition group-hover:ring-2 group-hover:ring-accent"
                 />
@@ -314,9 +329,9 @@ export function LibraryPage(): ReactElement {
         </ul>
       )}
 
-      {editing === null ? null : (
+      {edited === null ? null : (
         <SeriesEditor
-          series={editing}
+          series={edited}
           onClose={() => {
             setEditing(null);
           }}
@@ -326,6 +341,10 @@ export function LibraryPage(): ReactElement {
           }}
           onRescanned={(name) => {
             setNotice(texts.scan.seriesDone(name));
+            void refresh();
+          }}
+          onChanged={() => {
+            void refresh();
           }}
         />
       )}
@@ -467,7 +486,7 @@ function FillDialog({
                     className="mt-1 size-4 accent-accent"
                   />
                   <Cover
-                    src={entry.hasImage ? itemImage(entry.id, 120) : null}
+                    src={entry.hasImage ? itemImage(entry.id, entry.imageTag, 120) : null}
                     label={entry.name}
                     className="h-16 w-11"
                     bare

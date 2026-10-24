@@ -75,7 +75,7 @@ export function VolumeEditor({ volume, onClose, onApplied }: Props): ReactElemen
     }
   }
 
-  const preview = image?.preview ?? (volume.hasImage ? itemImage(volume.id, 400) : null);
+  const preview = image?.preview ?? (volume.hasImage ? itemImage(volume.id, volume.imageTag, 400) : null);
 
   return (
     <dialog

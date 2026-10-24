@@ -15,16 +15,22 @@ export type Series = {
   readonly volumes: number;
   readonly volumesWithoutSummary: number;
   readonly volumesWithoutImage: number;
+  /** L'étiquette de son image dans Jellyfin, qui change avec elle ; null sans image. */
+  readonly imageTag: string | null;
 };
 
-/** L'image d'une série ou d'un tome, lue dans Jellyfin par l'API. */
-export function itemImage(id: string, width = 400): string {
-  return `/api/v1/library/items/${encodeURIComponent(id)}/image?width=${String(width)}`;
+/**
+ * L'image d'une série ou d'un tome, lue dans Jellyfin par l'API. Son étiquette fait partie de
+ * l'adresse : le navigateur la garde, et une nouvelle image a une nouvelle adresse.
+ */
+export function itemImage(id: string, tag: string | null, width = 400): string {
+  const versioned = tag === null ? "" : `&tag=${encodeURIComponent(tag)}`;
+  return `/api/v1/library/items/${encodeURIComponent(id)}/image?width=${String(width)}${versioned}`;
 }
 
 export type Proposals = {
   /** Les tomes qui ont une image dans Jellyfin. */
-  readonly volumes: readonly { readonly itemId: string; readonly label: string }[];
+  readonly volumes: readonly { readonly itemId: string; readonly label: string; readonly imageTag: string | null }[];
   readonly covers: readonly { readonly source: string; readonly url: string }[];
   readonly summaries: readonly { readonly source: string; readonly text: string }[];
 };
@@ -66,6 +72,7 @@ type SeriesRead = {
   readonly volumes: number;
   readonly volumes_without_summary: number;
   readonly volumes_without_image: number;
+  readonly image_tag: string | null;
 };
 
 function seriesOf(read: SeriesRead): Series {
@@ -82,6 +89,7 @@ function seriesOf(read: SeriesRead): Series {
     volumes: read.volumes,
     volumesWithoutSummary: read.volumes_without_summary,
     volumesWithoutImage: read.volumes_without_image,
+    imageTag: read.image_tag,
   };
 }
 
@@ -92,12 +100,20 @@ export async function readSeries(): Promise<readonly Series[]> {
 
 export async function readProposals(id: string): Promise<Proposals> {
   const body = await request<{
-    readonly volumes: readonly { readonly item_id: string; readonly label: string }[];
+    readonly volumes: readonly {
+      readonly item_id: string;
+      readonly label: string;
+      readonly image_tag: string | null;
+    }[];
     readonly covers: Proposals["covers"];
     readonly summaries: Proposals["summaries"];
   }>("GET", `/v1/library/series/${encodeURIComponent(id)}/proposals`);
   return {
-    volumes: body.volumes.map((volume) => ({ itemId: volume.item_id, label: volume.label })),
+    volumes: body.volumes.map((volume) => ({
+      itemId: volume.item_id,
+      label: volume.label,
+      imageTag: volume.image_tag,
+    })),
     covers: body.covers,
     summaries: body.summaries,
   };
@@ -178,6 +194,7 @@ export type Volume = {
   readonly fileName: string;
   /** La taille du fichier en octets ; null quand Jellyfin ne la donne pas. */
   readonly size: number | null;
+  readonly imageTag: string | null;
 };
 
 export type SeriesVolumes = {
@@ -196,6 +213,7 @@ type VolumeRead = {
   readonly has_image: boolean;
   readonly file_name: string;
   readonly size: number | null;
+  readonly image_tag: string | null;
 };
 
 function volumeOf(read: VolumeRead): Volume {
@@ -208,6 +226,7 @@ function volumeOf(read: VolumeRead): Volume {
     hasImage: read.has_image,
     fileName: read.file_name,
     size: read.size,
+    imageTag: read.image_tag,
   };
 }
 
