@@ -282,7 +282,7 @@ def new_library_service(
     engine: Engine,
     clock: Clock,
 ) -> LibraryService:
-    """The page Métadonnées: the cover.jpg it asks for on sessions of their own."""
+    """The page Jellyfin: the cover.jpg it asks for on sessions of their own."""
     return LibraryService(
         jellyfin, settings, works, covers, placement_repository_factory(engine), clock
     )

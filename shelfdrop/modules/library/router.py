@@ -1,4 +1,4 @@
-"""The routes of the page Métadonnées: the series of the libraries of Jellyfin, their images,
+"""The routes of the page Jellyfin: the series of the libraries of Jellyfin, their images,
 what the sources propose, their changes, the summaries by batch, the scans."""
 
 import base64

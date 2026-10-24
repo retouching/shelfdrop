@@ -1,4 +1,4 @@
-"""The series of the libraries of Jellyfin as the page Métadonnées shows and changes them."""
+"""The series of the libraries of Jellyfin as the page Jellyfin shows and changes them."""
 
 from dataclasses import dataclass
 from typing import Literal

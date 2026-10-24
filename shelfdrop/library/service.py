@@ -1,4 +1,4 @@
-"""LibraryService: the page Métadonnées. The series of the libraries of books of Jellyfin, what
+"""LibraryService: the page Jellyfin. The series of the libraries of books of Jellyfin, what
 the sources propose for them, their fields and their image set and locked, the scans; the
 `cover.jpg` of a series asked of the placement worker (the API never writes in the libraries,
 ADR 0016)."""

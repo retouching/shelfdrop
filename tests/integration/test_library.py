@@ -1,4 +1,4 @@
-"""The page Métadonnées through the real API (plan section 3, point 8): the series of the fake
+"""The page Jellyfin through the real API (plan section 3, point 8): the series of the fake
 Jellyfin, a change of its fields, its summary and its image, locked; the cover.jpg written by
 the placement worker; a scan and its progress."""
 

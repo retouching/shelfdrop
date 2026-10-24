@@ -1,5 +1,5 @@
 """WorkCovers: the cover of a work the search found, at its sources (its `cover_url`), for the
-placement of an audiobook without a picture and for the proposals of the page Métadonnées."""
+placement of an audiobook without a picture and for the proposals of the page Jellyfin."""
 
 import logging
 from typing import Final

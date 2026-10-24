@@ -1,4 +1,4 @@
-// La page Métadonnées : les séries des bibliothèques de Jellyfin, leurs propositions, leurs changements, les scans.
+// La page Jellyfin : les séries des bibliothèques de Jellyfin, leurs propositions, leurs changements, les scans.
 import type { Kind } from "../types";
 import { request } from "./http";
 

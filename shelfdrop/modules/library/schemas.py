@@ -1,4 +1,4 @@
-"""Request and response schemas of the library module (the page Métadonnées)."""
+"""Request and response schemas of the library module (the page Jellyfin)."""
 
 import base64
 import binascii

@@ -1,4 +1,4 @@
-"""The exceptions of the page Métadonnées."""
+"""The exceptions of the page Jellyfin."""
 
 
 class SeriesNotFoundError(Exception):
