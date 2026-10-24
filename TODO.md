@@ -20,7 +20,7 @@ Retours sur la 0.10.0 en production (22/10/2026).
   - [ ] pouvoir choisir sur le site, pour chaque indexeur, la ou les catégories à utiliser et à quel type elles correspondent (par exemple Nyaa : « Literature » pour les mangas). Une ou plusieurs catégories par type. Aujourd'hui elles sont figées dans le code (`CATEGORIES` de `shelfdrop/releases/types.py` : 7030 Manga & BD, 7020 Livre, 3030 Livre audio) : une release qu'un tracker range ailleurs ne revient jamais. Il faut lire les catégories de chaque tracker dans Prowlarr (`capabilities.categories`).
 - [ ] Servir la vraie doc d'API générée par FastAPI (Swagger UI / ReDoc depuis l'OpenAPI) à la place de la page actuelle de `/api/docs`. Elle ne décrit que l'API publique (accès par jeton) : rien sur la partie session du site.
 - [x] Journal Discord : ne plus mettre d'adresse IP dans les embeds (champ « Adresse IP » du message « Connexion »).
-- [ ] Bibliothèque : voir le contenu d'une série (les tomes qu'on a, avec leur couverture, leur numéro et leur taille, et les tomes manquants) et pouvoir télécharger chaque fichier depuis le site.
+- [ ] Bibliothèque : voir le contenu d'une série (les tomes qu'on a, avec leur couverture, leur numéro et leur taille, et les tomes manquants), pouvoir télécharger chaque fichier depuis le site, et modifier les métadonnées de chaque tome (titre, numéro, résumé, auteurs, couverture), comme la page Jellyfin le fait déjà pour la série.
 - [ ] Pouvoir lire les logs depuis le site.
 - [ ] Compte interne et panneau d'installation initial (à faire ensemble) :
   - un compte interne (admin propre à shelfdrop) pour se connecter quand Jellyfin n'est pas encore branché, et les textes de la page de connexion revus en conséquence (aujourd'hui elle ne parle que du compte Jellyfin) ;
