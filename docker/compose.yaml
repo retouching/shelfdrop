@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
     command: ["shelfdrop", "placement", "run"]
     # The user of the image, in the group that owns the torrents and the libraries: a hardlink
-    # of a file of qBittorrent needs to read and write it (fs.protected_hardlinks).
+    # of a file of the torrent client needs to read and write it (fs.protected_hardlinks).
     user: "10001:${SHELFDROP_LIBRARY_GID:-1000}"
     read_only: true
     tmpfs:

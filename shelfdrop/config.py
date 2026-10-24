@@ -102,13 +102,13 @@ class Settings(BaseSettings):
     jellyfin_url: str | None = Field(default=None, pattern=ADDRESS_PATTERN)
     # The webhook of Discord the journal posts on.
     discord_webhook: SecretStr | None = Field(default=None, repr=False)
-    # The four settings below are reserved for the test stack (TEST_STACK_SETTINGS).
+    # The six settings below are reserved for the test stack (TEST_STACK_SETTINGS).
     # Every request to a metadata source goes to this origin instead, its own origin in the
     # header X-Original-Origin: the fake sources of the test stack answer it.
     sources_origin: str | None = Field(default=None, pattern=r"^https?://[A-Za-z0-9.-]+(:\d+)?$")
     # Seconds a source that failed twice in a row is skipped.
     source_rest_seconds: int = Field(default=60, ge=0, le=86400)
-    # Seconds between two looks for a torrent sent to qBittorrent (ADR 0014).
+    # Seconds between two looks for a torrent sent to the torrent client (ADR 0014).
     send_check_seconds: float = Field(default=8.0, ge=0, le=60)
     # Seconds the events of one batch of the journal wait for the others (ADR 0015).
     journal_batch_seconds: int = Field(default=30, ge=0, le=600)
