@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from shelfdrop.clients.jellyfin import JellyfinClient
+from shelfdrop.clients.torrents.qui import QuiClient
 from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed
 from shelfdrop.settings.probes import ConnectionProbes
 from shelfdrop.works.clients.kitsu import KitsuClient
@@ -100,7 +101,11 @@ async def test_a_torrent_client_no_connector_serves_is_unavailable() -> None:
     qui = FakeQui()
     saved = FakeSettingsReader({"torrent.client": "deluge"})
 
-    result = await new_probes(qui=qui, saved=saved).run("torrent", QUI, "a-password")
+    probes = new_probes(qui=qui, saved=saved)
+    # A version of shelfdrop whose connectors serve qui alone.
+    probes.torrents.connectors = {"qui": QuiClient.of}
+
+    result = await probes.run("torrent", QUI, "a-password")
 
     assert result.state == "unavailable"
     assert qui.requests == []
