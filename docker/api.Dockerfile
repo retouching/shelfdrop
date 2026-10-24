@@ -18,7 +18,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app
 # Third-party dependencies first: this layer is rebuilt only when the lock changes. No BuildKit
 # mount, so that the plain builder of a host builds it too.
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock LICENSE ./
 RUN uv sync --locked --no-dev --no-install-project --no-editable --no-cache
 COPY shelfdrop ./shelfdrop
 # No uv cache here: a cached wheel of shelfdrop would ship stale code while pyproject.toml is
