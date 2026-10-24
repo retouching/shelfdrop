@@ -11,7 +11,43 @@
    "enable": true,
    "language": "fr-FR",
    "protocol": "torrent",
-   "privacy": "private"
+   "privacy": "private",
+   "capabilities": {
+    "categories": [
+     {
+      "id": 3000,
+      "name": "Audio",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 3030,
+        "name": "Audio/Audiobook",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     },
+     {
+      "id": 7000,
+      "name": "Books",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 7020,
+        "name": "Books/EBook",
+        "description": null,
+        "subCategories": []
+       },
+       {
+        "id": 7030,
+        "name": "Books/Comics",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     }
+    ]
+   }
   },
   {
    "id": 3,
@@ -19,7 +55,43 @@
    "enable": true,
    "language": "fr-FR",
    "protocol": "torrent",
-   "privacy": "private"
+   "privacy": "private",
+   "capabilities": {
+    "categories": [
+     {
+      "id": 3000,
+      "name": "Audio",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 3030,
+        "name": "Audio/Audiobook",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     },
+     {
+      "id": 7000,
+      "name": "Books",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 7020,
+        "name": "Books/EBook",
+        "description": null,
+        "subCategories": []
+       },
+       {
+        "id": 7030,
+        "name": "Books/Comics",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     }
+    ]
+   }
   },
   {
    "id": 1,
@@ -27,7 +99,49 @@
    "enable": true,
    "language": "en-US",
    "protocol": "torrent",
-   "privacy": "public"
+   "privacy": "public",
+   "capabilities": {
+    "categories": [
+     {
+      "id": 3000,
+      "name": "Audio",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 3030,
+        "name": "Audio/Audiobook",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     },
+     {
+      "id": 7000,
+      "name": "Books",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 7030,
+        "name": "Books/Comics",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     },
+     {
+      "id": 100920,
+      "name": "Literature",
+      "description": null,
+      "subCategories": []
+     },
+     {
+      "id": 156719,
+      "name": "Literature - English-translated",
+      "description": null,
+      "subCategories": []
+     }
+    ]
+   }
   },
   {
    "id": 5,
@@ -35,7 +149,43 @@
    "enable": false,
    "language": "fr-FR",
    "protocol": "torrent",
-   "privacy": "private"
+   "privacy": "private",
+   "capabilities": {
+    "categories": [
+     {
+      "id": 3000,
+      "name": "Audio",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 3030,
+        "name": "Audio/Audiobook",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     },
+     {
+      "id": 7000,
+      "name": "Books",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 7020,
+        "name": "Books/EBook",
+        "description": null,
+        "subCategories": []
+       },
+       {
+        "id": 7030,
+        "name": "Books/Comics",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     }
+    ]
+   }
   },
   {
    "id": 2,
@@ -43,7 +193,43 @@
    "enable": true,
    "language": "fr-FR",
    "protocol": "torrent",
-   "privacy": "private"
+   "privacy": "private",
+   "capabilities": {
+    "categories": [
+     {
+      "id": 3000,
+      "name": "Audio",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 3030,
+        "name": "Audio/Audiobook",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     },
+     {
+      "id": 7000,
+      "name": "Books",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 7020,
+        "name": "Books/EBook",
+        "description": null,
+        "subCategories": []
+       },
+       {
+        "id": 7030,
+        "name": "Books/Comics",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     }
+    ]
+   }
   },
   {
    "id": 6,
@@ -51,7 +237,43 @@
    "enable": true,
    "language": "en-US",
    "protocol": "usenet",
-   "privacy": "private"
+   "privacy": "private",
+   "capabilities": {
+    "categories": [
+     {
+      "id": 3000,
+      "name": "Audio",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 3030,
+        "name": "Audio/Audiobook",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     },
+     {
+      "id": 7000,
+      "name": "Books",
+      "description": null,
+      "subCategories": [
+       {
+        "id": 7020,
+        "name": "Books/EBook",
+        "description": null,
+        "subCategories": []
+       },
+       {
+        "id": 7030,
+        "name": "Books/Comics",
+        "description": null,
+        "subCategories": []
+       }
+      ]
+     }
+    ]
+   }
   }
  ],
  "searches": [
@@ -460,6 +682,35 @@
       }
      ],
      "infoHash": "0000000000000000000000000000000000000259"
+    }
+   ]
+  },
+  {
+   "query": "Jujutsu Kaisen",
+   "categories": [
+    100920,
+    156719
+   ],
+   "releases": [
+    {
+     "guid": "https://nyaa.test/view/2001",
+     "title": "Jujutsu Kaisen v27 (2025) (Digital) (1r0n)",
+     "indexerId": 1,
+     "indexer": "Nyaa.si",
+     "size": 157286400,
+     "seeders": 40,
+     "leechers": 2,
+     "protocol": "torrent",
+     "publishDate": "2026-10-22T10:00:00Z",
+     "infoUrl": "https://nyaa.test/view/2001",
+     "downloadUrl": "http://prowlarr.test/1/download?apikey=secret&link=2001",
+     "categories": [
+      {
+       "id": 156719,
+       "name": "Literature - English-translated"
+      }
+     ],
+     "infoHash": "00000000000000000000000000000000000007d1"
     }
    ]
   }

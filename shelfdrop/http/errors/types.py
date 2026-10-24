@@ -63,6 +63,10 @@ class ErrorCode(StrEnum):
     # 422: a filter rule whose words or regular expression are empty or invalid;
     # data = {"positions": [index of each such rule in the list sent]}.
     INVALID_FILTER_RULE = "invalid_filter_rule"
+    # 422: categories chosen for a tracker that it does not know (neither given by Prowlarr,
+    # nor the default of the kind, nor already chosen); data = {"indexer_ids": [each such
+    # tracker]}; nothing is saved.
+    UNKNOWN_TRACKER_CATEGORY = "unknown_tracker_category"
     # 422: releases to download that the search does not hold (unknown, or Prowlarr gave no
     # download link); data = {"ids": [each id refused]}; nothing is sent.
     RELEASE_NOT_IN_SEARCH = "release_not_in_search"

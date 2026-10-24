@@ -7,8 +7,14 @@ import anyio
 import pytest
 
 from shelfdrop.releases.exceptions import ProwlarrError, SearchNotFoundError
-from shelfdrop.releases.jobs import SearchBoard, SearchJob
-from shelfdrop.releases.types import FoundRelease, ReleaseOptions, SearchProgress
+from shelfdrop.releases.jobs import NameQuery, SearchBoard, SearchJob, name_state
+from shelfdrop.releases.types import (
+    FoundRelease,
+    NameState,
+    ReleaseOptions,
+    SearchProgress,
+    TrackerGroup,
+)
 from tests.unit.releases.support import FakeReleaseRepository, new_board, new_prowlarr
 from tests.unit.works.support import FixedClock
 
@@ -23,6 +29,7 @@ class GatedSource:
 
     def __init__(self, *, fails: bool = False) -> None:
         self.asked: list[str] = []
+        self.requests: list[tuple[str, tuple[int, ...], tuple[int, ...]]] = []
         self.gates: dict[str, asyncio.Event] = {}
         self.fails = fails
 
@@ -33,14 +40,24 @@ class GatedSource:
         self, query: str, categories: Sequence[int], indexer_ids: Sequence[int]
     ) -> list[FoundRelease]:
         self.asked.append(query)
+        self.requests.append((query, tuple(categories), tuple(indexer_ids)))
         await self.gate(query).wait()
         if self.fails:
             raise ProwlarrError("HTTP 503")
         return [
             FoundRelease(
-                guid=query, title=f"{query} T01", indexer_id=1, indexer="i", size=1, seeders=1
+                guid=f"{query}|{indexer_id}",
+                title=f"{query} T01",
+                indexer_id=indexer_id,
+                indexer="i",
+                size=1,
+                seeders=1,
             )
+            for indexer_id in indexer_ids[:1]
         ]
+
+
+MANGA = TrackerGroup(categories=(7030,), indexer_ids=(1, 2))
 
 
 def start(board: SearchBoard, *names: str, refresh: bool = False) -> SearchJob:
@@ -49,7 +66,7 @@ def start(board: SearchBoard, *names: str, refresh: bool = False) -> SearchJob:
         kind="manga",
         title=names[0],
         names=names,
-        indexer_ids=[1, 2],
+        groups=[MANGA],
         refresh=refresh,
     )
 
@@ -239,10 +256,100 @@ async def test_no_tracker_asked_is_an_empty_search() -> None:
         kind="manga",
         title="Berserk",
         names=["Berserk"],
-        indexer_ids=[],
+        groups=[],
         refresh=False,
     )
     await finished(job)
 
     assert source.asked == []
     assert board.progress(job).state == "done"
+
+
+@pytest.mark.anyio
+async def test_each_group_of_trackers_is_one_request_per_name_and_the_answers_merge() -> None:
+    source = GatedSource()
+    board = new_board(source, FakeReleaseRepository())
+    nyaa = TrackerGroup(categories=(100920, 156719), indexer_ids=(3,))
+
+    job = board.start(
+        mode="work",
+        kind="manga",
+        title="Berserk",
+        names=["Berserk"],
+        groups=[MANGA, nyaa],
+        refresh=False,
+    )
+    await until(job, lambda: len(source.requests) == 2)
+    source.gate("Berserk").set()
+    await finished(job)
+
+    assert sorted(source.requests) == [
+        ("Berserk", (7030,), (1, 2)),
+        ("Berserk", (100920, 156719), (3,)),
+    ]
+    progress = board.progress(job)
+    assert [(n.name, n.state, n.found) for n in progress.names] == [("Berserk", "done", 2)]
+    assert [[r.indexer_id for r in releases] for _, releases in board.answers(job)] == [[1, 3]]
+
+
+@pytest.mark.anyio
+async def test_a_name_runs_while_its_groups_run_and_fails_when_each_failed() -> None:
+    source = GatedSource()
+    board = new_board(source, FakeReleaseRepository(), options=ReleaseOptions(timeout_seconds=0.2))
+    other = TrackerGroup(categories=(7020,), indexer_ids=(3,))
+    job = board.start(
+        mode="work",
+        kind="manga",
+        title="Monster",
+        names=["Monster"],
+        groups=[MANGA, other],
+        refresh=False,
+    )
+    await until(job, lambda: [n.state for n in board.progress(job).names] == ["running"])
+
+    await finished(job)
+
+    # Neither answered in time: the name failed.
+    assert [n.state for n in board.progress(job).names] == ["failed"]
+
+
+@pytest.mark.anyio
+async def test_other_groups_of_trackers_are_another_search() -> None:
+    source = GatedSource()
+    source.gate("Berserk").set()
+    board = new_board(source, FakeReleaseRepository())
+
+    first = start(board, "Berserk")
+    other = board.start(
+        mode="work",
+        kind="manga",
+        title="Berserk",
+        names=["Berserk"],
+        groups=[TrackerGroup(categories=(7030, 100920), indexer_ids=(1, 2))],
+        refresh=False,
+    )
+    await finished(first)
+    await finished(other)
+
+    assert other is not first
+    assert [r[1] for r in source.requests] == [(7030,), (7030, 100920)]
+
+
+@pytest.mark.parametrize(
+    ("states", "expected"),
+    [
+        (("queued", "queued"), "queued"),
+        (("queued", "running"), "running"),
+        (("done", "queued"), "running"),
+        (("done", "failed"), "done"),
+        (("failed", "failed"), "failed"),
+    ],
+)
+def test_the_state_of_a_name_comes_from_its_requests(
+    states: tuple[NameState, ...], expected: NameState
+) -> None:
+    queries = [
+        NameQuery(key=str(i), query="q", categories=(), indexer_ids=(), owner="o", state=state)
+        for i, state in enumerate(states)
+    ]
+    assert name_state(queries) == expected

@@ -3,9 +3,9 @@
 import httpx
 import pytest
 
-from shelfdrop.releases.clients.prowlarr import ProwlarrClient, fixed, release_of
+from shelfdrop.releases.clients.prowlarr import ProwlarrClient, categories_of, fixed, release_of
 from shelfdrop.releases.exceptions import ProwlarrError, ProwlarrNotConfiguredError
-from shelfdrop.releases.types import Torrent
+from shelfdrop.releases.types import Category, Torrent
 from tests.unit.releases.support import API_KEY, URL, ProwlarrReplay, new_prowlarr
 from tests.unit.support import torrent_file
 
@@ -45,6 +45,43 @@ async def test_the_indexers() -> None:
         (5, "YggTorrent", False, "torrent"),
         (6, "NZBgeek", True, "usenet"),
     }
+    nyaa = next(i for i in indexers if i.name == "Nyaa.si")
+    assert nyaa.categories == (
+        Category(id=3000, name="Audio"),
+        Category(id=3030, name="Audio/Audiobook"),
+        Category(id=7000, name="Books"),
+        Category(id=7030, name="Books/Comics"),
+        Category(id=100920, name="Literature"),
+        Category(id=156719, name="Literature - English-translated"),
+    )
+
+
+def test_the_categories_of_an_indexer_are_flattened_once_each() -> None:
+    capabilities = {
+        "categories": [
+            {
+                "id": 7000,
+                "name": "Books",
+                "subCategories": [
+                    {"id": 7030, "name": "Books/Comics", "subCategories": []},
+                    {"id": 7035, "name": "Manga"},
+                    {"id": "x", "name": "Broken"},
+                ],
+            },
+            {"id": 100920, "name": " Literature ", "subCategories": None},
+            {"id": 7030, "name": "Books/Comics"},
+            {"name": "No id"},
+            "junk",
+        ]
+    }
+
+    assert categories_of(capabilities) == (
+        Category(id=7000, name="Books"),
+        Category(id=7030, name="Books/Comics"),
+        Category(id=7035, name="Books/Manga"),
+        Category(id=100920, name="Literature"),
+    )
+    assert categories_of(None) == ()
 
 
 @pytest.mark.anyio

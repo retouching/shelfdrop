@@ -5,9 +5,14 @@ import anyio
 import httpx
 import pytest
 
-from shelfdrop.releases.exceptions import InvalidRuleError, ReleaseNotFoundError, TooManyNamesError
+from shelfdrop.releases.exceptions import (
+    InvalidRuleError,
+    ReleaseNotFoundError,
+    TooManyNamesError,
+    UnknownCategoryError,
+)
 from shelfdrop.releases.service import DEFAULT_MINIMUM, ReleaseService
-from shelfdrop.releases.types import FilterRule, Filters, ReleaseSearch, Torrent
+from shelfdrop.releases.types import FilterRule, Filters, ReleaseSearch, Torrent, TrackerChoice
 from shelfdrop.works.exceptions import QueryTooShortError
 from shelfdrop.works.types import Kind
 from tests.unit.releases.support import (
@@ -153,7 +158,13 @@ async def test_a_tracker_not_asked_is_not_searched_and_the_order_ranks() -> None
     service, repository, replay = new_service()
     await service.refresh_trackers()
     # C411 first, Nyaa not asked.
-    await service.save_trackers([(4, True, False), (1, False, False)], "sylvain")
+    await service.save_trackers(
+        [
+            TrackerChoice(indexer_id=4, used=True, auto=False),
+            TrackerChoice(indexer_id=1, used=False, auto=False),
+        ],
+        "sylvain",
+    )
 
     found = await search(service, "Jujutsu Kaisen")
 
@@ -205,7 +216,13 @@ async def test_filters_are_saved_and_an_invalid_rule_is_refused() -> None:
 async def test_a_read_of_prowlarr_again_keeps_the_choices() -> None:
     service, _, _ = new_service()
     await service.refresh_trackers()
-    await service.save_trackers([(2, True, True), (1, False, False)], "sylvain")
+    await service.save_trackers(
+        [
+            TrackerChoice(indexer_id=2, used=True, auto=True),
+            TrackerChoice(indexer_id=1, used=False, auto=False),
+        ],
+        "sylvain",
+    )
 
     trackers = await service.refresh_trackers()
 
@@ -245,3 +262,70 @@ async def test_the_torrent_of_a_release_is_asked_by_its_id_through_its_download_
     assert await service.torrent(t00.id) == Torrent(file=data)
     with pytest.raises(ReleaseNotFoundError):
         await service.torrent("0" * 16)
+
+
+@pytest.mark.anyio
+async def test_a_tracker_searched_in_categories_of_its_own_is_asked_apart() -> None:
+    service, repository, replay = new_service()
+    trackers = await service.refresh_trackers()
+    nyaa = next(t for t in trackers if t.name == "Nyaa.si")
+    assert {c.id: c.name for c in nyaa.available}[100920] == "Literature"
+    assert "Books/Comics" in {c.name for c in nyaa.available}
+    literature: dict[Kind, tuple[int, ...]] = {
+        "manga": (100920, 156719),
+        "ebook": (),
+        "audiobook": (3030,),
+    }
+    await service.save_trackers(
+        [TrackerChoice(indexer_id=1, used=True, auto=True, categories=literature)], "sylvain"
+    )
+
+    found = await search(service, "Jujutsu Kaisen")
+
+    asked = sorted(
+        (r.url.params.get_list("categories"), sorted(r.url.params.get_list("indexerIds")))
+        for r in replay.requests
+        if r.url.path == "/api/v1/search"
+    )
+    assert asked == [(["100920", "156719"], ["1"]), (["7030"], ["2", "3", "4"])]
+    # The answers of both requests, merged under the name.
+    assert "Jujutsu Kaisen v27 (2025) (Digital) (1r0n)" in {r.title for r in found.releases}
+    assert found.progress.names[0].found == 10
+    assert repository.trackers[0].chosen == literature
+
+
+@pytest.mark.anyio
+async def test_a_tracker_with_no_category_for_a_kind_is_not_asked_for_it() -> None:
+    service, _, replay = new_service()
+    await service.refresh_trackers()
+    none: dict[Kind, tuple[int, ...]] = {"manga": (), "ebook": (), "audiobook": ()}
+    await service.save_trackers(
+        [TrackerChoice(indexer_id=i, used=True, auto=True, categories=none) for i in (1, 2, 3, 4)],
+        "sylvain",
+    )
+
+    found = await search(service, "Jujutsu Kaisen")
+
+    assert replay.searched() == []
+    assert found.progress.names == ()
+    assert found.progress.state == "done"
+
+
+@pytest.mark.anyio
+async def test_a_category_a_tracker_does_not_know_is_refused_and_nothing_saved() -> None:
+    service, repository, _ = new_service()
+    await service.refresh_trackers()
+    commits = repository.commits
+
+    with pytest.raises(UnknownCategoryError) as refused:
+        await service.save_trackers(
+            [
+                TrackerChoice(indexer_id=2, used=True, auto=True, categories={"manga": (100920,)}),
+                TrackerChoice(indexer_id=1, used=True, auto=True, categories={"manga": (100920,)}),
+            ],
+            "sylvain",
+        )
+
+    assert refused.value.indexer_ids == [2]
+    assert repository.commits == commits
+    assert all(t.chosen is None for t in repository.trackers)

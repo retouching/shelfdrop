@@ -11,9 +11,9 @@ type NameState = Literal["queued", "running", "done", "failed"]
 type SearchState = Literal["queued", "running", "done", "failed"]
 type Rejection = Literal["relevance", "score"]
 
-# The Prowlarr categories of each kind; Prowlarr adds the categories of each tracker it maps
-# to them.
-CATEGORIES: dict[Kind, tuple[int, ...]] = {
+# The Prowlarr categories of each kind for a tracker whose categories were never chosen;
+# Prowlarr adds the categories of each tracker it maps to them.
+DEFAULT_CATEGORIES: dict[Kind, tuple[int, ...]] = {
     "manga": (7030,),  # Books/Comics
     "ebook": (7020,),  # Books/EBook
     "audiobook": (3030,),  # Audio/Audiobook
@@ -58,6 +58,16 @@ class FoundRelease:
 
 
 @dataclass(frozen=True, kw_only=True)
+class Category:
+    """A category an indexer of Prowlarr knows: a standard one (Newznab, under 100000) or one
+    of its own (100000 and over, "Literature" of Nyaa); a sub-category carries the name of
+    its parent ("Books/Comics")."""
+
+    id: int
+    name: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class Indexer:
     """An indexer of Prowlarr (`GET /api/v1/indexer`)."""
 
@@ -66,6 +76,8 @@ class Indexer:
     enabled: bool
     language: str | None
     protocol: str
+    categories: tuple[Category, ...] = ()
+    """Its categories (`capabilities.categories`), the sub-categories flattened."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -81,6 +93,30 @@ class Tracker:
     """Asked by the searches."""
     auto: bool
     """Allowed for the automatic downloads."""
+    available: tuple[Category, ...] = ()
+    """The categories Prowlarr gave for it at its last read."""
+    chosen: dict[Kind, tuple[int, ...]] | None = None
+    """The categories searched for each kind, as chosen; None: never chosen, the defaults. A
+    kind left out takes its default; an empty list: the tracker is not asked for that kind."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class TrackerChoice:
+    """What the page chose for a tracker: asked, automatic, and its categories by kind (None:
+    kept as they were)."""
+
+    indexer_id: int
+    used: bool
+    auto: bool
+    categories: dict[Kind, tuple[int, ...]] | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class TrackerGroup:
+    """Trackers searched together for a kind: those that search the same categories."""
+
+    categories: tuple[int, ...]
+    indexer_ids: tuple[int, ...]
 
 
 @dataclass(frozen=True, kw_only=True)

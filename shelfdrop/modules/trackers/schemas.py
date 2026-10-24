@@ -3,9 +3,25 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class TrackerRead(BaseModel):
+class CategoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    # The id of the category in Prowlarr: a standard one under 100000, one of the indexer's own
+    # from 100000.
+    id: int
+    # A sub-category carries the name of its parent ("Books/Comics").
+    name: str
+
+
+class KindCategories(BaseModel):
+    """The categories searched for each kind; an empty list: the tracker is not asked for it."""
+
+    manga: list[int] = Field(max_length=50)
+    ebook: list[int] = Field(max_length=50)
+    audiobook: list[int] = Field(max_length=50)
+
+
+class TrackerRead(BaseModel):
     # The id of the indexer in Prowlarr.
     indexer_id: int
     name: str
@@ -17,6 +33,12 @@ class TrackerRead(BaseModel):
     used: bool
     # Allowed for the automatic downloads.
     auto: bool
+    # The categories Prowlarr gave at its last read of the indexers.
+    available_categories: list[CategoryRead]
+    # The categories searched for each kind (the default ones until they are chosen).
+    categories: KindCategories
+    # Never chosen: the default ones, 7030 (manga), 7020 (ebook), 3030 (audiobook).
+    default_categories: bool
 
 
 class TrackersRead(BaseModel):
@@ -28,6 +50,8 @@ class TrackerChoice(BaseModel):
     indexer_id: int
     used: bool
     auto: bool
+    # Absent or null: the categories saved are kept.
+    categories: KindCategories | None = None
 
 
 class TrackersUpdate(BaseModel):

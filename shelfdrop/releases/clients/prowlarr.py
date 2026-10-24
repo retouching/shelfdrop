@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import httpx
 
 from shelfdrop.releases.exceptions import ProwlarrError, ProwlarrNotConfiguredError
-from shelfdrop.releases.types import FoundRelease, Indexer, Torrent
+from shelfdrop.releases.types import Category, FoundRelease, Indexer, Torrent
 
 # Releases asked for each name: more than a page shows, fewer than a slow tracker sends.
 LIMIT = 100
@@ -67,6 +67,7 @@ class ProwlarrClient:
                 enabled=bool(item.get("enable")),
                 language=item.get("language") or None,
                 protocol=str(item.get("protocol") or ""),
+                categories=categories_of(item.get("capabilities")),
             )
             for item in body
             if isinstance(item, dict) and "id" in item
@@ -138,6 +139,40 @@ def without_key(link: object) -> str | None:
         (k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k.lower() != "apikey"
     ]
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), ""))
+
+
+def categories_of(capabilities: object) -> tuple[Category, ...]:
+    """The categories of an indexer (`capabilities.categories`, each with its `subCategories`),
+    flattened: a sub-category after its parent, under a name that starts with the parent's
+    ("Books/Comics" as Prowlarr names it, "Literature/English" built for another); once each,
+    and nothing for an item that misses its id or its name."""
+    if not isinstance(capabilities, dict):
+        return ()
+    found: dict[int, Category] = {}
+    for parent in capabilities.get("categories") or ():
+        top = category_of(parent, None)
+        if top is None or not isinstance(parent, dict):
+            continue
+        found.setdefault(top.id, top)
+        for sub in parent.get("subCategories") or ():
+            child = category_of(sub, top.name)
+            if child is not None:
+                found.setdefault(child.id, child)
+    return tuple(found.values())
+
+
+def category_of(item: object, parent: str | None) -> Category | None:
+    if not isinstance(item, dict):
+        return None
+    id_, name = item.get("id"), item.get("name")
+    if not isinstance(id_, int) or isinstance(id_, bool) or not isinstance(name, str):
+        return None
+    name = name.strip()
+    if not name:
+        return None
+    if parent is not None and not name.lower().startswith(parent.lower()):
+        name = f"{parent}/{name}"
+    return Category(id=id_, name=name)
 
 
 def release_of(item: object) -> FoundRelease | None:

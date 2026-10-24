@@ -5305,6 +5305,7 @@
           "too_many_names",
           "invalid_settings",
           "invalid_filter_rule",
+          "unknown_tracker_category",
           "release_not_in_search",
           "release_not_automatic",
           "download_not_retryable",

@@ -12,11 +12,13 @@ from sqlalchemy.orm import Session
 from shelfdrop.db.models import AuditEntry, ReleaseAnswer, Setting
 from shelfdrop.db.models import FilterRule as FilterRuleRow
 from shelfdrop.db.models import Tracker as TrackerRow
-from shelfdrop.releases.types import FilterRule, FoundRelease, Tracker
+from shelfdrop.releases.types import Category, FilterRule, FoundRelease, Tracker
 from shelfdrop.works.types import Kind
 
 RELEASES: Final = TypeAdapter(tuple[FoundRelease, ...])
 KINDS: Final = TypeAdapter(tuple[Kind, ...])
+CATEGORIES: Final = TypeAdapter(tuple[Category, ...])
+CHOSEN: Final = TypeAdapter(dict[Kind, tuple[int, ...]])
 
 
 class ReleaseRepository:
@@ -55,6 +57,12 @@ class ReleaseRepository:
                 prowlarr_enabled=row.prowlarr_enabled,
                 used=row.used,
                 auto=row.auto,
+                available=CATEGORIES.validate_json(row.available_categories),
+                chosen=(
+                    None
+                    if row.chosen_categories is None
+                    else CHOSEN.validate_json(row.chosen_categories)
+                ),
             )
             for row in rows
         ]
@@ -72,6 +80,12 @@ class ReleaseRepository:
                     used=tracker.used,
                     auto=tracker.auto,
                     position=position,
+                    available_categories=CATEGORIES.dump_json(tracker.available).decode(),
+                    chosen_categories=(
+                        None
+                        if tracker.chosen is None
+                        else CHOSEN.dump_json(tracker.chosen).decode()
+                    ),
                 )
             )
 

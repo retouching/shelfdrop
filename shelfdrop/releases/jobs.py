@@ -1,7 +1,8 @@
 """The Prowlarr searches of every request, in memory (one process, one worker): a search is
-shared by whoever asks the same one while it runs, each of its names is one Prowlarr request,
-shared too, at most `parallel` at a time and the next ones in a queue, and every answer is
-kept a while in the cache. A search goes to its end even when nobody follows it any more.
+shared by whoever asks the same one while it runs, each of its names is one Prowlarr request
+per group of trackers (those that search the same categories of its kind), shared too, at
+most `parallel` at a time and the next ones in a queue, and every answer is kept a while in
+the cache. A search goes to its end even when nobody follows it any more.
 One instance per process (a container singleton)."""
 
 import asyncio
@@ -18,7 +19,6 @@ from shelfdrop.releases.exceptions import ProwlarrError, SearchNotFoundError
 from shelfdrop.releases.guess import clean_query
 from shelfdrop.releases.repository import RepositoryFactory
 from shelfdrop.releases.types import (
-    CATEGORIES,
     FoundRelease,
     NameProgress,
     NameState,
@@ -26,6 +26,7 @@ from shelfdrop.releases.types import (
     SearchMode,
     SearchProgress,
     SearchState,
+    TrackerGroup,
 )
 from shelfdrop.utils.text import normalize
 from shelfdrop.works.types import Clock, Kind
@@ -47,7 +48,7 @@ class AnswerTime(Protocol):
 
 @dataclass(eq=False, kw_only=True)
 class NameQuery:
-    """One Prowlarr request: a name, the categories of a kind, the indexers asked."""
+    """One Prowlarr request: a name, the categories of a group of trackers, its indexers."""
 
     key: str
     query: str
@@ -69,7 +70,8 @@ class SearchJob:
     mode: SearchMode
     kind: Kind
     title: str
-    names: list[tuple[str, NameQuery]] = field(default_factory=list)
+    names: list[tuple[str, tuple[NameQuery, ...]]] = field(default_factory=list)
+    """Each name, with its request to each group of trackers."""
     followers: int = 1
     finished_at: float | None = None
     changed: asyncio.Event = field(default_factory=asyncio.Event)
@@ -77,6 +79,18 @@ class SearchJob:
     def notify(self) -> None:
         event, self.changed = self.changed, asyncio.Event()
         event.set()
+
+    def queries(self) -> list[NameQuery]:
+        return [q for _, queries in self.names for q in queries]
+
+
+def name_state(queries: Sequence[NameQuery]) -> NameState:
+    """The state of a name from those of its requests: done once each ended and one found,
+    failed once each failed, queued while none started, running otherwise."""
+    states = {q.state for q in queries}
+    if states <= {"done", "failed"}:
+        return "done" if "done" in states else "failed"
+    return "queued" if states == {"queued"} else "running"
 
 
 def query_key(query: str, categories: Sequence[int], indexer_ids: Sequence[int]) -> str:
@@ -115,41 +129,48 @@ class SearchBoard:
         kind: Kind,
         title: str,
         names: Sequence[str],
-        indexer_ids: Sequence[int],
+        groups: Sequence[TrackerGroup],
         refresh: bool,
     ) -> SearchJob:
-        """The search running with the same names, kind and indexers, or a new one. With
-        `refresh`, the answers kept in the cache are not read."""
+        """The search running with the same names, kind and groups of trackers, or a new one:
+        one request per name and group. With `refresh`, the answers kept in the cache are not
+        read."""
         self.forget_finished()
-        categories = CATEGORIES[kind]
-        ids = tuple(sorted(indexer_ids))
         wanted: dict[str, str] = {}
         for name in names:
-            query = clean_query(name)
-            wanted.setdefault(query_key(query, categories, ids), name)
-        key = f"{mode}|{kind}|{'|'.join(wanted)}"
+            wanted.setdefault(normalize(clean_query(name)), name)
+        asked = ";".join(
+            f"{','.join(map(str, g.categories))}:{','.join(map(str, g.indexer_ids))}"
+            for g in groups
+        )
+        key = f"{mode}|{kind}|{'|'.join(wanted)}|{asked}"
         running = self.running.get(key)
         if running is not None:
             running.followers += 1
             running.notify()
             return running
         job = SearchJob(id=secrets.token_urlsafe(12), key=key, mode=mode, kind=kind, title=title)
-        for qkey, name in wanted.items() if ids else ():
-            name_query = self.queries.get(qkey)
-            if name_query is None:
-                name_query = NameQuery(
-                    key=qkey,
-                    query=clean_query(name),
-                    categories=categories,
-                    indexer_ids=ids,
-                    owner=job.id,
-                )
-                self.queries[qkey] = name_query
-                # In the queue from now: a search shows its place as soon as it starts.
-                self.waiting.append(name_query)
-                self.spawn(self.fetch(name_query, refresh=refresh))
-            name_query.jobs.append(job)
-            job.names.append((name, name_query))
+        for name in wanted.values() if groups else ():
+            query = clean_query(name)
+            queries: list[NameQuery] = []
+            for group in groups:
+                qkey = query_key(query, group.categories, group.indexer_ids)
+                name_query = self.queries.get(qkey)
+                if name_query is None:
+                    name_query = NameQuery(
+                        key=qkey,
+                        query=query,
+                        categories=group.categories,
+                        indexer_ids=group.indexer_ids,
+                        owner=job.id,
+                    )
+                    self.queries[qkey] = name_query
+                    # In the queue from now: a search shows its place as soon as it starts.
+                    self.waiting.append(name_query)
+                    self.spawn(self.fetch(name_query, refresh=refresh))
+                name_query.jobs.append(job)
+                queries.append(name_query)
+            job.names.append((name, tuple(queries)))
         self.jobs[job.id] = job
         self.running[key] = job
         self.spawn(self.follow(job))
@@ -167,7 +188,7 @@ class SearchBoard:
         task.add_done_callback(self.tasks.discard)
 
     async def follow(self, job: SearchJob) -> None:
-        for _, name_query in job.names:
+        for name_query in job.queries():
             await name_query.done.wait()
         job.finished_at = self.clock.now()
         self.running.pop(job.key, None)
@@ -267,7 +288,7 @@ class SearchBoard:
                 del self.jobs[search_id]
 
     def progress(self, job: SearchJob) -> SearchProgress:
-        states = [name_query.state for _, name_query in job.names]
+        states = [name_query.state for name_query in job.queries()]
         state: SearchState
         if job.finished_at is not None:
             state = "failed" if states and all(s == "failed" for s in states) else "done"
@@ -275,7 +296,7 @@ class SearchBoard:
             state = "running"
         else:
             state = "queued"
-        fetched = [q.fetched_at for _, q in job.names if q.fetched_at is not None]
+        fetched = [q.fetched_at for q in job.queries() if q.fetched_at is not None]
         return SearchProgress(
             id=job.id,
             mode=job.mode,
@@ -283,8 +304,12 @@ class SearchBoard:
             title=job.title,
             state=state,
             names=tuple(
-                NameProgress(name=name, state=q.state, found=len(q.releases))
-                for name, q in job.names
+                NameProgress(
+                    name=name,
+                    state=name_state(queries),
+                    found=sum(len(q.releases) for q in queries),
+                )
+                for name, queries in job.names
             ),
             queued_ahead=self.ahead_of(job),
             followers=job.followers,
@@ -294,7 +319,7 @@ class SearchBoard:
     def ahead_of(self, job: SearchJob) -> int:
         """While `job` waits: the other searches running, or with a name in the queue before
         its first one."""
-        mine = {id(q) for _, q in job.names}
+        mine = {id(q) for q in job.queries()}
         for position, name_query in enumerate(self.waiting):
             if id(name_query) in mine:
                 running = {q.owner for q in self.queries.values() if q.state == "running"}
@@ -303,7 +328,13 @@ class SearchBoard:
         return 0
 
     def answers(self, job: SearchJob) -> list[tuple[str, tuple[FoundRelease, ...]]]:
-        return [(name, q.releases) for name, q in job.names if q.state == "done"]
+        """Each name with what its requests found, those of the groups merged in their order."""
+        found: list[tuple[str, tuple[FoundRelease, ...]]] = []
+        for name, queries in job.names:
+            done = [q for q in queries if q.state == "done"]
+            if done:
+                found.append((name, tuple(r for q in done for r in q.releases)))
+        return found
 
     def find(self, guids: Callable[[str], bool]) -> FoundRelease | None:
         """A release of a search kept whose guid `guids` accepts, the newest search first."""

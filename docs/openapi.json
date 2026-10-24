@@ -546,7 +546,7 @@
           "trackers"
         ],
         "summary": "Refresh Trackers",
-        "description": "Read the indexers of Prowlarr again.",
+        "description": "Read the indexers of Prowlarr again, their categories with them.",
         "operationId": "refresh_trackers_api_v1_trackers_refresh_post",
         "responses": {
           "200": {
@@ -3893,6 +3893,24 @@
         ],
         "title": "AuditRead"
       },
+      "CategoryRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CategoryRead"
+      },
       "Chapter": {
         "type": "number",
         "maximum": 99999.0,
@@ -4592,6 +4610,42 @@
           "ebook",
           "audiobook"
         ]
+      },
+      "KindCategories": {
+        "properties": {
+          "manga": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Manga"
+          },
+          "ebook": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Ebook"
+          },
+          "audiobook": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Audiobook"
+          }
+        },
+        "type": "object",
+        "required": [
+          "manga",
+          "ebook",
+          "audiobook"
+        ],
+        "title": "KindCategories",
+        "description": "The categories searched for each kind; an empty list: the tracker is not asked for it."
       },
       "LibraryRead": {
         "properties": {
@@ -6010,6 +6064,16 @@
           "auto": {
             "type": "boolean",
             "title": "Auto"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KindCategories"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6052,6 +6116,20 @@
           "auto": {
             "type": "boolean",
             "title": "Auto"
+          },
+          "available_categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryRead"
+            },
+            "type": "array",
+            "title": "Available Categories"
+          },
+          "categories": {
+            "$ref": "#/components/schemas/KindCategories"
+          },
+          "default_categories": {
+            "type": "boolean",
+            "title": "Default Categories"
           }
         },
         "type": "object",
@@ -6061,7 +6139,10 @@
           "language",
           "prowlarr_enabled",
           "used",
-          "auto"
+          "auto",
+          "available_categories",
+          "categories",
+          "default_categories"
         ],
         "title": "TrackerRead"
       },
@@ -7152,6 +7233,7 @@
           "too_many_names",
           "invalid_settings",
           "invalid_filter_rule",
+          "unknown_tracker_category",
           "release_not_in_search",
           "release_not_automatic",
           "download_not_retryable",

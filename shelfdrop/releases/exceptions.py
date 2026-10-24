@@ -32,3 +32,11 @@ class InvalidRuleError(Exception):
     def __init__(self, positions: list[int]) -> None:
         super().__init__("invalid filter rules")
         self.positions = positions
+
+
+class UnknownCategoryError(Exception):
+    """Categories chosen for a tracker that it does not know; `indexer_ids` lists them."""
+
+    def __init__(self, indexer_ids: list[int]) -> None:
+        super().__init__("unknown categories")
+        self.indexer_ids = indexer_ids

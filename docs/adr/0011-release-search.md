@@ -1,12 +1,13 @@
 # 0011. The release search
 Status: Accepted
-Date: 2026-10-21
+Date: 2026-10-24
 
 ## Context
-Decided on 2026-10-21. A release is found only under the name it was posted under: a work is searched in Prowlarr under each of its names checked; searching a short name brought another manga ("Amnesia"). Two people who run the same search must follow one search; Prowlarr must not be flooded; the trackers must come from Prowlarr, not from the code; releases are set aside by rules with points, as the custom formats of Sonarr, to set releases aside.
+Decided on 2026-10-21. A release is found only under the name it was posted under: a work is searched in Prowlarr under each of its names checked; searching a short name brought another manga ("Amnesia"). Two people who run the same search must follow one search; Prowlarr must not be flooded; the trackers must come from Prowlarr, not from the code; releases are set aside by rules with points, as the custom formats of Sonarr, to set releases aside. On 2026-10-24, the owner asked to choose on the page, for each indexer, the categories of each kind: a release a tracker files under a category of its own ("Literature" of Nyaa for the manga) never came back with the fixed categories.
 
 ## Decision
-- One Prowlarr request per name, in the categories of the kind (7030 manga, 7020 book, 3030 audiobook), on the trackers asked alone (`indexerIds`). The query loses `: ! ?` and quotes; "×" becomes "x".
+- One Prowlarr request per name and group of trackers: the trackers asked that search the same categories for the kind, on them alone (`indexerIds`), in those categories. The query loses `: ! ?` and quotes; "×" becomes "x". The answers of the groups are merged under the name; a release is of the kind searched, whatever its category.
+- The categories of a tracker, for each kind, are chosen on the page among those Prowlarr gives for the indexer (`capabilities.categories` of `GET /api/v1/indexer`, read with the trackers: the standard ones, their sub-categories under the name of their parent, and the indexer's own from 100000), one or several. Never chosen, a tracker searches the default ones (7030 manga, 7020 book, 3030 audiobook): the trackers saved before the choice search as they did. No category for a kind: the tracker is not asked for that kind. A category the tracker does not know (neither given by Prowlarr, nor the default of the kind, nor already chosen) is refused at save; one Prowlarr no longer gives stays chosen until it is unchecked.
 - A search of a work sets aside a release whose title misses a significant word of the name that found it (3 letters or more, stop words aside); a manual search does not. Releases without seeds go; one found twice (same guid or infohash) is kept once, with its first name.
 - The volumes are read from the title (`shelfdrop.releases.guess`). Order: packs first, then volume by volume; for one volume, the score, the order of the trackers, the seeds.
 - The searches live in memory (`SearchBoard`, one process): the same search while it runs is joined; a name asked by two searches is one request; 2 requests at a time, the others in a queue, 60 seconds each at most; a search goes to its end without a follower. Each answer is kept 10 minutes in SQLite. The progress is streamed as Server-Sent Events.
@@ -21,7 +22,12 @@ Decided on 2026-10-21. A release is found only under the name it was posted unde
 - One request with every name: Prowlarr ORs nothing; a search per name is what the trackers understand.
 - Scoring when the answer arrives: a change of the filters would wait 10 minutes.
 - A list of trackers in the code: the operator adds and removes indexers in Prowlarr.
+- One request per name with the categories of every tracker and every tracker: a tracker would be asked in the categories of another (its own ids from 100000 are those of one indexer), and in categories never chosen for it.
+- One request per name and tracker: as many requests as trackers for each name, where the trackers on the default categories share one.
+- The kind of a release read from its category: a release found in the categories of a kind is of that kind; the categories of a tracker are not always those of its content.
 
 ## Consequences
 - The front-end reads the releases only once the search ends; the events give the progress before.
+- A tracker with categories of its own adds one Prowlarr request per name; the progress of a name counts what each of its requests found.
+- The categories of the trackers saved before their choice come at the next read of Prowlarr (Relire Prowlarr); until then, the page offers the default ones alone.
 - The rule expressions run in Python `re` on the server and in JavaScript in the page (the test field): a construct only one of them knows is refused or reads differently.

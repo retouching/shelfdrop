@@ -12,12 +12,18 @@ from shelfdrop.releases.exceptions import (
     InvalidRuleError,
     ReleaseNotFoundError,
     TooManyNamesError,
+    UnknownCategoryError,
 )
 from shelfdrop.releases.jobs import SearchBoard
 from shelfdrop.releases.repository import ReleaseRepository
 from shelfdrop.releases.results import assemble, release_id
 from shelfdrop.releases.scoring import invalid_rules
-from shelfdrop.releases.trackers import merge_trackers, ordered_choices
+from shelfdrop.releases.trackers import (
+    merge_trackers,
+    ordered_choices,
+    search_groups,
+    unknown_categories,
+)
 from shelfdrop.releases.types import (
     Filters,
     Indexer,
@@ -27,6 +33,7 @@ from shelfdrop.releases.types import (
     SearchProgress,
     Torrent,
     Tracker,
+    TrackerChoice,
 )
 from shelfdrop.utils.text import normalize
 from shelfdrop.works.exceptions import QueryTooShortError
@@ -70,8 +77,9 @@ class ReleaseService:
         self, *, mode: SearchMode, kind: Kind, title: str, names: Sequence[str], refresh: bool
     ) -> SearchProgress:
         """A search under `names` (the names of a work) or one text (manual), in the trackers
-        asked. Raises QueryTooShortError, TooManyNamesError, and ProwlarrError when the trackers
-        were never read and Prowlarr does not answer."""
+        asked for `kind`, grouped by their categories of `kind`. Raises QueryTooShortError,
+        TooManyNamesError, and ProwlarrError when the trackers were never read and Prowlarr
+        does not answer."""
         names = list(dict.fromkeys(" ".join(n.split()) for n in names if n.strip()))
         if not names or any(len(normalize(n).replace(" ", "")) < 2 for n in names):
             raise QueryTooShortError
@@ -80,13 +88,12 @@ class ReleaseService:
         trackers = await anyio.to_thread.run_sync(self.repository.read_trackers)
         if not trackers:
             trackers = await self.refresh_trackers()
-        indexer_ids = [t.indexer_id for t in trackers if t.used and t.prowlarr_enabled]
         job = self.board.start(
             mode=mode,
             kind=kind,
             title=title,
             names=names,
-            indexer_ids=indexer_ids,
+            groups=search_groups(trackers, kind),
             refresh=refresh,
         )
         return self.board.progress(job)
@@ -139,16 +146,18 @@ class ReleaseService:
         self.repository.commit()
         return trackers
 
-    async def save_trackers(
-        self, choices: Sequence[tuple[int, bool, bool]], actor: str
-    ) -> list[Tracker]:
-        """The order and the choices of the trackers: (indexer id, asked, automatic)."""
+    async def save_trackers(self, choices: Sequence[TrackerChoice], actor: str) -> list[Tracker]:
+        """The order and the choices of the trackers: asked, automatic, their categories by
+        kind. Raises UnknownCategoryError when a tracker is given a category it does not know
+        (nothing is saved)."""
         return await anyio.to_thread.run_sync(self.order_and_save, choices, actor)
 
-    def order_and_save(
-        self, choices: Sequence[tuple[int, bool, bool]], actor: str
-    ) -> list[Tracker]:
-        trackers = ordered_choices(self.repository.read_trackers(), choices)
+    def order_and_save(self, choices: Sequence[TrackerChoice], actor: str) -> list[Tracker]:
+        saved = self.repository.read_trackers()
+        refused = unknown_categories(saved, choices)
+        if refused:
+            raise UnknownCategoryError(refused)
+        trackers = ordered_choices(saved, choices)
         self.repository.replace_trackers(trackers)
         self.repository.add_audit(int(self.clock.now()), actor, TRACKERS_TARGET)
         self.repository.commit()

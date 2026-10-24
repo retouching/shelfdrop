@@ -1,6 +1,7 @@
-"""Tracker: an indexer read from Prowlarr, whether shelfdrop asks it, and its place."""
+"""Tracker: an indexer read from Prowlarr, whether shelfdrop asks it, its place and its
+categories."""
 
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shelfdrop.db.base import Base
@@ -18,3 +19,8 @@ class Tracker(Base):
     auto: Mapped[bool] = mapped_column(Boolean)
     # 0 first: the order of the trackers breaks the ties between releases.
     position: Mapped[int] = mapped_column(Integer)
+    # The categories Prowlarr gave at its last read: JSON [{"id", "name"}].
+    available_categories: Mapped[str] = mapped_column(Text, server_default="[]")
+    # The categories searched by kind, as chosen: JSON {"manga": [7030]}; null: never chosen,
+    # the default ones (`shelfdrop.releases.types.DEFAULT_CATEGORIES`).
+    chosen_categories: Mapped[str | None] = mapped_column(Text)
